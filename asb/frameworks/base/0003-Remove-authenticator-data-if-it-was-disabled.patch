@@ -1,7 +1,7 @@
 From 09f4c14b498e115aa27467237644238c47b99ca9 Mon Sep 17 00:00:00 2001
 From: Dmitry Dementyev <dementyev@google.com>
 Date: Tue, 2 Jul 2024 11:02:07 -0700
-Subject: [PATCH 3/7] Remove authenticator data if it was disabled.
+Subject: [PATCH 3/9] Remove authenticator data if it was disabled.
 
 Test: manual
 Bug: 343440463

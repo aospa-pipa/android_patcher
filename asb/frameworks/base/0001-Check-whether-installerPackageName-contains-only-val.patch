@@ -1,7 +1,7 @@
 From 5450d503c87e30995e205bcd1e70ba730978eb0a Mon Sep 17 00:00:00 2001
 From: Sumedh Sen <sumedhsen@google.com>
 Date: Wed, 17 Jul 2024 17:42:43 +0000
-Subject: [PATCH 1/7] Check whether installerPackageName contains only valid
+Subject: [PATCH 1/9] Check whether installerPackageName contains only valid
  characters
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8

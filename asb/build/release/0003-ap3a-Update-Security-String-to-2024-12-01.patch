@@ -1,22 +1,22 @@
-From c433a47d5cfd5a6c842993561285c31a5eba077d Mon Sep 17 00:00:00 2001
+From ca08d1dbb357668afb32b67e2ff9431616032887 Mon Sep 17 00:00:00 2001
 From: Sean Du <do4suki@gmail.com>
-Date: Wed, 6 Nov 2024 08:07:16 +0800
-Subject: [PATCH 2/3] ap3a: Update Security String to 2024-11-01
+Date: Wed, 4 Dec 2024 10:38:17 +0800
+Subject: [PATCH 3/3] ap3a: Update Security String to 2024-12-01
 
-Change-Id: I464fac030eef854ac5fea23eb10f5979bfb58f2e
+Change-Id: I8760fd8daa1d20d0f9bf8e9d3caec6d4716f8fce
 ---
  flag_values/ap3a/RELEASE_PLATFORM_SECURITY_PATCH.textproto | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/flag_values/ap3a/RELEASE_PLATFORM_SECURITY_PATCH.textproto b/flag_values/ap3a/RELEASE_PLATFORM_SECURITY_PATCH.textproto
-index d990b68..f816af1 100644
+index f816af1..a067192 100644
 --- a/flag_values/ap3a/RELEASE_PLATFORM_SECURITY_PATCH.textproto
 +++ b/flag_values/ap3a/RELEASE_PLATFORM_SECURITY_PATCH.textproto
 @@ -1,4 +1,4 @@
  name: "RELEASE_PLATFORM_SECURITY_PATCH"
  value: {
--  string_value: "2024-10-01"
-+  string_value: "2024-11-01"
+-  string_value: "2024-11-01"
++  string_value: "2024-12-01"
  }
 -- 
 2.47.1

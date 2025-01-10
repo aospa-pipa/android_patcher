@@ -1,7 +1,7 @@
 From 5ccf4017f68fc665f76f4a0b98da7e5b5ec62050 Mon Sep 17 00:00:00 2001
 From: Dipankar Bhardwaj <dipankarb@google.com>
 Date: Wed, 21 Aug 2024 14:26:50 +0000
-Subject: [PATCH 7/7] Restrict access to directories
+Subject: [PATCH 7/9] Restrict access to directories
 
 Restricted access to Android/data, Android/obb and Android/sandbox
 directories and its sub-directories. Replacing path's pattern match

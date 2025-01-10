@@ -1,8 +1,8 @@
 From a466bcef7fbd11e8d1095ce19c340c0a0a2959e0 Mon Sep 17 00:00:00 2001
 From: Nolan Scobie <nscobie@google.com>
 Date: Thu, 29 Aug 2024 18:06:17 +0000
-Subject: [PATCH] Avoid potential overflow when allocating 3D mask from emboss
- filter
+Subject: [PATCH 1/4] Avoid potential overflow when allocating 3D mask from
+ emboss filter
 
 Bug: 344620577
 Test: N/A -- unclear if even reachable

@@ -7,7 +7,10 @@ ASB=(
     'external/skia'
     'frameworks/base'
     'frameworks/native'
+    'packages/apps/DocumentsUI'
     'packages/apps/Settings'
+    'packages/modules/Bluetooth'
+    'packages/modules/Permission'
     'packages/modules/Wifi'
     'packages/providers/MediaProvider'
 )

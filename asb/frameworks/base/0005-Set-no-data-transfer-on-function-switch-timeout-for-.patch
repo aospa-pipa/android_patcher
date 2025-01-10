@@ -1,7 +1,7 @@
 From 718c7c843479be91c10ebe0a41a12e728dbf6034 Mon Sep 17 00:00:00 2001
 From: Ashish Kumar Gupta <kumarashishg@google.com>
 Date: Wed, 31 Jul 2024 16:02:29 +0000
-Subject: [PATCH 5/7] Set no data transfer on function switch timeout for
+Subject: [PATCH 5/9] Set no data transfer on function switch timeout for
  accessory mode
 
 In case of function switch times out, we will check whether

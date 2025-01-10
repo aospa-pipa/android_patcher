@@ -1,7 +1,7 @@
 From 9ad926857cfcac5afabe4a2071849d9d96d9f711 Mon Sep 17 00:00:00 2001
 From: lpeter <lpeter@google.com>
 Date: Tue, 16 Jul 2024 00:14:47 +0000
-Subject: [PATCH 6/7] Disallow device admin package and protected packages to
+Subject: [PATCH 6/9] Disallow device admin package and protected packages to
  be reinstalled as instant.
 
 We should prevent the following types of apps from being reinstalled with
