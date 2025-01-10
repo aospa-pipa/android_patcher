@@ -1,4 +1,4 @@
-From 414b77f26943b5d73f6b2d30bddbf940500c58a3 Mon Sep 17 00:00:00 2001
+From b29d29975fbf77af7789d6ec2a0e0c1926da8932 Mon Sep 17 00:00:00 2001
 From: Adithya R <gh0strider.2k18.reborn@gmail.com>
 Date: Mon, 29 Jan 2024 07:36:56 +0530
 Subject: [PATCH 011/103] fixup! SystemUI: Use offscreen gestures also to wake

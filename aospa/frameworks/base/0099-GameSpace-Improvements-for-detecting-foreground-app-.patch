@@ -1,4 +1,4 @@
-From 36891e10454f8f739d94a8190b1ba135db5c506a Mon Sep 17 00:00:00 2001
+From 7df8a2f3a47332f990687e95720793958c5b156b Mon Sep 17 00:00:00 2001
 From: Pranav Vashi <neobuddy89@gmail.com>
 Date: Mon, 18 Nov 2024 23:48:10 +0530
 Subject: [PATCH 099/103] GameSpace: Improvements for detecting foreground app

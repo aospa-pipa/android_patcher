@@ -1,4 +1,4 @@
-From 756df391235e13f27eaacea1c533d23c47f034a1 Mon Sep 17 00:00:00 2001
+From 1396876e1ba25350dad3d4026f1d2963e8da6c68 Mon Sep 17 00:00:00 2001
 From: Pranav Vashi <neobuddy89@gmail.com>
 Date: Sat, 27 Jul 2024 05:12:46 +0530
 Subject: [PATCH 054/103] SystemUI: Remove composite alpha from additional

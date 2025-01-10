@@ -1,4 +1,4 @@
-From 2a235720c3d76af3739c0db47dbb392645264128 Mon Sep 17 00:00:00 2001
+From b5212494e29ec6b5394edabb535430804116bb5f Mon Sep 17 00:00:00 2001
 From: Sean Du <do4suki@gmail.com>
 Date: Tue, 24 Dec 2024 08:55:35 +0800
 Subject: [PATCH 076/103] PixelPropsUtils: Disable Play Integrity spoof by

@@ -1,4 +1,4 @@
-From 5968e1a5d37ca66604630f906a8c6086e258f9d9 Mon Sep 17 00:00:00 2001
+From 3017beb7f6390f557673bc10390cd197096ab45e Mon Sep 17 00:00:00 2001
 From: Anushek Prasal <anushekprasal@gmail.com>
 Date: Wed, 29 May 2019 01:26:35 +0530
 Subject: [PATCH 026/103] base: Use wireless charging animation for wired

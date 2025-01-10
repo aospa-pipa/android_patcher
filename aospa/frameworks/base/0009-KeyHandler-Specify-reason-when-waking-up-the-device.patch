@@ -1,4 +1,4 @@
-From 90c0212e21f49bf608e40d99ba7c87d155ea24d1 Mon Sep 17 00:00:00 2001
+From 57d06ab5051f6d43e865db3b158c73dbc4f51c13 Mon Sep 17 00:00:00 2001
 From: Adithya R <gh0strider.2k18.reborn@gmail.com>
 Date: Wed, 25 Oct 2023 21:37:45 +0530
 Subject: [PATCH 009/103] KeyHandler: Specify reason when waking up the device

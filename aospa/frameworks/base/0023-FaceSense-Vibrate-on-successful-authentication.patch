@@ -1,4 +1,4 @@
-From 2473786b709685ecaa0b508fd82e1ca97b4cd5a9 Mon Sep 17 00:00:00 2001
+From a1eaf6f803c4a0cece8000ee1ef0b6c51d160088 Mon Sep 17 00:00:00 2001
 From: Adithya R <gh0strider.2k18.reborn@gmail.com>
 Date: Sun, 31 Dec 2023 16:10:00 +0530
 Subject: [PATCH 023/103] FaceSense: Vibrate on successful authentication

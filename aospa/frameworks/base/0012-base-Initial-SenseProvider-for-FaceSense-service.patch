@@ -1,4 +1,4 @@
-From ccd5045826838fff4f4b0dfb827320ebbc0a1437 Mon Sep 17 00:00:00 2001
+From e3fee1226d7b107cfd03922289949531bc0d4e85 Mon Sep 17 00:00:00 2001
 From: Chris Crump <chriscrawford893@gmail.com>
 Date: Sat, 25 Nov 2023 11:35:30 +0000
 Subject: [PATCH 012/103] base: Initial SenseProvider for FaceSense service

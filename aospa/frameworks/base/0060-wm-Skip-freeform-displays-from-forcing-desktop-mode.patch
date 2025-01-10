@@ -1,4 +1,4 @@
-From 798565d4ffab994d3c1845185e5a16d934d6a9ec Mon Sep 17 00:00:00 2001
+From 0ad6a39aa14bb20e5cb86bc68e72ce78a4f5bcf1 Mon Sep 17 00:00:00 2001
 From: Adithya R <gh0strider.2k18.reborn@gmail.com>
 Date: Mon, 2 Sep 2024 06:57:35 +0530
 Subject: [PATCH 060/103] wm: Skip freeform displays from forcing desktop mode

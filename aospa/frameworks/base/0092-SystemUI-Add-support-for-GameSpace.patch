@@ -1,4 +1,4 @@
-From 83b69706935d58ba9462b522adb726ee80cd31a5 Mon Sep 17 00:00:00 2001
+From 5b9554528f39990a9088f0ec4077551a19466cf0 Mon Sep 17 00:00:00 2001
 From: Nauval Rizky <enuma.alrizky@gmail.com>
 Date: Mon, 27 Dec 2021 17:05:57 +0700
 Subject: [PATCH 092/103] SystemUI: Add support for GameSpace
@@ -55,10 +55,10 @@ index 22f9c96a9d43..b797fe5bb3ce 100644
           * Keys we no longer back up under the current schema, but want to continue to
           * process when restoring historical backup datasets.
 diff --git a/core/res/AndroidManifest.xml b/core/res/AndroidManifest.xml
-index 4375f837d39d..4c68bc11ad4e 100644
+index 377fa007732f..559e4317c247 100644
 --- a/core/res/AndroidManifest.xml
 +++ b/core/res/AndroidManifest.xml
-@@ -895,6 +895,10 @@
+@@ -899,6 +899,10 @@
      <!-- Used to launch a common app (FlipFlap) for devices with flip cover. -->
      <protected-broadcast android:name="android.intent.action.LID_STATE_CHANGED" />
  

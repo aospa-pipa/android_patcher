@@ -1,4 +1,4 @@
-From e4725d8e952293208a115f2560db58ddfb2b3a2e Mon Sep 17 00:00:00 2001
+From 7946da8acf6a52779221d2a645211e6e8edb8b8e Mon Sep 17 00:00:00 2001
 From: Pranav Vashi <neobuddy89@gmail.com>
 Date: Thu, 2 May 2024 00:38:12 +0530
 Subject: [PATCH 072/103] StringBlock: Prevent SystemUI crash when inflating QS

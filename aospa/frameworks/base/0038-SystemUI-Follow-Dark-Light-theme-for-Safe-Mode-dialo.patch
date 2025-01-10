@@ -1,4 +1,4 @@
-From e308c386bfe6cdd2ab1c548af80abfaa6061aad3 Mon Sep 17 00:00:00 2001
+From fb1460823b91161dbd50ad9848f352a2936113db Mon Sep 17 00:00:00 2001
 From: Pulkit077 <pulkitagarwal2k1@gmail.com>
 Date: Fri, 16 Sep 2022 14:46:37 +0530
 Subject: [PATCH 038/103] SystemUI: Follow Dark/Light theme for Safe Mode

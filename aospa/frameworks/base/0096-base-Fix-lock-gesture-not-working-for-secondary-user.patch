@@ -1,4 +1,4 @@
-From b7d98e7dc9effdeacf7114c04bb9a20b3f08090c Mon Sep 17 00:00:00 2001
+From 6d5f9e16b8f401d85b493e4b743c8670e30f72b1 Mon Sep 17 00:00:00 2001
 From: Pranav Vashi <neobuddy89@gmail.com>
 Date: Mon, 2 Dec 2024 10:28:44 +0530
 Subject: [PATCH 096/103] base: Fix lock gesture not working for secondary

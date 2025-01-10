@@ -1,4 +1,4 @@
-From b7dc3c8837f444e53ff52e30428913d19e2f631c Mon Sep 17 00:00:00 2001
+From d7ef730aa35e809db28cf6ccab88d5b1f55a5b4f Mon Sep 17 00:00:00 2001
 From: althafvly <althafvly@gmail.com>
 Date: Tue, 26 May 2020 21:17:59 +0800
 Subject: [PATCH 039/103] SystemUI: Re-evaluate system theme on UI mode change

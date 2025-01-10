@@ -1,7 +1,7 @@
-From 4ecd2d3c2810e4dd03b5b16e8ae6356d9a7e8772 Mon Sep 17 00:00:00 2001
+From 1612f8728b0b35e2a67d04614b6ab223f338e4a0 Mon Sep 17 00:00:00 2001
 From: Simao Gomes Viana <simao@halogenos.org>
 Date: Sat, 23 Jul 2022 20:34:38 +0200
-Subject: [PATCH 2/2] Use SOONG_ZIP for all zip usages
+Subject: [PATCH] Use SOONG_ZIP for all zip usages
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit

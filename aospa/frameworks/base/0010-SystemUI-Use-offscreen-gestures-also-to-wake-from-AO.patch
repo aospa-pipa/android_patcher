@@ -1,4 +1,4 @@
-From 01048f351c4df5bb1edd4ed6b7b5d47601785425 Mon Sep 17 00:00:00 2001
+From b9b582e50484d46e6f6e3d2d2c42c3c3a4de7f09 Mon Sep 17 00:00:00 2001
 From: maxwen <max.weninger@gmail.com>
 Date: Sun, 18 Oct 2020 17:33:26 +0200
 Subject: [PATCH 010/103] SystemUI: Use offscreen gestures also to wake from

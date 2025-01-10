@@ -1,4 +1,4 @@
-From a4187ef8c31aee7db15de4ec71b04d856631488e Mon Sep 17 00:00:00 2001
+From d2a0cb95db17c71cd15d5af6a43c4195e1749e5a Mon Sep 17 00:00:00 2001
 From: Pranav Vashi <neobuddy89@gmail.com>
 Date: Sat, 2 Nov 2024 21:12:48 +0530
 Subject: [PATCH 055/103] SystemUI: Fix dark scrim on light theme on pixel

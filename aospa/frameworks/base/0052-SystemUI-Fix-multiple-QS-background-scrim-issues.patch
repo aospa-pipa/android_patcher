@@ -1,4 +1,4 @@
-From 4df0545f882758f354778fe55da9ae6b0a9c4eea Mon Sep 17 00:00:00 2001
+From 39f77f0d87107fa838fca6977fd4d6ec177b2a21 Mon Sep 17 00:00:00 2001
 From: Pranav Vashi <neobuddy89@gmail.com>
 Date: Sun, 29 Jan 2023 21:05:17 +0530
 Subject: [PATCH 052/103] SystemUI: Fix multiple QS background scrim issues

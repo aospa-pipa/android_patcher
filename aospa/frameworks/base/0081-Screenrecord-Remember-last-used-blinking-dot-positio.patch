@@ -1,4 +1,4 @@
-From 962157cc06b82b91623f5473f072f9339f6f3334 Mon Sep 17 00:00:00 2001
+From 5e4d7c7eab7084b324e8840dcb856d5fcd7875d7 Mon Sep 17 00:00:00 2001
 From: Ido Ben-Hur <idoybh2@gmail.com>
 Date: Fri, 31 Mar 2023 04:04:16 +0300
 Subject: [PATCH 081/103] Screenrecord: Remember last used blinking dot

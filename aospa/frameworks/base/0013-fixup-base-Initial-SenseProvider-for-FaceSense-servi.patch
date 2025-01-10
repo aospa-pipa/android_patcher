@@ -1,4 +1,4 @@
-From e9d7cad8c69c25dfde41f3943f6e33f10cd871a4 Mon Sep 17 00:00:00 2001
+From de1b6877fcad5bca8c1e2113f4dc68545e3e79ce Mon Sep 17 00:00:00 2001
 From: Sean Du <do4suki@gmail.com>
 Date: Sun, 10 Nov 2024 15:54:53 +0800
 Subject: [PATCH 013/103] fixup! base: Initial SenseProvider for FaceSense

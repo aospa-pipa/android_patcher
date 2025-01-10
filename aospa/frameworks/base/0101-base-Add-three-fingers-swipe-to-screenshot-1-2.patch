@@ -1,4 +1,4 @@
-From 80098cfe04aa8e34a59abff9341f23930b3affb4 Mon Sep 17 00:00:00 2001
+From c7db9765f7db85a71c8fcfd8b26fccff06e15ecc Mon Sep 17 00:00:00 2001
 From: ghbhaha <ghbhaha@gmail.com>
 Date: Sun, 9 Aug 2015 01:23:33 +0800
 Subject: [PATCH 101/103] base: Add three-fingers-swipe to screenshot [1/2]
@@ -143,7 +143,7 @@ index e29ad80fa8d8..7f2757931fee 100644
      }
  }
 diff --git a/services/core/java/com/android/server/am/ActivityManagerService.java b/services/core/java/com/android/server/am/ActivityManagerService.java
-index 03fd09704dcf..4bef505773a7 100644
+index 3385aa3614db..e0986928049e 100644
 --- a/services/core/java/com/android/server/am/ActivityManagerService.java
 +++ b/services/core/java/com/android/server/am/ActivityManagerService.java
 @@ -1741,6 +1741,10 @@ public class ActivityManagerService extends IActivityManager.Stub
@@ -181,7 +181,7 @@ index 03fd09704dcf..4bef505773a7 100644
          }
          mAppErrors.loadAppsNotReportingCrashesFromConfig(res.getString(
                  com.android.internal.R.string.config_appsNotReportingCrashes));
-@@ -21284,7 +21291,43 @@ public class ActivityManagerService extends IActivityManager.Stub
+@@ -21288,7 +21295,43 @@ public class ActivityManagerService extends IActivityManager.Stub
          synchronized (mPidsSelfLocked) {
              app = mPidsSelfLocked.get(debugPid);
          }

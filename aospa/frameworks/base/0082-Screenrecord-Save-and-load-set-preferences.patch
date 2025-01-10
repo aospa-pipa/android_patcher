@@ -1,4 +1,4 @@
-From d0343f4d59cb54e83f32cf98b4babdf4d2f2f56b Mon Sep 17 00:00:00 2001
+From 057243803e0a105ef116f2ba2686223fd7968224 Mon Sep 17 00:00:00 2001
 From: Ido Ben-Hur <idoybh2@gmail.com>
 Date: Mon, 26 Apr 2021 14:49:39 +0300
 Subject: [PATCH 082/103] Screenrecord: Save and load set preferences

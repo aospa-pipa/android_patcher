@@ -1,4 +1,4 @@
-From 5987c1b2da1abaa80a33d1ec7756a767a1f82255 Mon Sep 17 00:00:00 2001
+From 7d81c5fa08930f970e6b876708049a84fb2f5a93 Mon Sep 17 00:00:00 2001
 From: Danny Lin <danny@kdrag0n.dev>
 Date: Mon, 11 Oct 2021 19:25:08 -0700
 Subject: [PATCH 033/103] SystemUI: Add dual-tone light and dark themes for QS

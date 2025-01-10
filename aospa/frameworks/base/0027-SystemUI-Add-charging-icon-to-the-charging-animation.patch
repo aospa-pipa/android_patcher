@@ -1,4 +1,4 @@
-From 8fa6b7c415729e6102280e80cccd818ba7add9da Mon Sep 17 00:00:00 2001
+From 8cf4a7740dcda2d3ec7f5721bbaeff6550782f5b Mon Sep 17 00:00:00 2001
 From: minaripenguin <minaripenguin@users.noreply.github.com>
 Date: Sat, 11 Nov 2023 13:50:01 +0800
 Subject: [PATCH 027/103] SystemUI: Add charging icon to the charging animation

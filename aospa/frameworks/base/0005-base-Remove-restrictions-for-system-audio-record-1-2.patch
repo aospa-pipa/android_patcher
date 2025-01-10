@@ -1,4 +1,4 @@
-From fbd11ab7120b9f9b836c41cc1a6147f7d3184981 Mon Sep 17 00:00:00 2001
+From dd46e28ccf097d874686ba50b6b88a10b52226a1 Mon Sep 17 00:00:00 2001
 From: jhenrique09 <jhenrique09.mcz@hotmail.com>
 Date: Tue, 24 Mar 2020 16:46:29 -0300
 Subject: [PATCH 005/103] base: Remove restrictions for system audio record

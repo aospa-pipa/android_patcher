@@ -1,4 +1,4 @@
-From fbbac0de0d057b2dd4af7710f78053230ef5688b Mon Sep 17 00:00:00 2001
+From e4ae9f0aed742c2afdfeca66515b362cc48252ab Mon Sep 17 00:00:00 2001
 From: Tobias Merkel <stylogey@gmail.com>
 Date: Thu, 22 Jun 2023 18:52:41 +0200
 Subject: [PATCH 042/103] SystemUI: refresh system icons on theme change

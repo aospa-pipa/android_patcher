@@ -1,4 +1,4 @@
-From a3894649039faee791be020abb90751c0e904240 Mon Sep 17 00:00:00 2001
+From 886e98fd641f358e3313584b11db1272fdf42d24 Mon Sep 17 00:00:00 2001
 From: Pranav Vashi <neobuddy89@gmail.com>
 Date: Sat, 8 Apr 2023 09:34:28 +0530
 Subject: [PATCH 087/103] Screenrecord: Save preferences for permission dialog

@@ -1,4 +1,4 @@
-From c65735684a8d103ceada639064b09be5468e0575 Mon Sep 17 00:00:00 2001
+From 71af813cf2bed40ad3d936b0755b058fc2c55492 Mon Sep 17 00:00:00 2001
 From: Danny Baumann <dannybaumann@web.de>
 Date: Wed, 20 Jul 2022 15:53:13 +0200
 Subject: [PATCH 041/103] SystemUI: Fix QS header clock color

@@ -1,4 +1,4 @@
-From d67f4c0b79513d37b665a493faf98bb3d27a439e Mon Sep 17 00:00:00 2001
+From 8f59b87c932f6bb8576f4933b5569a53c4662e8e Mon Sep 17 00:00:00 2001
 From: althafvly <althafvly@gmail.com>
 Date: Tue, 8 Oct 2024 16:12:36 +0530
 Subject: [PATCH 048/103] SystemUI: Fix navbar tint when QS expanded

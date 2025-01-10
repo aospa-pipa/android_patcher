@@ -1,4 +1,4 @@
-From 24d98aa766521a605abcfb57065000bed39fede5 Mon Sep 17 00:00:00 2001
+From 673a1430d506033fc8c09080427a9a01e7b21cb6 Mon Sep 17 00:00:00 2001
 From: maxwen <max.weninger@gmail.com>
 Date: Wed, 9 Feb 2022 18:02:46 +0100
 Subject: [PATCH 070/103] SystemUI: use default dialogCornerRadius for qs

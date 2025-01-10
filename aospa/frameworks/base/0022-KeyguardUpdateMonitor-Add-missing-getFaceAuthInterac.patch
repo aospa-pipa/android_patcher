@@ -1,4 +1,4 @@
-From 7ccf0dd1fbe5be000d2f2dd0f92f4b474efd4caf Mon Sep 17 00:00:00 2001
+From ff9f996abfa92bec047167faf1ed27532de8e0ea Mon Sep 17 00:00:00 2001
 From: Michael Bestas <mkbestas@lineageos.org>
 Date: Wed, 30 Oct 2024 11:22:25 +0200
 Subject: [PATCH 022/103] KeyguardUpdateMonitor: Add missing

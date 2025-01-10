@@ -1,4 +1,4 @@
-From 181fb05ed1719b754e10edd64f3d411f39e5c888 Mon Sep 17 00:00:00 2001
+From 013fb174ab399b59f223d0c2c958a7150560fc4e Mon Sep 17 00:00:00 2001
 From: Danny Lin <danny@kdrag0n.dev>
 Date: Mon, 11 Oct 2021 19:24:58 -0700
 Subject: [PATCH 030/103] SystemUI: Follow light/dark theme in quick settings

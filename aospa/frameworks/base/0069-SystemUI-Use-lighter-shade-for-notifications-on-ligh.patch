@@ -1,4 +1,4 @@
-From f363d9c68037951f1395d5c36473446f7a191680 Mon Sep 17 00:00:00 2001
+From 281afeb9713dc1b2b8b6f0791e2b27feace06362 Mon Sep 17 00:00:00 2001
 From: minaripenguin <minaripenguin@users.noreply.github.com>
 Date: Sat, 27 Apr 2024 07:36:47 +0800
 Subject: [PATCH 069/103] SystemUI: Use lighter shade for notifications on

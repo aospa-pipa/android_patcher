@@ -1,4 +1,4 @@
-From 1ee30aaf3d0e6e27422c6d69877e5ab2de33771a Mon Sep 17 00:00:00 2001
+From 8461bfc18ff5cfe64aadebe7ecff0ba33cca2724 Mon Sep 17 00:00:00 2001
 From: Dhina17 <dhinalogu@gmail.com>
 Date: Sat, 3 Aug 2024 12:28:05 +0530
 Subject: [PATCH 050/103] SystemUI: Update resources on theme change in shade

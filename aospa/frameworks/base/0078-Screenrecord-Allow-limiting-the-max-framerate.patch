@@ -1,4 +1,4 @@
-From c5a058d9e1e8b52e8a1aba0ab35e3581aa262ed7 Mon Sep 17 00:00:00 2001
+From c79b7c7b3aebf7ff3767312d793934674b9065c4 Mon Sep 17 00:00:00 2001
 From: Kuba Wojciechowski <nullbytepl@gmail.com>
 Date: Sat, 6 Feb 2021 21:54:25 +0300
 Subject: [PATCH 078/103] Screenrecord: Allow limiting the max framerate

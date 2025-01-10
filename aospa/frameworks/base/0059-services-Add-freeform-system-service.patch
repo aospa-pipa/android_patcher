@@ -1,4 +1,4 @@
-From c4ee990dea87058b269cc194c7d388963e91d513 Mon Sep 17 00:00:00 2001
+From 5fe84cfe44174bd9774b100a9f61d98f5204a59e Mon Sep 17 00:00:00 2001
 From: Adithya R <gh0strider.2k18.reborn@gmail.com>
 Date: Thu, 8 Aug 2024 20:14:44 +0530
 Subject: [PATCH 059/103] services: Add freeform system service
@@ -20,10 +20,10 @@ Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
  create mode 100644 services/freeform/java/com/android/server/display/FreeformService.java
 
 diff --git a/core/res/AndroidManifest.xml b/core/res/AndroidManifest.xml
-index 4b11778a3639..4375f837d39d 100644
+index 582f7cd76667..377fa007732f 100644
 --- a/core/res/AndroidManifest.xml
 +++ b/core/res/AndroidManifest.xml
-@@ -963,6 +963,10 @@
+@@ -967,6 +967,10 @@
      <permission android:name="android.permission.SET_DEFAULT_ACCOUNT_FOR_CONTACTS"
          android:protectionLevel="internal|role" />
  

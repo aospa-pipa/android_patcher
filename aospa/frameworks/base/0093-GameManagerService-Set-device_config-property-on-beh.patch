@@ -1,4 +1,4 @@
-From 5d7e29ef06610ec739d83a6e807e055e9762283d Mon Sep 17 00:00:00 2001
+From 520488b47294edcc06bdae0b39849b71521ce227 Mon Sep 17 00:00:00 2001
 From: Dhina17 <dhinalogu@gmail.com>
 Date: Fri, 15 Sep 2023 14:18:30 +0530
 Subject: [PATCH 093/103] GameManagerService: Set device_config property on

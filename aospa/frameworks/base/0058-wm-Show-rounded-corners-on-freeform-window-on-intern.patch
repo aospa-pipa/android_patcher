@@ -1,4 +1,4 @@
-From 316d895ee2a5a18e80d523cef52e6bd5b9680d80 Mon Sep 17 00:00:00 2001
+From 541e10ac841652c974ca4382a5775af7fc2abdd2 Mon Sep 17 00:00:00 2001
 From: Adithya R <gh0strider.2k18.reborn@gmail.com>
 Date: Thu, 31 Oct 2024 09:01:57 +0530
 Subject: [PATCH 058/103] wm: Show rounded corners on freeform window on

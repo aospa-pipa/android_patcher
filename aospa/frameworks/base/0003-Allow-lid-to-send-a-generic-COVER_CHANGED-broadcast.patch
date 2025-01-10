@@ -1,4 +1,4 @@
-From abbbb3766e2d62b2240ab9331c9f265a8645f7f5 Mon Sep 17 00:00:00 2001
+From dfde2301784b538621d5683494f067eb01bb4862 Mon Sep 17 00:00:00 2001
 From: jrior001 <jriordan001@gmail.com>
 Date: Thu, 24 Nov 2016 22:34:25 -0500
 Subject: [PATCH 003/103] Allow lid to send a generic COVER_CHANGED broadcast
@@ -49,12 +49,12 @@ index 360e0fe1e7bb..a873ad452032 100644
      // ---------------------------------------------------------------------
      // Intent flags (see mFlags variable).
 diff --git a/core/res/AndroidManifest.xml b/core/res/AndroidManifest.xml
-index 5944b6e7f778..4b11778a3639 100644
+index 3e9b407cae3f..582f7cd76667 100644
 --- a/core/res/AndroidManifest.xml
 +++ b/core/res/AndroidManifest.xml
-@@ -892,6 +892,9 @@
-     <protected-broadcast android:name="com.android.uwb.uwbcountrycode.GEOCODE_RETRY" />
-     <protected-broadcast android:name="android.telephony.action.ACTION_SATELLITE_SUBSCRIBER_ID_LIST_CHANGED" />
+@@ -896,6 +896,9 @@
+     <protected-broadcast android:name="android.telephony.action.ACTION_SATELLITE_START_NON_EMERGENCY_SESSION" />
+ 
  
 +    <!-- Used to launch a common app (FlipFlap) for devices with flip cover. -->
 +    <protected-broadcast android:name="android.intent.action.LID_STATE_CHANGED" />

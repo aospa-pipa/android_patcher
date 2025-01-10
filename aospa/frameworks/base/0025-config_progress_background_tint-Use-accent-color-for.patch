@@ -1,4 +1,4 @@
-From 571da463ed9ebe76efd4a68c50e274e81a9627d5 Mon Sep 17 00:00:00 2001
+From e7703d7d465b3d9a6f7874d3c6f17b3235d98df4 Mon Sep 17 00:00:00 2001
 From: Danny Lin <danny@kdrag0n.dev>
 Date: Thu, 13 Oct 2022 15:07:59 +0800
 Subject: [PATCH 025/103] config_progress_background_tint: Use accent color for

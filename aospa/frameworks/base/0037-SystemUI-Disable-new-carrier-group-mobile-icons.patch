@@ -1,4 +1,4 @@
-From 9d3b75b3641fb01c32b3659f693d66af4adfb036 Mon Sep 17 00:00:00 2001
+From 7567c35ec48c96103494085f129312e914c9a810 Mon Sep 17 00:00:00 2001
 From: minaripenguin <minaripenguin@users.noreply.github.com>
 Date: Wed, 3 Jul 2024 19:09:34 +0800
 Subject: [PATCH 037/103] SystemUI: Disable new carrier group mobile icons

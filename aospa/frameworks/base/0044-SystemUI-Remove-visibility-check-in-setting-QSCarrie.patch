@@ -1,4 +1,4 @@
-From 90bc39ec1665571091e297fc3bff55abdb50f66d Mon Sep 17 00:00:00 2001
+From 22e2f9a936510a346e72fdb6aa708553eac2b0ab Mon Sep 17 00:00:00 2001
 From: Adithya R <gh0strider.2k18.reborn@gmail.com>
 Date: Thu, 19 Jan 2023 14:37:43 +0530
 Subject: [PATCH 044/103] SystemUI: Remove visibility check in setting

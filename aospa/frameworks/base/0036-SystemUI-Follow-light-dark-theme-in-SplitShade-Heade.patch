@@ -1,4 +1,4 @@
-From e7ede6940c034daded844f8910e7789fb62a2068 Mon Sep 17 00:00:00 2001
+From 19e220a5ab88ed9190bb10cebd988a16b20f2319 Mon Sep 17 00:00:00 2001
 From: ReallySnow <reallysnow233@gmail.com>
 Date: Thu, 15 Sep 2022 13:38:48 +0800
 Subject: [PATCH 036/103] SystemUI: Follow light/dark theme in SplitShade

@@ -1,4 +1,4 @@
-From cc705ca9ceab113a7b5cd21641309f64f3d89dbb Mon Sep 17 00:00:00 2001
+From 2c8e3df242e94a2abfc70c35c126d94aa7da510d Mon Sep 17 00:00:00 2001
 From: Adithya R <gh0strider.2k18.reborn@gmail.com>
 Date: Sat, 31 Aug 2024 06:18:29 +0530
 Subject: [PATCH 062/103] wm: Add API to listen for secure content in display

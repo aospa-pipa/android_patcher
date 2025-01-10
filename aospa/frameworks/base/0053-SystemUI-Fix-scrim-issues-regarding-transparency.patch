@@ -1,4 +1,4 @@
-From 1d28e9aefdd3d4c502e83175163c979cc9673917 Mon Sep 17 00:00:00 2001
+From ee2b861f94bfab1227298e14504e7520c96ac70a Mon Sep 17 00:00:00 2001
 From: nift4 <nift4@protonmail.com>
 Date: Thu, 13 Apr 2023 09:18:41 +0200
 Subject: [PATCH 053/103] SystemUI: Fix scrim issues regarding transparency

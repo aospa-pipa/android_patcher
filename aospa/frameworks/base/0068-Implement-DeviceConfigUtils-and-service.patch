@@ -1,4 +1,4 @@
-From 698a2bb33d169400259906512acf56d5c63c843a Mon Sep 17 00:00:00 2001
+From 2284e1597109affc49b5f33bf899517abde7b73b Mon Sep 17 00:00:00 2001
 From: jhenrique09 <jhsv09@gmail.com>
 Date: Thu, 10 Aug 2023 14:22:06 +0000
 Subject: [PATCH 068/103] Implement DeviceConfigUtils and service

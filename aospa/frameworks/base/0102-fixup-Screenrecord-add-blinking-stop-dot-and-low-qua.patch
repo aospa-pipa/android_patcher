@@ -1,4 +1,4 @@
-From 1d74bc4268797e6017c87a7f412e8f725e54576d Mon Sep 17 00:00:00 2001
+From fea8d491e1b2b3b0e16ce39c504bb28f68816211 Mon Sep 17 00:00:00 2001
 From: Sean Du <do4suki@gmail.com>
 Date: Sat, 28 Dec 2024 13:28:30 +0800
 Subject: [PATCH 102/103] fixup! Screenrecord: add blinking stop dot and low

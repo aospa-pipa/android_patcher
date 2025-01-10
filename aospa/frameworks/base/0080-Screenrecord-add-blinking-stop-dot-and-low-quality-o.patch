@@ -1,4 +1,4 @@
-From bc0489423fe53a3a4139a6ec0c488215111b1ad0 Mon Sep 17 00:00:00 2001
+From bfc1ef95dac4c3920c72d49f21fc3552a8cc5297 Mon Sep 17 00:00:00 2001
 From: ezio84 <brabus84@gmail.com>
 Date: Sat, 14 Nov 2020 22:23:23 +0100
 Subject: [PATCH 080/103] Screenrecord: add blinking stop dot and low quality

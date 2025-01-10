@@ -1,4 +1,4 @@
-From 6a0e1c263fd8c8d42fa1fcc0e0cf414e03b608a3 Mon Sep 17 00:00:00 2001
+From 9b5229bfb3337de03e3bdd5d172f3852f4d014cd Mon Sep 17 00:00:00 2001
 From: Pranav Vashi <neobuddy89@gmail.com>
 Date: Fri, 9 Aug 2024 23:24:32 +0530
 Subject: [PATCH 056/103] SystemUI: Fix auth scrim turning black in white theme

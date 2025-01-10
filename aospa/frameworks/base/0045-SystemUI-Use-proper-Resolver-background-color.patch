@@ -1,4 +1,4 @@
-From 1c741c1eb1495900282aba6dda529e945f94f20d Mon Sep 17 00:00:00 2001
+From 184c493ffcc2c62f37f43b55801e3f2899b96e86 Mon Sep 17 00:00:00 2001
 From: elluzion <dyrex2004@gmail.com>
 Date: Mon, 7 Dec 2020 20:39:40 +0100
 Subject: [PATCH 045/103] SystemUI: Use proper Resolver background color

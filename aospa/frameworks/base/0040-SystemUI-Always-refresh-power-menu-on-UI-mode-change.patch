@@ -1,4 +1,4 @@
-From 11c4b8e2f275a3561e8c08a23eaa1b22c4987a45 Mon Sep 17 00:00:00 2001
+From dfd3f608291640f0bc2b0907dcb53f2f64471615 Mon Sep 17 00:00:00 2001
 From: Danny Lin <danny@kdrag0n.dev>
 Date: Tue, 8 Mar 2022 20:37:33 -0800
 Subject: [PATCH 040/103] SystemUI: Always refresh power menu on UI mode change

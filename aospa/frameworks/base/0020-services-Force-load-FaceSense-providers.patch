@@ -1,4 +1,4 @@
-From 7ea50b73d6f4ad08db1ff13afadde2d5e6c63239 Mon Sep 17 00:00:00 2001
+From c0d1eb7bdbfc8cdc6a6e5d2d0baf6012f8f29193 Mon Sep 17 00:00:00 2001
 From: Pranav Vashi <neobuddy89@gmail.com>
 Date: Mon, 14 Oct 2024 17:04:40 +0530
 Subject: [PATCH 020/103] services: Force load FaceSense providers

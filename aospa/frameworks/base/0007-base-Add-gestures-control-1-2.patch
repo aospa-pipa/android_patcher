@@ -1,4 +1,4 @@
-From b89435d16d50340ba0b2252286132eced2322c15 Mon Sep 17 00:00:00 2001
+From 561e95f1b3083010341b04745b9c364bc8544549 Mon Sep 17 00:00:00 2001
 From: Carlo Savignano <carlosavignano@aospa.co>
 Date: Wed, 29 Mar 2017 15:09:00 +0100
 Subject: [PATCH 007/103] base: Add gestures control [1/2]
@@ -324,7 +324,7 @@ index 4e16a9dae796..695692de063d 100644
           Empty is viewed as "all".  Only used on devices which
           don't support RIL_REQUEST_GET_RADIO_CAPABILITY
 diff --git a/core/res/res/values/symbols.xml b/core/res/res/values/symbols.xml
-index 7bcaaaac9733..07f79327c38f 100644
+index ec96f0ee0c3e..4db98f57bae1 100644
 --- a/core/res/res/values/symbols.xml
 +++ b/core/res/res/values/symbols.xml
 @@ -3091,7 +3091,6 @@

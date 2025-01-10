@@ -1,4 +1,4 @@
-From 6e0b2c84955bc5ca4f9958fdfd81418563a15e10 Mon Sep 17 00:00:00 2001
+From a42e071a9f4e069fc47fc7c184294145d53033a1 Mon Sep 17 00:00:00 2001
 From: Yuan Si <do4suki@gmail.com>
 Date: Sun, 17 Dec 2023 16:21:31 +0800
 Subject: [PATCH 004/103] HACK: Allow to block lid changed state

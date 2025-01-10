@@ -1,4 +1,4 @@
-From 8768bd750fedde5b4e8b31cce4db56c4178fcef9 Mon Sep 17 00:00:00 2001
+From 889ea56050f5da09377a70139f31e5080e62618a Mon Sep 17 00:00:00 2001
 From: althafvly <althafvly@gmail.com>
 Date: Tue, 8 Oct 2024 16:50:03 +0530
 Subject: [PATCH 049/103] Revert^2 "SystemUI: Remove nav bar background in QS

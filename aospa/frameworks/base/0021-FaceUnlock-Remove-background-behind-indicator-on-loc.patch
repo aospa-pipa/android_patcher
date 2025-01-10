@@ -1,4 +1,4 @@
-From 662899159d49c37817e22be02aae16149c1d55f6 Mon Sep 17 00:00:00 2001
+From c0c412b76de7c9284904cd08ba91428dbe97333f Mon Sep 17 00:00:00 2001
 From: Pranav Vashi <neobuddy89@gmail.com>
 Date: Sat, 26 Oct 2024 18:42:22 +0530
 Subject: [PATCH 021/103] FaceUnlock: Remove background behind indicator on

@@ -1,4 +1,4 @@
-From ba808ea697edbcaf56bbe858de87375845d2b4d7 Mon Sep 17 00:00:00 2001
+From 37362f4c4d474fd9fc9b1f1fdd2c365b68ce48b9 Mon Sep 17 00:00:00 2001
 From: Pranav Vashi <neobuddy89@gmail.com>
 Date: Thu, 6 Sep 2018 03:38:32 +0530
 Subject: [PATCH 063/103] base: Add crDroid utils

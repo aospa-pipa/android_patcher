@@ -1,4 +1,4 @@
-From 89891bb1fee72c1a4ef75ce0b616c398a02ebe3d Mon Sep 17 00:00:00 2001
+From 64c9a123b818079cbc2b1a9c29301f0793aaa001 Mon Sep 17 00:00:00 2001
 From: LuK1337 <priv.luk@gmail.com>
 Date: Wed, 31 Oct 2018 16:31:19 +0100
 Subject: [PATCH 001/103] Squash of SystemUI: Show bluetooth battery level

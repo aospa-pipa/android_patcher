@@ -1,4 +1,4 @@
-From a4e01b39e3a8cd31fdaf1ef50ef6612c7b3d79ac Mon Sep 17 00:00:00 2001
+From d5196f6f852b9f77a38065dc69d0bba247eaf2ce Mon Sep 17 00:00:00 2001
 From: cjh1249131356 <cjh1249131356@gmail.com>
 Date: Fri, 3 Jun 2022 01:13:40 +0800
 Subject: [PATCH 095/103] base: Rework lock gesture feature
@@ -82,10 +82,10 @@ index d23db704031b..4a8d8e1027da 100644
 +
  </resources>
 diff --git a/services/core/java/com/android/server/wm/DisplayPolicy.java b/services/core/java/com/android/server/wm/DisplayPolicy.java
-index 3a80aca91a5e..ab308d96daf9 100644
+index 15d0d1986360..d75241610611 100644
 --- a/services/core/java/com/android/server/wm/DisplayPolicy.java
 +++ b/services/core/java/com/android/server/wm/DisplayPolicy.java
-@@ -1948,6 +1948,12 @@ public class DisplayPolicy {
+@@ -1952,6 +1952,12 @@ public class DisplayPolicy {
       */
      public void onConfigurationChanged() {
          final Resources res = getCurrentUserResources();
@@ -98,7 +98,7 @@ index 3a80aca91a5e..ab308d96daf9 100644
          mNavBarOpacityMode = res.getInteger(R.integer.config_navBarOpacityMode);
          mLeftGestureInset = mGestureNavigationSettingsObserver.getLeftSensitivity(res);
          mRightGestureInset = mGestureNavigationSettingsObserver.getRightSensitivity(res);
-@@ -2440,7 +2446,7 @@ public class DisplayPolicy {
+@@ -2444,7 +2450,7 @@ public class DisplayPolicy {
          if (controlTarget.canShowTransient()) {
              // Show transient bars if they are hidden; restore position if they are visible.
              mDisplayContent.getInsetsPolicy().showTransient(SHOW_TYPES_FOR_SWIPE,
@@ -107,7 +107,7 @@ index 3a80aca91a5e..ab308d96daf9 100644
              controlTarget.showInsets(restorePositionTypes, false /* fromIme */,
                      null /* statsToken */);
          } else {
-@@ -3226,4 +3232,8 @@ public class DisplayPolicy {
+@@ -3230,4 +3236,8 @@ public class DisplayPolicy {
      boolean shouldAttachNavBarToAppDuringTransition() {
          return mShouldAttachNavBarToAppDuringTransition && mNavigationBar != null;
      }

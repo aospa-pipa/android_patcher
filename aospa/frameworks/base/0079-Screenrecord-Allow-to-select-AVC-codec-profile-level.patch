@@ -1,4 +1,4 @@
-From 1b9ffe4e85ac731ab81a25b88a8d78b4283c5289 Mon Sep 17 00:00:00 2001
+From cd5b78079780cd863c0d8f22644bcd5f5fdf47de Mon Sep 17 00:00:00 2001
 From: iusmac <iusico.maxim@libero.it>
 Date: Tue, 9 Aug 2022 07:58:47 +0200
 Subject: [PATCH 079/103] Screenrecord: Allow to select AVC codec profile level
