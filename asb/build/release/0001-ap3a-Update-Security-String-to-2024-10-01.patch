@@ -1,0 +1,27 @@
+From 9fcfd64980c04d8e257629edb9b9bfec8fd00453 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Sim=C3=A3o=20Gomes=20Viana?= <devel@superboring.dev>
+Date: Thu, 10 Oct 2024 21:36:48 +0000
+Subject: [PATCH] ap3a: Update Security String to 2024-10-01
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Change-Id: I45f1a2b9ed246df3910b7be2787dc81ef5facb0c
+Signed-off-by: Simão Gomes Viana <devel@superboring.dev>
+---
+ flag_values/ap3a/RELEASE_PLATFORM_SECURITY_PATCH.textproto | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/flag_values/ap3a/RELEASE_PLATFORM_SECURITY_PATCH.textproto b/flag_values/ap3a/RELEASE_PLATFORM_SECURITY_PATCH.textproto
+index e1d2838..d990b68 100644
+--- a/flag_values/ap3a/RELEASE_PLATFORM_SECURITY_PATCH.textproto
++++ b/flag_values/ap3a/RELEASE_PLATFORM_SECURITY_PATCH.textproto
+@@ -1,4 +1,4 @@
+ name: "RELEASE_PLATFORM_SECURITY_PATCH"
+ value: {
+-  string_value: "2024-09-05"
++  string_value: "2024-10-01"
+ }
+-- 
+2.47.1
+

@@ -1,0 +1,59 @@
+From 565c777fc22fd5a939611ea30ae8cac4d085610c Mon Sep 17 00:00:00 2001
+From: Yiling Chuang <emilychuang@google.com>
+Date: Mon, 8 Jul 2024 03:09:50 +0000
+Subject: [PATCH] RESTRICT AUTOMERGE FRP bypass defense in App battery usage
+ page
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Before the setup flow completion, don't allow the app info page in App battery usage to be launched.
+
+Bug: 327748846
+Test: atest SettingsRoboTests + manual test
+- factory reset + launch app battery usage app info via ADB during Setup -> verify app closes
+Flag : EXEMPT bugfix
+
+(cherry picked from commit 419a6a907902a12a0f565c808fa70092004d6686)
+(cherry picked from https://googleplex-android-review.googlesource.com/q/commit:46724de1a273aa4110e0f645750eb48646b4546a)
+Merged-In: I486820ca2afecc02729a56a3c531fb931c1907d0
+Change-Id: I1304d1e87eaa9f7de697f30d4e6018a970ffaa2e
+Signed-off-by: Simão Gomes Viana <devel@superboring.dev>
+---
+ .../android/settings/fuelgauge/AdvancedPowerUsageDetail.java | 5 +++++
+ .../settings/fuelgauge/AdvancedPowerUsageDetailTest.java     | 5 +++++
+ 2 files changed, 10 insertions(+)
+
+diff --git a/src/com/android/settings/fuelgauge/AdvancedPowerUsageDetail.java b/src/com/android/settings/fuelgauge/AdvancedPowerUsageDetail.java
+index 005c0730343..7bbb06a2d30 100644
+--- a/src/com/android/settings/fuelgauge/AdvancedPowerUsageDetail.java
++++ b/src/com/android/settings/fuelgauge/AdvancedPowerUsageDetail.java
+@@ -268,6 +268,11 @@ public class AdvancedPowerUsageDetail extends DashboardFragment
+         mLogStringBuilder = new StringBuilder("onResume mode = ").append(mOptimizationMode);
+     }
+ 
++    @Override
++    protected boolean shouldSkipForInitialSUW() {
++        return true;
++    }
++
+     @Override
+     public void onPause() {
+         super.onPause();
+diff --git a/tests/robotests/src/com/android/settings/fuelgauge/AdvancedPowerUsageDetailTest.java b/tests/robotests/src/com/android/settings/fuelgauge/AdvancedPowerUsageDetailTest.java
+index 80739e9d47a..1bc00a1fdff 100644
+--- a/tests/robotests/src/com/android/settings/fuelgauge/AdvancedPowerUsageDetailTest.java
++++ b/tests/robotests/src/com/android/settings/fuelgauge/AdvancedPowerUsageDetailTest.java
+@@ -441,4 +441,9 @@ public class AdvancedPowerUsageDetailTest {
+         TimeUnit.SECONDS.sleep(1);
+         verifyNoInteractions(mMetricsFeatureProvider);
+     }
++
++    @Test
++    public void shouldSkipForInitialSUW_returnTrue() {
++        assertThat(mFragment.shouldSkipForInitialSUW()).isTrue();
++    }
+ }
+-- 
+2.47.1
+

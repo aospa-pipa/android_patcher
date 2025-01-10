@@ -3,6 +3,9 @@
 ROOT="${PWD}"
 
 ASB=(
+    'build/release'
+    'frameworks/base'
+    'packages/apps/Settings'
 )
 
 REPOSITORIES=(
@@ -37,4 +40,3 @@ for repository in "${REPOSITORIES[@]}"; do
 
     cd "${ROOT}"
 done
-
