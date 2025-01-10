@@ -1,76 +1,40 @@
 #!/bin/bash
 
 ROOT="${PWD}"
-REPOSITORIES=(
-    'art'
-    'bionic'
-    'build/make'
-    'external/aac'
-    'external/chromium-libpac'
-    'external/dnsmasq'
-    'external/gptfdisk'
-    'external/libaom'
-    'external/libavc'
-    'external/libexif'
-    'external/okhttp'
-    'external/skia'
-    'external/sonivox'
-    'external/sqlite'
-    'external/tremolo'
-    'external/v8'
-    'external/wpa_supplicant_8'
-    'frameworks/av'
-    'frameworks/base'
-    'frameworks/hardware/interfaces'
-    'frameworks/minikin'
-    'frameworks/native'
-    'frameworks/opt/net/voip'
-    'frameworks/opt/net/wifi'
-    'frameworks/opt/telephony'
-    'hardware/interfaces'
-    'hardware/nxp/nfc'
-    'hardware/pa/interfaces'
-    'hardware/qcom/wlan'
-    'hardware/ril'
-    'libcore'
-    'packages/apps/Bluetooth'
-    'packages/apps/Car/Settings'
-    'packages/apps/CellBroadcastReceiver'
-    'packages/apps/Contacts'
-    'packages/apps/Dialer'
-    'packages/apps/FMRadio'
-    'packages/apps/KeyChain'
-    'packages/apps/ManagedProvisioning'
-    'packages/apps/Nfc'
-    'packages/apps/ParanoidLauncher'
-    'packages/apps/PermissionController'
-    'packages/apps/Snap'
-    'packages/apps/Settings'
-    'packages/modules/NetworkStack'
-    'packages/providers/CalendarProvider'
-    'packages/providers/ContactsProvider'
-    'packages/providers/MediaProvider'
-    'packages/services/Telecomm'
-    'packages/services/Telephony'
-    'system/bt'
-    'system/connectivity/wificond'
-    'system/libfmq'
-    'system/libhwbinder'
-    'system/nfc'
-    'system/netd'
-    'system/security'
-    'system/sepolicy'
-    'system/tools/hidl'
-    'vendor/pa'
-    # 'vendor/qcom/opensource/commonsys/packages/apps/Bluetooth'
-    'vendor/qcom/opensource/commonsys/system/bt'
-    'vendor/qcom/opensource/fm-commonsys'
+
+ASB=(
 )
+
+REPOSITORIES=(
+)
+
+for repository in "${ASB[@]}"; do
+    cd "${ROOT}/${repository}"
+
+    git am --keep-cr "${ROOT}/patcher/asb/${repository}"/*.patch >/dev/null 2>&1
+
+    if [ $? != 0 ]; then
+        echo "==============================================="
+        echo "[ASB] Failed to patch: ${repository}"
+        echo "==============================================="
+        git am --abort >/dev/null 2>&1
+    fi
+
+    cd "${ROOT}"
+done
 
 for repository in "${REPOSITORIES[@]}"; do
     cd "${ROOT}/${repository}"
 
-    git am --keep-cr "${ROOT}/patcher/aospa/${repository}"/*
+    git am --keep-cr "${ROOT}/patcher/aospa/${repository}"/*.patch >/dev/null 2>&1
+
+    if [ $? != 0 ]; then
+        echo "==============================================="
+        echo "Failed to patch: ${repository}"
+        echo "==============================================="
+        git am --abort >/dev/null 2>&1
+    fi
 
     cd "${ROOT}"
 done
+
