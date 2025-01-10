@@ -1,0 +1,105 @@
+From 5ad20210232647a01c52a27ab9c7d20a2f603537 Mon Sep 17 00:00:00 2001
+From: Pranav Vashi <neobuddy89@gmail.com>
+Date: Mon, 6 Dec 2021 01:59:47 +0530
+Subject: [PATCH 12/16] Settings: Fix up panel theme and layout
+
+* Ref: https://github.com/omnirom/android_packages_apps_Settings/commit/1f7b774ff240f3b5f5c8087d3a259a9bb31fd0aa
+* The reference commit is incomplete.
+
+Change-Id: I2f623b24447b5d8c3988a0061294faf471818c51
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ res/drawable/settings_panel_background.xml                  | 6 +++---
+ .../settings_panel_rounded_top_corner_background.xml        | 4 ++--
+ res/values-night/colors.xml                                 | 3 ++-
+ res/values/colors.xml                                       | 2 +-
+ res/values/dimens.xml                                       | 2 +-
+ res/values/styles.xml                                       | 2 +-
+ 6 files changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/res/drawable/settings_panel_background.xml b/res/drawable/settings_panel_background.xml
+index adb4646..15821f6 100644
+--- a/res/drawable/settings_panel_background.xml
++++ b/res/drawable/settings_panel_background.xml
+@@ -16,7 +16,7 @@
+ 
+ <inset xmlns:android="http://schemas.android.com/apk/res/android" android:inset="4dp">
+     <shape android:shape="rectangle">
+-        <corners android:radius="?android:attr/dialogCornerRadius" />
+-        <solid android:color="?android:attr/colorBackground" />
++        <corners android:radius="@*android:dimen/config_dialogCornerRadius" />
++        <solid android:color="@color/contextual_card_background" />
+     </shape>
+-</inset>
+\ No newline at end of file
++</inset>
+diff --git a/res/drawable/settings_panel_rounded_top_corner_background.xml b/res/drawable/settings_panel_rounded_top_corner_background.xml
+index 1c234cc..06eae8b 100644
+--- a/res/drawable/settings_panel_rounded_top_corner_background.xml
++++ b/res/drawable/settings_panel_rounded_top_corner_background.xml
+@@ -21,6 +21,6 @@
+             android:topRightRadius="@dimen/settings_panel_corner_radius"
+             android:bottomLeftRadius="0dp"
+             android:bottomRightRadius="0dp"/>
+-        <solid android:color="?android:attr/colorBackground" />
++        <solid android:color="@color/contextual_card_background" />
+     </shape>
+-</inset>
+\ No newline at end of file
++</inset>
+diff --git a/res/values-night/colors.xml b/res/values-night/colors.xml
+index fb73e6e..4c30d84 100644
+--- a/res/values-night/colors.xml
++++ b/res/values-night/colors.xml
+@@ -18,7 +18,8 @@
+     xmlns:androidprv="http://schemas.android.com/apk/prv/res/android">
+     <color name="homepage_accessibility_background">#783BE5</color>
+     <color name="homepage_support_background">#3F5FBD</color>
+-    <color name="contextual_card_background">@*android:color/material_grey_900</color>
++    <color name="contextual_card_dismissal_background">@*android:color/background_device_default_dark</color>
++    <color name="contextual_card_background">@*android:color/background_device_default_dark</color>
+     <color name="search_bar_background">?androidprv:attr/materialColorSurfaceBright</color>
+     <color name="notification_importance_button_unselected">#5F6368</color>
+ 
+diff --git a/res/values/colors.xml b/res/values/colors.xml
+index 6d92526..9a3b1da 100644
+--- a/res/values/colors.xml
++++ b/res/values/colors.xml
+@@ -68,7 +68,7 @@
+     <color name="homepage_location_background">#2EC7DC</color>
+     <color name="homepage_about_background">#6F86DA</color>
+ 
+-    <color name="contextual_card_dismissal_background">@*android:color/material_grey_100</color>
++    <color name="contextual_card_dismissal_background">@*android:color/background_device_default_light</color>
+     <color name="contextual_card_background">@*android:color/background_device_default_light</color>
+     <!-- End of dashboard/homepage icon background colors -->
+ 
+diff --git a/res/values/dimens.xml b/res/values/dimens.xml
+index 00e64bd..1feb652 100755
+--- a/res/values/dimens.xml
++++ b/res/values/dimens.xml
+@@ -391,7 +391,7 @@
+     <dimen name="notif_channel_panel_max_height">600dp</dimen>
+ 
+     <!-- Settings panel related dimensions -->
+-    <dimen name="settings_panel_corner_radius">28dp</dimen>
++    <dimen name="settings_panel_corner_radius">@*android:dimen/config_dialogCornerRadius</dimen>
+     <dimen name="settings_panel_title_margin">24dp</dimen>
+     <dimen name="settings_panel_title_margin_bottom">16dp</dimen>
+     <dimen name="settings_panel_width">@dimen/match_parent</dimen>
+diff --git a/res/values/styles.xml b/res/values/styles.xml
+index 416ce49..c10816f 100644
+--- a/res/values/styles.xml
++++ b/res/values/styles.xml
+@@ -505,7 +505,7 @@
+     <style name="Widget.SliceView.Panel">
+         <item name="titleSize">16sp</item>
+         <item name="rowStyle">@style/SliceRow</item>
+-        <item name="android:background">?android:attr/colorBackgroundFloating</item>
++        <item name="android:background">@color/contextual_card_background</item>
+     </style>
+ 
+     <style name="Widget.SliceView.Panel.Slider">
+-- 
+2.47.1
+

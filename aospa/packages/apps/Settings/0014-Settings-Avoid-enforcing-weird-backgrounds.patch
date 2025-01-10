@@ -1,0 +1,39 @@
+From 0e5aa398ae8ef926c733c0e7c64750bf81b69b18 Mon Sep 17 00:00:00 2001
+From: El Dainosor <eldainosor@gmail.com>
+Date: Sun, 28 Jun 2020 23:38:05 -0400
+Subject: [PATCH 14/16] Settings: Avoid enforcing weird backgrounds
+
+Enforcing windowBackground on places they shouldn't be causes issues when applying background there.
+Or another kind of issues, like full transparency on clear themes, or white bg on settings home categories.
+
+Credits goes to Genkzsz11 and the whole Corvus-ROM team for finding some of the root issues on this commit:
+https://github.com/Corvus-ROM/android_packages_apps_Settings/commit/2b595f3d5679bddfda6642bbdc55c3043d05dee1
+
+Change-Id: Iacd5b2e369ba9089f5522ff637427b31dcdd69b7
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ res/layout/preference_list_fragment.xml | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/res/layout/preference_list_fragment.xml b/res/layout/preference_list_fragment.xml
+index 6dfec46..3d33f3c 100644
+--- a/res/layout/preference_list_fragment.xml
++++ b/res/layout/preference_list_fragment.xml
+@@ -23,13 +23,11 @@
+     android:id="@+id/container_material"
+     android:orientation="vertical"
+     android:layout_width="match_parent"
+-    android:layout_height="match_parent"
+-    android:background="@android:color/transparent">
++    android:layout_height="match_parent">
+ 
+     <FrameLayout android:id="@+id/pinned_header"
+         android:layout_width="match_parent"
+         android:layout_height="wrap_content"
+-        android:background="?android:attr/windowBackground"
+         android:elevation="1dp"
+         android:visibility="gone"/>
+ 
+-- 
+2.47.1
+

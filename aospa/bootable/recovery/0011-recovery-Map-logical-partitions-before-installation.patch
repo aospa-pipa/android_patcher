@@ -1,0 +1,85 @@
+From 8f5467d66909cba9dd8515d66bee0066259a9485 Mon Sep 17 00:00:00 2001
+From: Erfan Abdi <erfangplus@gmail.com>
+Date: Tue, 14 Apr 2020 23:07:33 +0430
+Subject: [PATCH 11/17] recovery: Map logical partitions before installation.
+
+Change-Id: I4d3ef2183a40f71a380f5d30fc9810ee796a1a7a
+---
+ recovery_main.cpp                             |  2 +-
+ recovery_utils/include/recovery_utils/roots.h |  2 ++
+ recovery_utils/roots.cpp                      | 17 +++++++++++++++++
+ 3 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/recovery_main.cpp b/recovery_main.cpp
+index 60a96b363..7ccb9435e 100644
+--- a/recovery_main.cpp
++++ b/recovery_main.cpp
+@@ -546,7 +546,7 @@ int main(int argc, char** argv) {
+       }
+ 
+       case Device::ENTER_FASTBOOT:
+-        if (android::fs_mgr::LogicalPartitionsMapped()) {
++        if (logical_partitions_mapped()) {
+           ui->Print("Partitions may be mounted - rebooting to enter fastboot.");
+           Reboot("fastboot");
+         } else {
+diff --git a/recovery_utils/include/recovery_utils/roots.h b/recovery_utils/include/recovery_utils/roots.h
+index 6afefb810..53f41d217 100644
+--- a/recovery_utils/include/recovery_utils/roots.h
++++ b/recovery_utils/include/recovery_utils/roots.h
+@@ -57,3 +57,5 @@ int setup_install_mounts();
+ 
+ // Returns true if there is /cache in the volumes.
+ bool HasCache();
++
++bool logical_partitions_mapped();
+\ No newline at end of file
+diff --git a/recovery_utils/roots.cpp b/recovery_utils/roots.cpp
+index 48a0df639..0e77710bf 100644
+--- a/recovery_utils/roots.cpp
++++ b/recovery_utils/roots.cpp
+@@ -39,6 +39,7 @@
+ #include <ext4_utils/wipe.h>
+ #include <fs_mgr.h>
+ #include <fs_mgr/roots.h>
++#include <fs_mgr_dm_linear.h>
+ 
+ #include "otautil/sysutil.h"
+ 
+@@ -350,6 +351,8 @@ int format_volume(const std::string& volume) {
+   return format_volume(volume, "", "");
+ }
+ 
++static bool logical_partitions_auto_mapped = false;
++
+ int setup_install_mounts() {
+   if (fstab.empty()) {
+     LOG(ERROR) << "can't set up install mounts: no fstab loaded";
+@@ -374,6 +377,16 @@ int setup_install_mounts() {
+       }
+     }
+   }
++  // Map logical partitions
++  if (android::base::GetBoolProperty("ro.boot.dynamic_partitions", false) &&
++      !logical_partitions_mapped()) {
++    std::string super_name = fs_mgr_get_super_partition_name();
++    if (!android::fs_mgr::CreateLogicalPartitions("/dev/block/by-name/" + super_name)) {
++      LOG(ERROR) << "Failed to map logical partitions";
++    } else {
++      logical_partitions_auto_mapped = true;
++    }
++  }
+   return 0;
+ }
+ 
+@@ -382,3 +395,7 @@ bool HasCache() {
+   static bool has_cache = volume_for_mount_point(CACHE_ROOT) != nullptr;
+   return has_cache;
+ }
++
++bool logical_partitions_mapped() {
++  return android::fs_mgr::LogicalPartitionsMapped() || logical_partitions_auto_mapped;
++}
+-- 
+2.47.1
+

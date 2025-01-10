@@ -1,0 +1,40 @@
+From 8d89c2a49da8d53821bef444cd3fb9224134c46b Mon Sep 17 00:00:00 2001
+From: Luca Stefani <luca.stefani.ge1@gmail.com>
+Date: Thu, 17 Oct 2024 20:33:48 +0200
+Subject: [PATCH] Add a target for kotlin-serialize-compiler
+
+It can be used a kotlin plugin to generate, for example,
+JSON serialize ifaces on the fly
+
+Test: m
+Change-Id: Id7df58fd7235ec30aea1124eff3ec386c9054b5b
+---
+ Android.bp | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/Android.bp b/Android.bp
+index e5bfbe3..5e32c6f 100644
+--- a/Android.bp
++++ b/Android.bp
+@@ -88,6 +88,18 @@ java_import {
+     exclude_dirs: ["META-INF/versions"],
+ }
+ 
++java_import_host {
++    name: "kotlin-serialize-compiler-plugin-lib",
++    jars: ["lib/kotlin-serialization-compiler-plugin.jar"],
++    sdk_version: "core_current",
++    exclude_dirs: ["META-INF/versions"],
++}
++
++kotlin_plugin {
++    name: "kotlin-serialize-compiler-plugin",
++    static_libs: ["kotlin-serialize-compiler-plugin-lib"],
++}
++
+ // See: http://go/android-license-faq
+ license {
+     name: "external_kotlinc_license",
+-- 
+2.47.1
+

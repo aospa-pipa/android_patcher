@@ -1,0 +1,76 @@
+From 0065c6400d9146f7d2712219320211f5fd8f4ffd Mon Sep 17 00:00:00 2001
+From: Christoph Hellwig <hch@lst.de>
+Date: Thu, 6 Aug 2020 16:07:10 +0200
+Subject: [PATCH 04/21] fs: fix a struct path leak in path_umount
+
+Make sure we also put the dentry and vfsmnt in the illegal flags
+and !may_umount cases.
+
+Fixes: 41525f56e256 ("fs: refactor ksys_umount")
+Reported-by: Vikas Kumar <vikas.kumar2@arm.com>
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+Signed-off-by: Al Viro <viro@zeniv.linux.org.uk>
+---
+ fs/namespace.c | 32 ++++++++++++++++++--------------
+ 1 file changed, 18 insertions(+), 14 deletions(-)
+
+diff --git a/fs/namespace.c b/fs/namespace.c
+index 7f0bc53151ff..24de4573e179 100644
+--- a/fs/namespace.c
++++ b/fs/namespace.c
+@@ -1649,34 +1649,38 @@ static inline bool may_mandlock(void)
+ }
+ #endif
+ 
+-static int path_umount(struct path *path, int flags)
++static int can_umount(const struct path *path, int flags)
+ {
+-	struct mount *mnt;
+-	int retval;
++	struct mount *mnt = real_mount(path->mnt);
+ 
+ 	if (flags & ~(MNT_FORCE | MNT_DETACH | MNT_EXPIRE | UMOUNT_NOFOLLOW))
+ 		return -EINVAL;
+ 	if (!may_mount())
+ 		return -EPERM;
+-
+-	mnt = real_mount(path->mnt);
+-	retval = -EINVAL;
+ 	if (path->dentry != path->mnt->mnt_root)
+-		goto dput_and_out;
++		return -EINVAL;
+ 	if (!check_mnt(mnt))
+-		goto dput_and_out;
++		return -EINVAL;
+ 	if (mnt->mnt.mnt_flags & MNT_LOCKED) /* Check optimistically */
+-		goto dput_and_out;
+-	retval = -EPERM;
++		return -EINVAL;
+ 	if (flags & MNT_FORCE && !capable(CAP_SYS_ADMIN))
+-		goto dput_and_out;
++		return -EPERM;
++	return 0;
++}
++
++int path_umount(struct path *path, int flags)
++{
++	struct mount *mnt = real_mount(path->mnt);
++	int ret;
++
++	ret = can_umount(path, flags);
++	if (!ret)
++		ret = do_umount(mnt, flags);
+ 
+-	retval = do_umount(mnt, flags);
+-dput_and_out:
+ 	/* we mustn't call path_put() as that would clear mnt_expiry_mark */
+ 	dput(path->dentry);
+ 	mntput_no_expire(mnt);
+-	return retval;
++	return ret;
+ }
+ 
+ int ksys_umount(char __user *name, int flags)
+-- 
+2.47.1
+

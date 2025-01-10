@@ -1,0 +1,55 @@
+From 6d4d498f2562b84b491b205678364cf82a92d019 Mon Sep 17 00:00:00 2001
+From: resist15 <resist15@proton.me>
+Date: Sun, 13 Aug 2023 17:45:08 +0530
+Subject: [PATCH 008/103] SystemUI: Add SCREEN_GESTURE as a
+ CameraLaunchSourceModel
+
+This fixes a SystemUI crash while launching camera with any off-screen gestures, logging it as follows:
+
+08-13 11:13:59.748  4947  4947 D AndroidRuntime: Shutting down VM
+08-13 11:13:59.749  4947  4947 E AndroidRuntime: FATAL EXCEPTION: main
+08-13 11:13:59.749  4947  4947 E AndroidRuntime: Process: com.android.systemui, PID: 4947
+08-13 11:13:59.749  4947  4947 E AndroidRuntime: java.lang.IllegalArgumentException: Invalid CameraLaunchSourceModel value: 4
+08-13 11:13:59.749  4947  4947 E AndroidRuntime:   at com.android.systemui.keyguard.domain.interactor.KeyguardInteractor$onCameraLaunchDetected$1$callback$1.onCameraLaunchGestureDetected(KeyguardInteractor.kt:29)
+08-13 11:13:59.749  4947  4947 E AndroidRuntime:   at com.android.systemui.statusbar.CommandQueue$H.handleMessage(CommandQueue.java:1743)
+08-13 11:13:59.749  4947  4947 E AndroidRuntime:   at android.os.Handler.dispatchMessage(Handler.java:106)
+08-13 11:13:59.749  4947  4947 E AndroidRuntime:   at android.os.Looper.loopOnce(Looper.java:201)
+08-13 11:13:59.749  4947  4947 E AndroidRuntime:   at android.os.Looper.loop(Looper.java:288)
+08-13 11:13:59.749  4947  4947 E AndroidRuntime:   at android.app.ActivityThread.main(ActivityThread.java:7979)
+08-13 11:13:59.749  4947  4947 E AndroidRuntime:   at java.lang.reflect.Method.invoke(Native Method)
+08-13 11:13:59.749  4947  4947 E AndroidRuntime:   at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:548)
+08-13 11:13:59.749  4947  4947 E AndroidRuntime:   at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:942)
+
+Change-Id: Ieca3bbbac9e91d56b748ff1f9aa2501c5f886d78
+---
+ .../systemui/keyguard/domain/interactor/KeyguardInteractor.kt   | 2 ++
+ .../systemui/keyguard/shared/model/CameraLaunchSourceModel.kt   | 2 ++
+ 2 files changed, 4 insertions(+)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/domain/interactor/KeyguardInteractor.kt b/packages/SystemUI/src/com/android/systemui/keyguard/domain/interactor/KeyguardInteractor.kt
+index ef96be0a98fd..cb2483563de9 100644
+--- a/packages/SystemUI/src/com/android/systemui/keyguard/domain/interactor/KeyguardInteractor.kt
++++ b/packages/SystemUI/src/com/android/systemui/keyguard/domain/interactor/KeyguardInteractor.kt
+@@ -441,6 +441,8 @@ constructor(
+                 CameraLaunchSourceModel.LIFT_TRIGGER
+             StatusBarManager.CAMERA_LAUNCH_SOURCE_QUICK_AFFORDANCE ->
+                 CameraLaunchSourceModel.QUICK_AFFORDANCE
++            StatusBarManager.CAMERA_LAUNCH_SOURCE_SCREEN_GESTURE  ->
++                CameraLaunchSourceModel.SCREEN_GESTURE
+             else -> throw IllegalArgumentException("Invalid CameraLaunchSourceModel value: $value")
+         }
+     }
+diff --git a/packages/SystemUI/src/com/android/systemui/keyguard/shared/model/CameraLaunchSourceModel.kt b/packages/SystemUI/src/com/android/systemui/keyguard/shared/model/CameraLaunchSourceModel.kt
+index 19baf7705546..51dd6f039a1b 100644
+--- a/packages/SystemUI/src/com/android/systemui/keyguard/shared/model/CameraLaunchSourceModel.kt
++++ b/packages/SystemUI/src/com/android/systemui/keyguard/shared/model/CameraLaunchSourceModel.kt
+@@ -25,4 +25,6 @@ enum class CameraLaunchSourceModel {
+     LIFT_TRIGGER,
+     /** Quick affordance button has been pressed */
+     QUICK_AFFORDANCE,
++    /** OffScreen Gestures Have Been Triggered **/
++    SCREEN_GESTURE,
+ }
+-- 
+2.47.1
+

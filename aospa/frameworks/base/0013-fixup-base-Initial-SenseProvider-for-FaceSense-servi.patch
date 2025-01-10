@@ -1,0 +1,27 @@
+From e9d7cad8c69c25dfde41f3943f6e33f10cd871a4 Mon Sep 17 00:00:00 2001
+From: Sean Du <do4suki@gmail.com>
+Date: Sun, 10 Nov 2024 15:54:53 +0800
+Subject: [PATCH 013/103] fixup! base: Initial SenseProvider for FaceSense
+ service
+
+Signed-off-by: Sean Du <do4suki@gmail.com>
+---
+ .../server/biometrics/sensors/face/sense/SenseProvider.java     | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/services/core/java/com/android/server/biometrics/sensors/face/sense/SenseProvider.java b/services/core/java/com/android/server/biometrics/sensors/face/sense/SenseProvider.java
+index c0a7aae053da..1caa073179ca 100644
+--- a/services/core/java/com/android/server/biometrics/sensors/face/sense/SenseProvider.java
++++ b/services/core/java/com/android/server/biometrics/sensors/face/sense/SenseProvider.java
+@@ -389,7 +389,7 @@ public class SenseProvider implements ServiceProvider {
+     }
+ 
+     public SenseProvider(Context context, BiometricStateCallback biometricStateCallback, FaceSensorPropertiesInternal sensorProps, LockoutResetDispatcher lockoutResetDispatcher) {
+-        this(context, biometricStateCallback, sensorProps, lockoutResetDispatcher, new BiometricScheduler<>(context, 0, null));
++        this(context, biometricStateCallback, sensorProps, lockoutResetDispatcher, new BiometricScheduler<>(0, null));
+     }
+ 
+     private synchronized ISenseService getDaemon() {
+-- 
+2.47.1
+

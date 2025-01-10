@@ -1,0 +1,53 @@
+From 46a53a77c4a05b2f1623564d8837e5b9ffc6a4ba Mon Sep 17 00:00:00 2001
+From: Al Viro <viro@zeniv.linux.org.uk>
+Date: Mon, 4 Jan 2021 15:25:34 -0500
+Subject: [PATCH 05/21] umount(2): move the flag validity checks first
+
+Unfortunately, there's userland code that used to rely upon these
+checks being done before anything else to check for UMOUNT_NOFOLLOW
+support.  That broke in 41525f56e256 ("fs: refactor ksys_umount").
+Separate those from the rest of checks and move them to ksys_umount();
+unlike everything else in there, this can be sanely done there.
+
+Reported-by: Sargun Dhillon <sargun@sargun.me>
+Fixes: 41525f56e256 ("fs: refactor ksys_umount")
+Signed-off-by: Al Viro <viro@zeniv.linux.org.uk>
+---
+ fs/namespace.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/fs/namespace.c b/fs/namespace.c
+index 24de4573e179..c920553e3b4f 100644
+--- a/fs/namespace.c
++++ b/fs/namespace.c
+@@ -1653,8 +1653,6 @@ static int can_umount(const struct path *path, int flags)
+ {
+ 	struct mount *mnt = real_mount(path->mnt);
+ 
+-	if (flags & ~(MNT_FORCE | MNT_DETACH | MNT_EXPIRE | UMOUNT_NOFOLLOW))
+-		return -EINVAL;
+ 	if (!may_mount())
+ 		return -EPERM;
+ 	if (path->dentry != path->mnt->mnt_root)
+@@ -1668,6 +1666,7 @@ static int can_umount(const struct path *path, int flags)
+ 	return 0;
+ }
+ 
++// caller is responsible for flags being sane
+ int path_umount(struct path *path, int flags)
+ {
+ 	struct mount *mnt = real_mount(path->mnt);
+@@ -1689,6 +1688,10 @@ int ksys_umount(char __user *name, int flags)
+ 	struct path path;
+ 	int ret;
+ 
++	// basic validity checks done first
++	if (flags & ~(MNT_FORCE | MNT_DETACH | MNT_EXPIRE | UMOUNT_NOFOLLOW))
++		return -EINVAL;
++
+ 	if (!(flags & UMOUNT_NOFOLLOW))
+ 		lookup_flags |= LOOKUP_FOLLOW;
+ 	ret = user_path_mountpoint_at(AT_FDCWD, name, lookup_flags, &path);
+-- 
+2.47.1
+

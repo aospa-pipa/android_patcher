@@ -1,0 +1,273 @@
+From b00efd18eb6f6800c9817e2dcc1d4f3b9cd3cd08 Mon Sep 17 00:00:00 2001
+From: maitreya29 <maitreyapatni30@gmail.com>
+Date: Wed, 9 Feb 2022 10:26:45 +0530
+Subject: [PATCH 085/103] Screenrecord: Allow to reduce 3 second screen record
+ timer
+
+Change-Id: Ia487395c733ba609f89d84fdf934801174a40505
+---
+ .../SystemUI/res/drawable/ic_sr_clock.xml     | 10 ++++
+ .../res/layout/screen_record_dialog.xml       | 43 +++++++++++++++++
+ .../res/layout/screen_record_options.xml      | 47 +++++++++++++++++++
+ packages/SystemUI/res/values/cm_strings.xml   |  2 +
+ .../ScreenRecordDialogDelegate.java           | 10 +++-
+ .../ScreenRecordPermissionDialogDelegate.kt   |  7 ++-
+ 6 files changed, 117 insertions(+), 2 deletions(-)
+ create mode 100644 packages/SystemUI/res/drawable/ic_sr_clock.xml
+
+diff --git a/packages/SystemUI/res/drawable/ic_sr_clock.xml b/packages/SystemUI/res/drawable/ic_sr_clock.xml
+new file mode 100644
+index 000000000000..e533e59dd07c
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_sr_clock.xml
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="utf-8"?>
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:fillColor="@android:color/white"
++        android:pathData="M11.99,2C6.47,2 2,6.48 2,12s4.47,10 9.99,10C17.52,22 22,17.52 22,12S17.52,2 11.99,2zM12,20c-4.42,0 -8,-3.58 -8,-8s3.58,-8 8,-8 8,3.58 8,8 -3.58,8 -8,8zM12.5,7L11,7v6l5.25,3.15 0.75,-1.23 -4.5,-2.67z"/>
++</vector>
+diff --git a/packages/SystemUI/res/layout/screen_record_dialog.xml b/packages/SystemUI/res/layout/screen_record_dialog.xml
+index f602399c8006..9065632a1f9d 100644
+--- a/packages/SystemUI/res/layout/screen_record_dialog.xml
++++ b/packages/SystemUI/res/layout/screen_record_dialog.xml
+@@ -258,6 +258,49 @@
+                         android:contentDescription="@string/screenrecord_longer_timeout_switch_label"
+                         style="@style/ScreenRecord.Switch"/>
+                 </LinearLayout>
++
++                <LinearLayout
++                    android:layout_width="match_parent"
++                    android:layout_height="wrap_content"
++                    android:orientation="horizontal"
++                    android:layout_marginTop="@dimen/screenrecord_option_padding">
++                    <ImageView
++                        android:layout_width="@dimen/screenrecord_option_icon_size"
++                        android:layout_height="@dimen/screenrecord_option_icon_size"
++                        android:layout_weight="0"
++                        android:src="@drawable/ic_sr_clock"
++                        android:tint="?android:attr/textColorSecondary"
++                        android:layout_gravity="center"
++                        android:layout_marginRight="@dimen/screenrecord_option_padding"/>
++                    <LinearLayout
++                        android:layout_width="0dp"
++                        android:layout_weight="1"
++                        android:layout_height="wrap_content"
++                        android:orientation="vertical">
++                        <TextView
++                            android:layout_width="match_parent"
++                            android:layout_height="wrap_content"
++                            android:importantForAccessibility="no"
++                            android:text="@string/screenrecord_skip_time_label"
++                            android:textAppearance="?android:attr/textAppearanceMedium"
++                            android:textColor="?android:attr/textColorPrimary" />
++                        <TextView
++                            android:layout_width="match_parent"
++                            android:layout_height="wrap_content"
++                            android:importantForAccessibility="no"
++                            android:text="@string/screenrecord_skip_time_summary"
++                            android:textAppearance="?android:attr/textAppearanceSmall"
++                            android:textColor="?android:textColorSecondary" />
++                    </LinearLayout>
++                    <Switch
++                        android:layout_width="wrap_content"
++                        android:minWidth="48dp"
++                        android:layout_height="48dp"
++                        android:layout_weight="0"
++                        android:id="@+id/screenrecord_skip_switch"
++                        android:contentDescription="@string/screenrecord_skip_time_label"
++                        style="@style/ScreenRecord.Switch"/>
++                </LinearLayout>
+             </LinearLayout>
+ 
+             <!-- Buttons -->
+diff --git a/packages/SystemUI/res/layout/screen_record_options.xml b/packages/SystemUI/res/layout/screen_record_options.xml
+index fce270fc541a..30f284855217 100644
+--- a/packages/SystemUI/res/layout/screen_record_options.xml
++++ b/packages/SystemUI/res/layout/screen_record_options.xml
+@@ -226,4 +226,51 @@
+             style="@style/ScreenRecord.Switch"
+             android:importantForAccessibility="yes" />
+     </LinearLayout>
++    <LinearLayout
++        android:id="@+id/show_skip_time"
++        android:layout_width="match_parent"
++        android:layout_height="wrap_content"
++        android:orientation="horizontal"
++        android:gravity="center_vertical"
++        android:layout_marginTop="@dimen/screenrecord_option_padding">
++        <ImageView
++            android:layout_width="@dimen/screenrecord_option_icon_size"
++            android:layout_height="@dimen/screenrecord_option_icon_size"
++            android:src="@drawable/ic_sr_clock"
++            android:tint="?android:attr/textColorSecondary"
++            android:layout_marginRight="@dimen/screenrecord_option_padding"
++            android:importantForAccessibility="no"/>
++        <LinearLayout
++            android:layout_width="0dp"
++            android:layout_height="match_parent"
++            android:minHeight="48dp"
++            android:layout_weight="1"
++            android:orientation="vertical">
++            <TextView
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:fontFamily="@*android:string/config_bodyFontFamily"
++                android:text="@string/screenrecord_skip_time_label"
++                android:textAppearance="?android:attr/textAppearanceMedium"
++                android:textColor="?android:attr/textColorPrimary"
++                android:contentDescription="@string/screenrecord_skip_time_label"/>
++            <TextView
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:importantForAccessibility="no"
++                android:fontFamily="@*android:string/config_bodyFontFamily"
++                android:text="@string/screenrecord_skip_time_summary"
++                android:textAppearance="?android:attr/textAppearanceSmall"
++                android:textColor="?android:textColorSecondary"/>
++        </LinearLayout>
++
++        <Switch
++            android:layout_width="wrap_content"
++            android:minWidth="48dp"
++            android:layout_height="48dp"
++            android:id="@+id/screenrecord_skip_time_switch"
++            android:contentDescription="@string/screenrecord_skip_time_label"
++            style="@style/ScreenRecord.Switch"
++            android:importantForAccessibility="yes" />
++    </LinearLayout>
+ </LinearLayout>
+\ No newline at end of file
+diff --git a/packages/SystemUI/res/values/cm_strings.xml b/packages/SystemUI/res/values/cm_strings.xml
+index ae6048be8977..f11edbb0e621 100644
+--- a/packages/SystemUI/res/values/cm_strings.xml
++++ b/packages/SystemUI/res/values/cm_strings.xml
+@@ -128,4 +128,6 @@
+     <string name="screenrecord_lowquality_summary">For smaller file size</string>
+     <string name="screenrecord_longer_timeout_switch_label">Larger file size limit</string>
+     <string name="screenrecord_longer_timeout_switch_summary">Limit recording size to 15 GB</string>
++    <string name="screenrecord_skip_time_label">Skip timer</string>
++    <string name="screenrecord_skip_time_summary">Remove the 3 second wait</string>
+ </resources>
+diff --git a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordDialogDelegate.java b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordDialogDelegate.java
+index a5539d2bd3e7..73974c99f307 100644
+--- a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordDialogDelegate.java
++++ b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordDialogDelegate.java
+@@ -64,6 +64,7 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+     private static final List<ScreenRecordingAudioSource> MODES = Arrays.asList(INTERNAL, MIC,
+             MIC_AND_INTERNAL);
+     private static final long DELAY_MS = 3000;
++    private static final long NO_DELAY = 100;
+     private static final long INTERVAL_MS = 1000;
+     private static final String TAG = "ScreenRecordDialog";
+     private static final String PREFS = "screenrecord_";
+@@ -73,6 +74,7 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+     private static final String PREF_LONGER = "use_longer_timeout";
+     private static final String PREF_AUDIO = "use_audio";
+     private static final String PREF_AUDIO_SOURCE = "audio_source";
++    private static final String PREF_SKIP = "skip_timer";
+ 
+     private final SystemUIDialog.Factory mSystemUIDialogFactory;
+     private final UserContextProvider mUserContextProvider;
+@@ -83,6 +85,7 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+     private Switch mLowQualitySwitch;
+     private Switch mLongerSwitch;
+     private Switch mAudioSwitch;
++    private Switch mSkipSwitch;
+     private Spinner mOptions;
+ 
+     @AssistedFactory
+@@ -138,6 +141,7 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+ 
+         mAudioSwitch = dialog.findViewById(R.id.screenrecord_audio_switch);
+         mTapsSwitch = dialog.findViewById(R.id.screenrecord_taps_switch);
++        mSkipSwitch = dialog.findViewById(R.id.screenrecord_skip_switch);
+         mStopDotSwitch = dialog.findViewById(R.id.screenrecord_stopdot_switch);
+         mLowQualitySwitch = dialog.findViewById(R.id.screenrecord_lowquality_switch);
+         mLongerSwitch = dialog.findViewById(R.id.screenrecord_longer_timeout_switch);
+@@ -177,6 +181,7 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+         boolean showStopDot = mStopDotSwitch.isChecked();
+         boolean lowQuality = mLowQualitySwitch.isChecked();
+         boolean longerDuration = mLongerSwitch.isChecked();
++        boolean skipTime = mSkipSwitch.isChecked();
+         ScreenRecordingAudioSource audioMode = mAudioSwitch.isChecked()
+                 ? (ScreenRecordingAudioSource) mOptions.getSelectedItem()
+                 : NONE;
+@@ -191,7 +196,8 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+                 RecordingService.REQUEST_CODE,
+                 RecordingService.getStopIntent(userContext),
+                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+-        mController.startCountdown(DELAY_MS, INTERVAL_MS, startIntent, stopIntent);
++        mController.startCountdown(skipTime ? NO_DELAY : DELAY_MS, INTERVAL_MS, startIntent,
++                stopIntent);
+     }
+ 
+     private class CaptureTargetResultReceiver extends ResultReceiver {
+@@ -220,6 +226,7 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+         Prefs.putInt(userContext, PREFS + PREF_LONGER, mLongerSwitch.isChecked() ? 1 : 0);
+         Prefs.putInt(userContext, PREFS + PREF_AUDIO, mAudioSwitch.isChecked() ? 1 : 0);
+         Prefs.putInt(userContext, PREFS + PREF_AUDIO_SOURCE, mOptions.getSelectedItemPosition());
++        Prefs.putInt(userContext, PREFS + PREF_SKIP, mSkipSwitch.isChecked() ? 1 : 0);
+     }
+ 
+     private void loadPrefs() {
+@@ -230,5 +237,6 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+         mLongerSwitch.setChecked(Prefs.getInt(userContext, PREFS + PREF_LONGER, 0) == 1);
+         mAudioSwitch.setChecked(Prefs.getInt(userContext, PREFS + PREF_AUDIO, 0) == 1);
+         mOptions.setSelection(Prefs.getInt(userContext, PREFS + PREF_AUDIO_SOURCE, 0));
++        mSkipSwitch.setChecked(Prefs.getInt(userContext, PREFS + PREF_SKIP, 0) == 1);
+     }
+ }
+diff --git a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordPermissionDialogDelegate.kt b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordPermissionDialogDelegate.kt
+index 8abad987b368..19acff64da49 100644
+--- a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordPermissionDialogDelegate.kt
++++ b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordPermissionDialogDelegate.kt
+@@ -118,6 +118,7 @@ class ScreenRecordPermissionDialogDelegate(
+     private lateinit var stopDotSwitch: Switch
+     private lateinit var lowQualitySwitch: Switch
+     private lateinit var longerDurationSwitch: Switch
++    private lateinit var skipTimeSwitch: Switch
+     private lateinit var options: Spinner
+ 
+     override fun createDialog(): SystemUIDialog {
+@@ -167,6 +168,7 @@ class ScreenRecordPermissionDialogDelegate(
+         stopDotSwitch = dialog.requireViewById(R.id.screenrecord_stopdot_switch)
+         lowQualitySwitch = dialog.requireViewById(R.id.screenrecord_lowquality_switch)
+         longerDurationSwitch = dialog.requireViewById(R.id.screenrecord_longer_timeout_switch)
++        skipTimeSwitch = dialog.requireViewById(R.id.screenrecord_skip_time_switch)
+ 
+         // Add these listeners so that the switch only responds to movement
+         // within its target region, to meet accessibility requirements
+@@ -175,6 +177,7 @@ class ScreenRecordPermissionDialogDelegate(
+         stopDotSwitch.setOnTouchListener { _, event -> event.action == ACTION_MOVE }
+         lowQualitySwitch.setOnTouchListener { _, event -> event.action == ACTION_MOVE }
+         longerDurationSwitch.setOnTouchListener { _, event -> event.action == ACTION_MOVE }
++        skipTimeSwitch.setOnTouchListener { _, event -> event.action == ACTION_MOVE }
+ 
+         tapsView = dialog.requireViewById(R.id.show_taps)
+         updateTapsViewVisibility()
+@@ -253,7 +256,8 @@ class ScreenRecordPermissionDialogDelegate(
+                 RecordingService.getStopIntent(userContext),
+                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+             )
+-        controller.startCountdown(DELAY_MS, INTERVAL_MS, startIntent, stopIntent)
++        controller.startCountdown(if (skipTimeSwitch.isChecked) NO_DELAY else DELAY_MS,
++                INTERVAL_MS, startIntent, stopIntent)
+     }
+ 
+     private inner class CaptureTargetResultReceiver() :
+@@ -280,6 +284,7 @@ class ScreenRecordPermissionDialogDelegate(
+                 ScreenRecordingAudioSource.MIC_AND_INTERNAL
+             )
+         private const val DELAY_MS: Long = 3000
++        private const val NO_DELAY: Long = 100
+         private const val INTERVAL_MS: Long = 1000
+ 
+         private fun createOptionList(): List<ScreenShareOption> {
+-- 
+2.47.1
+

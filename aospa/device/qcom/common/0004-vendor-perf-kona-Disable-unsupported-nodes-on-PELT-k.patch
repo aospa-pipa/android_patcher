@@ -1,0 +1,95 @@
+From bb5279e957140799e7369d17a392d21927bc36d7 Mon Sep 17 00:00:00 2001
+From: Yuan Si <do4suki@gmail.com>
+Date: Mon, 10 Jun 2024 01:39:03 +0800
+Subject: [PATCH 4/7] vendor: perf: kona: Disable unsupported nodes on PELT
+ kernel
+
+Change-Id: Ic766fb3e24d20f0eaaacef21844ec88211ecbb9c
+Signed-off-by: Yuan Si <do4suki@gmail.com>
+---
+ .../kona/perf/targetresourceconfigs.xml       | 63 ++++++++++++++++++-
+ 1 file changed, 60 insertions(+), 3 deletions(-)
+
+diff --git a/vendor/perf/configs/kona/perf/targetresourceconfigs.xml b/vendor/perf/configs/kona/perf/targetresourceconfigs.xml
+index 6033614fa..53e9af36b 100644
+--- a/vendor/perf/configs/kona/perf/targetresourceconfigs.xml
++++ b/vendor/perf/configs/kona/perf/targetresourceconfigs.xml
+@@ -24,9 +24,6 @@ as anyway perflock calls of these resources would fail. -->
+ <ResourceConfigs>
+     <PerfResources>
+ 
+-        <Config MajorValue="0x1" MinorValue="0x1" Supported="no" /> <!--  toggle_l2_pc_perf -->
+-        <Config MajorValue="0x1" MinorValue="0x2" Node="/proc/sys/kernel/sched_busy_hyst_ns" />
+-
+         <Config MajorValue="0x3" MinorValue="0x3" Supported="no" /> <!-- sched_small_task -->
+         <Config MajorValue="0x3" MinorValue="0x6" Supported="no" /> <!-- sched_init_task_load -->
+         <Config MajorValue="0x3" MinorValue="0xB" Supported="no" /> <!-- sched_spill_nr_run -->
+@@ -114,5 +111,65 @@ as anyway perflock calls of these resources would fail. -->
+         <Config MajorValue="0xF" MinorValue="0x9" Supported="no" />
+         <Config MajorValue="0xF" MinorValue="0xA" Supported="no" />
+ 
++        <!-- YumeMichi Edit: Disable unsupported nodes on PELT kernel -->
++        <Config MajorValue="0x1" MinorValue="0x1" Supported="no" />
++        <Config MajorValue="0x1" MinorValue="0x2" Supported="no" />
++        <Config MajorValue="0x1" MinorValue="0x3" Supported="no" />
++        <Config MajorValue="0x1" MinorValue="0x4" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x15" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x16" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x18" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x19" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x1A" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x1B" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x1C" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x1D" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x1E" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x1F" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x20" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x21" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x22" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x23" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x24" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x25" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x26" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x27" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x28" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x29" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x2A" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x2C" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x2D" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x2E" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x2F" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x30" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x31" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x32" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x33" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x34" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x35" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x36" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x37" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x37" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x3C" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x3D" Node="/proc/sys/kernel/%s" Supported="yes"/>
++        <Config MajorValue="0x3" MinorValue="0x3E" Supported="no" />
++        <Config MajorValue="0x3" MinorValue="0x3F" Supported="no" />
++        <Config MajorValue="0x4" MinorValue="0x0" Supported="no" />
++        <Config MajorValue="0x4" MinorValue="0x1" Supported="no" />
++        <Config MajorValue="0x4" MinorValue="0x2" Supported="no" />
++        <Config MajorValue="0x4" MinorValue="0x3" Supported="no" />
++        <Config MajorValue="0x4" MinorValue="0x4" Supported="no" />
++        <Config MajorValue="0x4" MinorValue="0x5" Supported="no" />
++        <Config MajorValue="0x5" MinorValue="0xF" Supported="no" />
++        <Config MajorValue="0x5" MinorValue="0x10" Supported="no" />
++        <Config MajorValue="0x5" MinorValue="0x11" Supported="no" />
++        <Config MajorValue="0x5" MinorValue="0x12" Supported="no" />
++        <Config MajorValue="0x5" MinorValue="0x13" Supported="no" />
++        <Config MajorValue="0x5" MinorValue="0x14" Supported="no" />
++        <Config MajorValue="0x5" MinorValue="0x15" Supported="no" />
++        <Config MajorValue="0x5" MinorValue="0x16" Supported="no" />
++        <Config MajorValue="0xB" MinorValue="0xC" Supported="no" />
++        <Config MajorValue="0xB" MinorValue="0x10" Supported="no" />
++
+     </PerfResources>
+ </ResourceConfigs>
+-- 
+2.47.1
+

@@ -1,0 +1,40 @@
+From 7d7d4a1101b02e364b49090c27fd70fbfc395d7f Mon Sep 17 00:00:00 2001
+From: Michael Bestas <mkbestas@lineageos.org>
+Date: Sun, 9 Apr 2023 20:20:44 +0300
+Subject: [PATCH] Label system properties to config audio codec priority
+
+bluetooth.a2dp.source.sbc_priority.config
+bluetooth.a2dp.source.aac_priority.config
+bluetooth.a2dp.source.aptx_priority.config
+bluetooth.a2dp.source.aptx_hd_priority.config
+bluetooth.a2dp.source.ldac_priority.config
+bluetooth.a2dp.source.lc3_priority.config
+
+Bug: 270032693
+Test: manually test in local build
+Change-Id: I328e2d6ef0ba277f4eb2c132db8ae22539c1a91d
+---
+ private/property_contexts | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/private/property_contexts b/private/property_contexts
+index 2aca92c..7e63a1a 100644
+--- a/private/property_contexts
++++ b/private/property_contexts
+@@ -581,6 +581,13 @@ persist.bluetooth.snooplogfilter.profiles.rfcomm.enabled    u:object_r:bluetooth
+ persist.bluetooth.factoryreset                              u:object_r:bluetooth_prop:s0 exact bool
+ persist.bluetooth.leaudio.allow_list                        u:object_r:bluetooth_prop:s0 exact string
+ 
++bluetooth.a2dp.source.sbc_priority.config            u:object_r:bluetooth_config_prop:s0 exact int
++bluetooth.a2dp.source.aac_priority.config            u:object_r:bluetooth_config_prop:s0 exact int
++bluetooth.a2dp.source.aptx_priority.config           u:object_r:bluetooth_config_prop:s0 exact int
++bluetooth.a2dp.source.aptx_hd_priority.config        u:object_r:bluetooth_config_prop:s0 exact int
++bluetooth.a2dp.source.ldac_priority.config           u:object_r:bluetooth_config_prop:s0 exact int
++bluetooth.a2dp.source.lc3_priority.config            u:object_r:bluetooth_config_prop:s0 exact int
++
+ bluetooth.hardware.power.operating_voltage_mv        u:object_r:bluetooth_config_prop:s0 exact int
+ bluetooth.hardware.power.idle_cur_ma                 u:object_r:bluetooth_config_prop:s0 exact int
+ bluetooth.hardware.power.tx_cur_ma                   u:object_r:bluetooth_config_prop:s0 exact int
+-- 
+2.47.1
+

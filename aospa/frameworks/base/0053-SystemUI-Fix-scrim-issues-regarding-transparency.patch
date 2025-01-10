@@ -1,0 +1,128 @@
+From 1d28e9aefdd3d4c502e83175163c979cc9673917 Mon Sep 17 00:00:00 2001
+From: nift4 <nift4@protonmail.com>
+Date: Thu, 13 Apr 2023 09:18:41 +0200
+Subject: [PATCH 053/103] SystemUI: Fix scrim issues regarding transparency
+
+* Fix bouncer background not animating
+* Fix screen flickering when opening scrimmed bouncer
+* Fix SHADE_LOCKED ignoring custom alpha
+* Fix AOSP issue: Fix scrimmed bouncer background animating to intermediate state
+
+Change-Id: I8d4ce2a2512b6859e55f645288eb59a4d4f944b7
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ .../statusbar/phone/ScrimController.java      |  9 ++++----
+ .../systemui/statusbar/phone/ScrimState.java  | 22 +++++++++++--------
+ 2 files changed, 18 insertions(+), 13 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
+index 6c44c56f1153..d453391ecdaa 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
+@@ -1048,7 +1048,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
+                         interpolatedFraction);
+             }
+         } else if (mState == ScrimState.AUTH_SCRIMMED_SHADE) {
+-            mNotificationsAlpha = (float) Math.pow(getInterpolatedFraction(), 0.8f);
++            mNotificationsAlpha = (float) Math.pow(getInterpolatedFraction(), 0.8f) * mCustomScrimAlpha;
+         } else if (mState == ScrimState.KEYGUARD || mState == ScrimState.SHADE_LOCKED
+                 || mState == ScrimState.PULSING || mState == ScrimState.GLANCEABLE_HUB) {
+             Pair<Integer, Float> result = calculateBackStateForState(mState);
+@@ -1077,10 +1077,11 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
+                 mBehindAlpha = behindAlpha;
+                 if (mState == ScrimState.KEYGUARD && mTransitionToFullShadeProgress > 0.0f) {
+                     mNotificationsAlpha = MathUtils
+-                            .saturate(mTransitionToLockScreenFullShadeNotificationsProgress);
++                            .saturate(mTransitionToLockScreenFullShadeNotificationsProgress)
++                            * mCustomScrimAlpha;
+                 } else if (mState == ScrimState.SHADE_LOCKED) {
+                     // going from KEYGUARD to SHADE_LOCKED state
+-                    mNotificationsAlpha = getInterpolatedFraction();
++                    mNotificationsAlpha = getInterpolatedFraction() * mCustomScrimAlpha;
+                 } else if (mState == ScrimState.GLANCEABLE_HUB
+                         && mTransitionToFullShadeProgress == 0.0f) {
+                     // Notification scrim should not be visible on the glanceable hub unless the
+@@ -1089,7 +1090,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
+                     // closes.
+                     mNotificationsAlpha = 0;
+                 } else {
+-                    mNotificationsAlpha = Math.max(1.0f - getInterpolatedFraction(), mQsExpansion);
++                    mNotificationsAlpha = Math.max(1.0f - getInterpolatedFraction(), mQsExpansion) * mCustomScrimAlpha;
+                 }
+                 mNotificationsTint = mState.getNotifTint();
+                 mBehindTint = behindTint;
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java
+index e0706a7aef47..e12863b13369 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java
+@@ -87,7 +87,7 @@ public enum ScrimState {
+             mBehindAlpha = mClipQsScrim ? mCustomScrimAlpha : mScrimBehindAlphaKeyguard;
+             mNotifAlpha = mClipQsScrim ? mScrimBehindAlphaKeyguard : 0;
+             if (mClipQsScrim) {
+-                updateScrimColor(mScrimBehind, 1f /* alpha */, mBackgroundColor);
++                updateScrimColor(mScrimBehind, mCustomScrimAlpha, mBackgroundColor);
+             }
+         }
+     },
+@@ -102,7 +102,7 @@ public enum ScrimState {
+             mFrontAlpha = .66f;
+ 
+             mBehindTint = mBackgroundColor;
+-            mBehindAlpha = 1f;
++            mBehindAlpha = mCustomScrimAlpha;
+         }
+     },
+ 
+@@ -126,8 +126,8 @@ public enum ScrimState {
+     BOUNCER {
+         @Override
+         public void prepare(ScrimState previousState) {
+-            mBehindAlpha = mClipQsScrim ? mCustomScrimAlpha : mDefaultScrimAlpha;
+-            mBehindTint = mSurfaceColor;
++            mBehindAlpha = mClipQsScrim ? 1 : mDefaultScrimAlpha;
++            mBehindTint = mBackgroundColor;
+             mNotifAlpha = mClipQsScrim ? mDefaultScrimAlpha : 0;
+             mNotifTint = Color.TRANSPARENT;
+             mFrontAlpha = 0f;
+@@ -148,8 +148,12 @@ public enum ScrimState {
+     BOUNCER_SCRIMMED {
+         @Override
+         public void prepare(ScrimState previousState) {
+-            mBehindAlpha = 0;
+-            mFrontAlpha = mDefaultScrimAlpha;
++            // Using previousState values makes SHADE_LOCKED -> BOUNCER_SCRIMMED smoother with no visual breakage
++            mBehindTint = previousState.mBehindTint;
++            mBehindAlpha = previousState.mBehindAlpha;
++            mFrontAlpha = 1f;
++            mNotifTint = previousState.mNotifTint;
++            mNotifAlpha = previousState.mNotifAlpha;
+         }
+     },
+ 
+@@ -157,12 +161,12 @@ public enum ScrimState {
+         @Override
+         public void prepare(ScrimState previousState) {
+             mBehindAlpha = mClipQsScrim ? mCustomScrimAlpha : mDefaultScrimAlpha;
+-            mNotifAlpha = 1f;
++            mNotifAlpha = mCustomScrimAlpha;
+             mFrontAlpha = 0f;
+             mBehindTint = Color.TRANSPARENT;
+ 
+             if (mClipQsScrim) {
+-                updateScrimColor(mScrimBehind, 1f /* alpha */, mBackgroundColor);
++                updateScrimColor(mScrimBehind, mCustomScrimAlpha, mBackgroundColor);
+             }
+         }
+     },
+@@ -282,7 +286,7 @@ public enum ScrimState {
+             }
+ 
+             if (mClipQsScrim) {
+-                updateScrimColor(mScrimBehind, 1f /* alpha */, mBackgroundColor);
++                updateScrimColor(mScrimBehind, mCustomScrimAlpha, mBackgroundColor);
+             }
+         }
+     },
+-- 
+2.47.1
+

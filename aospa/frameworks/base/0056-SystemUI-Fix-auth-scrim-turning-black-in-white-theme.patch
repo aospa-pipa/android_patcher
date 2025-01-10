@@ -1,0 +1,31 @@
+From 6a0e1c263fd8c8d42fa1fcc0e0cf414e03b608a3 Mon Sep 17 00:00:00 2001
+From: Pranav Vashi <neobuddy89@gmail.com>
+Date: Fri, 9 Aug 2024 23:24:32 +0530
+Subject: [PATCH 056/103] SystemUI: Fix auth scrim turning black in white theme
+
+Fix AUTH_SCRIMMED state too.
+
+Change-Id: I3262b5bac4ce3202704003eaffdfde13f860265e
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ .../src/com/android/systemui/statusbar/phone/ScrimState.java  | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java
+index 7d536010d1ed..0d10ec27650b 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java
+@@ -112,8 +112,8 @@ public enum ScrimState {
+             mNotifTint = previousState.mNotifTint;
+             mNotifAlpha = previousState.mNotifAlpha;
+ 
+-            mBehindTint = previousState.mBehindTint;
+-            mBehindAlpha = previousState.mBehindAlpha;
++            mBehindTint = mBackgroundColor;
++            mBehindAlpha = mCustomScrimAlpha;
+ 
+             mFrontTint = mBackgroundColor;
+             mFrontAlpha = .66f;
+-- 
+2.47.1
+

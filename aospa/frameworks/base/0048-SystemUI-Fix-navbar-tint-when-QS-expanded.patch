@@ -1,0 +1,66 @@
+From d67f4c0b79513d37b665a493faf98bb3d27a439e Mon Sep 17 00:00:00 2001
+From: althafvly <althafvly@gmail.com>
+Date: Tue, 8 Oct 2024 16:12:36 +0530
+Subject: [PATCH 048/103] SystemUI: Fix navbar tint when QS expanded
+
+- Nav bar tint is not accurate on three button gesture with light mode
+
+Change-Id: I9aa7daf219030e1a81a0194909795f043c8ec30d
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ .../systemui/statusbar/phone/LightBarController.java  | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/LightBarController.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/LightBarController.java
+index eec617bf91d3..7d665bfac62e 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/LightBarController.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/LightBarController.java
+@@ -23,6 +23,7 @@ import static com.android.systemui.statusbar.phone.BarTransitions.MODE_LIGHTS_OU
+ import static com.android.systemui.statusbar.phone.BarTransitions.MODE_TRANSPARENT;
+ 
+ import android.content.Context;
++import android.content.res.Configuration;
+ import android.graphics.Rect;
+ import android.util.Log;
+ import android.view.InsetsFlags;
+@@ -119,6 +120,8 @@ public class LightBarController implements
+     private String mLastNavigationBarAppearanceChangedLog;
+     private StringBuilder mLogStringBuilder = null;
+ 
++    private Context mContext;
++
+     @Inject
+     public LightBarController(
+             Context ctx,
+@@ -129,6 +132,7 @@ public class LightBarController implements
+             StatusBarModeRepositoryStore statusBarModeRepository,
+             DumpManager dumpManager,
+             DisplayTracker displayTracker) {
++        mContext = ctx;
+         mJavaAdapter = javaAdapter;
+         mStatusBarIconController = (SysuiDarkIconDispatcher) darkIconDispatcher;
+         mBatteryController = batteryController;
+@@ -212,7 +216,7 @@ public class LightBarController implements
+             final boolean ignoreScrimForce = mDirectReplying && mNavbarColorManagedByIme;
+             final boolean darkForScrim = mForceDarkForScrim && !ignoreScrimForce;
+             final boolean lightForScrim = mForceLightForScrim && !ignoreScrimForce;
+-            final boolean darkForQs = (mQsCustomizing || mQsExpanded) && !mBouncerVisible;
++            final boolean darkForQs = isNightMode() && (!mQsCustomizing && !mQsExpanded) && mBouncerVisible;
+             final boolean darkForTop = darkForQs || mGlobalActionsVisible;
+             mNavigationLight =
+                     ((mHasLightNavigationBar && !darkForScrim) || lightForScrim) && !darkForTop;
+@@ -244,6 +248,11 @@ public class LightBarController implements
+         mNavbarColorManagedByIme = navbarColorManagedByIme;
+     }
+ 
++    private boolean isNightMode() {
++        return (mContext.getResources().getConfiguration().uiMode
++                & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
++    }
++
+     public void onNavigationBarModeChanged(int newBarMode) {
+         mHasLightNavigationBar = isLight(mAppearance, newBarMode, APPEARANCE_LIGHT_NAVIGATION_BARS);
+     }
+-- 
+2.47.1
+

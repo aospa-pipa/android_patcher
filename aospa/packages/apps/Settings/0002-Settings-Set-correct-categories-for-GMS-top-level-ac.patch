@@ -1,0 +1,60 @@
+From 89d4c2542706f7ddac4cadc4c03b4ef0c48c7cfb Mon Sep 17 00:00:00 2001
+From: shoya0x00 <shoya0x00@gmail.com>
+Date: Sat, 19 Oct 2024 12:42:04 +0000
+Subject: [PATCH 02/16] Settings: Set correct categories for GMS top level
+ activities
+
+On new revamped Settings UX dashboard is missing styling for GMS top
+level activities. This is fixed by assigning them respective categories.
+
+Change-Id: I5f18fab2419c8346760c4f6bed6f77e1eac8e059
+Signed-off-by: shoya0x00 <shoya0x00@users.noreply.github.com>
+---
+ .../settings/dashboard/DashboardFragment.java | 22 +++++++++++++++----
+ 1 file changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/src/com/android/settings/dashboard/DashboardFragment.java b/src/com/android/settings/dashboard/DashboardFragment.java
+index 9abc6c2..1d802de 100644
+--- a/src/com/android/settings/dashboard/DashboardFragment.java
++++ b/src/com/android/settings/dashboard/DashboardFragment.java
+@@ -77,6 +77,15 @@ public abstract class DashboardFragment extends SettingsPreferenceFragment
+     private static final String TAG = "DashboardFragment";
+     private static final long TIMEOUT_MILLIS = 50L;
+ 
++    private static final List<String> ACCOUNT_INJECTED_KEYS = Arrays.asList(
++        "dashboard_tile_pref_com.google.android.gms.backup.component.BackupOrRestoreSettingsActivity",
++        "top_level_google"
++    );
++
++    private static final List<String> SECURITY_PRIVACY_INJECTED_KEYS = Arrays.asList(
++        "top_level_wellbeing"
++    );
++
+     @VisibleForTesting
+     final ArrayMap<String, List<DynamicDataObserver>> mDashboardTilePrefKeys = new ArrayMap<>();
+     private final Map<Class, List<AbstractPreferenceController>> mPreferenceControllers =
+@@ -556,12 +565,17 @@ public abstract class DashboardFragment extends SettingsPreferenceFragment
+                         screen.addPreference(pref);
+                     }
+                 } else {
++                    Preference group = null;
+                     if (tile.hasGroupKey()
+                             && mDashboardTilePrefKeys.containsKey(tile.getGroupKey())) {
+-                        Preference group = screen.findPreference(tile.getGroupKey());
+-                        if (group instanceof PreferenceCategory) {
+-                            ((PreferenceCategory) group).addPreference(pref);
+-                        }
++                        group = screen.findPreference(tile.getGroupKey());
++                    } else if (ACCOUNT_INJECTED_KEYS.contains(key)) {
++                        group = screen.findPreference("top_level_account_category");
++                    } else if (SECURITY_PRIVACY_INJECTED_KEYS.contains(key)) {
++                        group = screen.findPreference("top_level_security_privacy_category");
++                    }
++                    if (group instanceof PreferenceCategory) {
++                        ((PreferenceCategory) group).addPreference(pref);
+                     } else {
+                         screen.addPreference(pref);
+                     }
+-- 
+2.47.1
+

@@ -1,0 +1,97 @@
+From adcab1824535f793305960c4f44b716ea79151bf Mon Sep 17 00:00:00 2001
+From: Adithya R <gh0strider.2k18.reborn@gmail.com>
+Date: Wed, 27 Oct 2021 17:10:25 +0530
+Subject: [PATCH 10/16] Settings: Show current value of color balance sliders
+
+ * Refactor it into SeekbarPreference and set summary
+
+Change-Id: I3cbed497f233c84d6ec31ed7baa636146b0f4b2d
+---
+ res/xml/color_mode_settings.xml                  |  9 ++++++---
+ .../ColorBalancePreferenceController.java        | 16 ++++++++++------
+ 2 files changed, 16 insertions(+), 9 deletions(-)
+
+diff --git a/res/xml/color_mode_settings.xml b/res/xml/color_mode_settings.xml
+index 4662e28..14a8d40 100644
+--- a/res/xml/color_mode_settings.xml
++++ b/res/xml/color_mode_settings.xml
+@@ -25,21 +25,24 @@
+         android:title="@string/color_mode_balance_category"
+         android:order="100">
+ 
+-        <com.android.settings.widget.SeekBarPreference
++        <SeekBarPreference
+             android:key="color_balance_red"
+             android:title="@string/color_mode_balance_red"
++            style="@style/SettingsSeekbarPreference.SettingsLib"
+             settings:keywords="@string/keywords_color_balance"
+             settings:controller="com.android.settings.display.ColorBalancePreferenceController" />
+ 
+-        <com.android.settings.widget.SeekBarPreference
++        <SeekBarPreference
+             android:key="color_balance_green"
+             android:title="@string/color_mode_balance_green"
++            style="@style/SettingsSeekbarPreference.SettingsLib"
+             settings:keywords="@string/keywords_color_balance"
+             settings:controller="com.android.settings.display.ColorBalancePreferenceController" />
+ 
+-        <com.android.settings.widget.SeekBarPreference
++        <SeekBarPreference
+             android:key="color_balance_blue"
+             android:title="@string/color_mode_balance_blue"
++            style="@style/SettingsSeekbarPreference.SettingsLib"
+             settings:keywords="@string/keywords_color_balance"
+             settings:controller="com.android.settings.display.ColorBalancePreferenceController" />
+ 
+diff --git a/src/com/android/settings/display/ColorBalancePreferenceController.java b/src/com/android/settings/display/ColorBalancePreferenceController.java
+index 8eabd94..d6564e4 100644
+--- a/src/com/android/settings/display/ColorBalancePreferenceController.java
++++ b/src/com/android/settings/display/ColorBalancePreferenceController.java
+@@ -21,15 +21,17 @@ import android.hardware.display.ColorDisplayManager;
+ import android.text.TextUtils;
+ 
+ import androidx.preference.PreferenceScreen;
++import androidx.preference.SeekBarPreference;
+ 
+ import com.android.settings.core.SliderPreferenceController;
+-import com.android.settings.widget.SeekBarPreference;
+ 
+ public class ColorBalancePreferenceController extends SliderPreferenceController {
+ 
+     private final ColorDisplayManager mColorDisplayManager;
+     private final int mChannel;
+ 
++    private SeekBarPreference mPreference;
++
+     public ColorBalancePreferenceController(Context context, String key) {
+         super(context, key);
+         mColorDisplayManager = context.getSystemService(ColorDisplayManager.class);
+@@ -55,11 +57,12 @@ public class ColorBalancePreferenceController extends SliderPreferenceController
+     @Override
+     public void displayPreference(PreferenceScreen screen) {
+         super.displayPreference(screen);
+-        final SeekBarPreference preference = screen.findPreference(getPreferenceKey());
+-        preference.setContinuousUpdates(true);
+-        preference.setMax(getMax());
+-        preference.setMin(getMin());
+-        preference.setProgress(getSliderPosition());
++        mPreference = screen.findPreference(getPreferenceKey());
++        mPreference.setUpdatesContinuously(true);
++        mPreference.setMax(getMax());
++        mPreference.setMin(getMin());
++        mPreference.setValue(getSliderPosition());
++        mPreference.setSummary(Integer.toString(getSliderPosition()));
+     }
+ 
+     @Override
+@@ -69,6 +72,7 @@ public class ColorBalancePreferenceController extends SliderPreferenceController
+ 
+     @Override
+     public boolean setSliderPosition(int position) {
++        mPreference.setSummary(Integer.toString(position));
+         return mColorDisplayManager.setColorBalanceChannel(mChannel, position);
+     }
+ 
+-- 
+2.47.1
+

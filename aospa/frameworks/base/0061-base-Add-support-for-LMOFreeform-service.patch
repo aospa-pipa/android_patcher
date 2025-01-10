@@ -1,0 +1,155 @@
+From daa95772db508690d454f202e79ffb8f64d388ef Mon Sep 17 00:00:00 2001
+From: Adithya R <gh0strider.2k18.reborn@gmail.com>
+Date: Thu, 8 Aug 2024 20:13:33 +0530
+Subject: [PATCH 061/103] base: Add support for LMOFreeform service
+
+Change-Id: I03ebd2e0e175f91fbc83fb9221724d7be5daf7ca
+Signed-off-by: Adithya R <gh0strider.2k18.reborn@gmail.com>
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ Android.bp                                    |  2 ++
+ .../display/DisplayManagerInternal.java       | 15 ++++++++++
+ services/core/Android.bp                      |  1 +
+ .../server/display/DisplayManagerService.java | 29 +++++++++++++++++++
+ 4 files changed, 47 insertions(+)
+
+diff --git a/Android.bp b/Android.bp
+index 216b184ec52f..bb3c37f67d05 100644
+--- a/Android.bp
++++ b/Android.bp
+@@ -140,6 +140,8 @@ filegroup {
+         ":vold_aidl",
+         ":deviceproductinfoconstants_aidl",
+ 
++        ":lmofreeform_aidl",
++
+         // For the generated R.java and Manifest.java
+         ":framework-res{.aapt.srcjar}",
+ 
+diff --git a/core/java/android/hardware/display/DisplayManagerInternal.java b/core/java/android/hardware/display/DisplayManagerInternal.java
+index b2dcf9091198..276bcf777bfb 100644
+--- a/core/java/android/hardware/display/DisplayManagerInternal.java
++++ b/core/java/android/hardware/display/DisplayManagerInternal.java
+@@ -23,17 +23,21 @@ import android.graphics.Point;
+ import android.hardware.SensorManager;
+ import android.hardware.input.HostUsiVersion;
+ import android.os.Handler;
++import android.os.IBinder;
+ import android.os.PowerManager;
+ import android.util.IntArray;
+ import android.util.SparseArray;
+ import android.view.Display;
+ import android.view.DisplayInfo;
++import android.view.Surface;
+ import android.view.SurfaceControl;
+ import android.view.SurfaceControl.RefreshRateRange;
+ import android.view.SurfaceControl.Transaction;
+ import android.window.DisplayWindowPolicyController;
+ import android.window.ScreenCapture;
+ 
++import com.libremobileos.freeform.ILMOFreeformDisplayCallback;
++
+ import java.lang.annotation.Retention;
+ import java.lang.annotation.RetentionPolicy;
+ import java.util.List;
+@@ -430,6 +434,17 @@ public abstract class DisplayManagerInternal {
+      */
+     public abstract IntArray getDisplayGroupIds();
+ 
++    // LMOFreeform
++    public abstract void createFreeformLocked(String name, ILMOFreeformDisplayCallback callback,
++            int width, int height, int densityDpi, boolean secure, boolean ownContentOnly,
++            boolean shouldShowSystemDecorations, Surface surface, float refreshRate,
++            long presentationDeadlineNanos);
++
++    public abstract void resizeFreeform(IBinder appToken, int width, int height,
++            int densityDpi);
++
++    public abstract void releaseFreeform(IBinder appToken);
++
+     /**
+      * Called upon presentation started/ended on the display.
+      * @param displayId the id of the display where presentation started.
+diff --git a/services/core/Android.bp b/services/core/Android.bp
+index 41320c723d3d..0b1ae869e52e 100644
+--- a/services/core/Android.bp
++++ b/services/core/Android.bp
+@@ -133,6 +133,7 @@ java_library_static {
+         ":display-device-config",
+         ":display-layout-config",
+         ":device-state-config",
++        ":lmofreeform-display-adapter-java",
+         "java/com/android/server/EventLogTags.logtags",
+         "java/com/android/server/am/EventLogTags.logtags",
+         "java/com/android/server/wm/EventLogTags.logtags",
+diff --git a/services/core/java/com/android/server/display/DisplayManagerService.java b/services/core/java/com/android/server/display/DisplayManagerService.java
+index 1fc9fae3e230..517e9ce2b6e2 100644
+--- a/services/core/java/com/android/server/display/DisplayManagerService.java
++++ b/services/core/java/com/android/server/display/DisplayManagerService.java
+@@ -180,6 +180,8 @@ import com.android.server.utils.FoldSettingProvider;
+ import com.android.server.wm.SurfaceAnimationThread;
+ import com.android.server.wm.WindowManagerInternal;
+ 
++import com.libremobileos.freeform.ILMOFreeformDisplayCallback;
++
+ import java.io.FileDescriptor;
+ import java.io.PrintWriter;
+ import java.util.ArrayList;
+@@ -517,6 +519,8 @@ public final class DisplayManagerService extends SystemService {
+     private final boolean mExtraDisplayEventLogging;
+     private final String mExtraDisplayLoggingPackageName;
+ 
++    private LMOFreeformDisplayAdapter mFreeformDisplayAdapter;
++
+     private final BroadcastReceiver mIdleModeReceiver = new BroadcastReceiver() {
+         @Override
+         public void onReceive(Context context, Intent intent) {
+@@ -1970,6 +1974,7 @@ public final class DisplayManagerService extends SystemService {
+             if (shouldRegisterNonEssentialDisplayAdaptersLocked()) {
+                 registerOverlayDisplayAdapterLocked();
+                 registerWifiDisplayAdapterLocked();
++                registerFreeformDisplayAdapterLocked();
+             }
+         }
+     }
+@@ -1990,6 +1995,13 @@ public final class DisplayManagerService extends SystemService {
+         }
+     }
+ 
++    private void registerFreeformDisplayAdapterLocked() {
++        mFreeformDisplayAdapter = new LMOFreeformDisplayAdapter(
++                mSyncRoot, mContext, mHandler, mDisplayDeviceRepo, mLogicalDisplayMapper,
++                mUiHandler, mFlags);
++        registerDisplayAdapterLocked(mFreeformDisplayAdapter);
++    }
++
+     private boolean shouldRegisterNonEssentialDisplayAdaptersLocked() {
+         // In safe mode, we disable non-essential display adapters to give the user
+         // an opportunity to fix broken settings or other problems that might affect
+@@ -5150,6 +5162,23 @@ public final class DisplayManagerService extends SystemService {
+         public void onPresentation(int displayId, boolean isShown) {
+             mExternalDisplayPolicy.onPresentation(displayId, isShown);
+         }
++
++        public void createFreeformLocked(String name, ILMOFreeformDisplayCallback callback,
++                int width, int height, int densityDpi, boolean secure, boolean ownContentOnly,
++                boolean shouldShowSystemDecorations, Surface surface, float refreshRate,
++                long presentationDeadlineNanos) {
++            mFreeformDisplayAdapter.createFreeformLocked(name, callback, width, height, densityDpi,
++                    secure, ownContentOnly, shouldShowSystemDecorations, surface, refreshRate,
++                    presentationDeadlineNanos);
++        }
++
++        public void resizeFreeform(IBinder appToken, int width, int height, int densityDpi) {
++            mFreeformDisplayAdapter.resizeFreeform(appToken, width, height, densityDpi);
++        }
++
++        public void releaseFreeform(IBinder appToken) {
++            mFreeformDisplayAdapter.releaseFreeform(appToken);
++        }
+     }
+ 
+     class DesiredDisplayModeSpecsObserver
+-- 
+2.47.1
+

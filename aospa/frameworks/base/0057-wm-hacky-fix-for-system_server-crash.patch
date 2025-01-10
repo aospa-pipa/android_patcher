@@ -1,0 +1,82 @@
+From 8fbb8b090eac2fbf27e96e521277378b90f34e44 Mon Sep 17 00:00:00 2001
+From: nift4 <nift4@protonmail.com>
+Date: Mon, 22 May 2023 19:45:51 +0200
+Subject: [PATCH 057/103] wm: hacky fix for system_server crash
+
+When opening pre-Nougat app that did not specify resizable attribute
+(pre Nougat era) and also is forced to portrait orientation in
+freeform and then resizing its window, system_server will crash due to
+invalid resize. To avoid whole device going down, we just catch the
+crash - app will stop working (window will be empty), BUT this is a much
+better thing to have than whole device crashing. This fix is even more
+needed because since Android 13, Google saves freeform bounds, which
+means when you reopen the unresizable app, it will instantly crash
+system_server again and you cannot ever again use this app in freeform
+without factory reset.
+
+The proper fix is to enable force resizable in developer settings, or
+asking the app devs to fix it (by making the app resizable). Further
+Framework-side fixes for this should be done by AOSP.
+
+Change-Id: I40d48c0caa9c376160f427d27260bd6bd5f66978
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ .../com/android/server/wm/TaskPositioner.java | 21 ++++++++++++-------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/services/core/java/com/android/server/wm/TaskPositioner.java b/services/core/java/com/android/server/wm/TaskPositioner.java
+index 9b3fb6b881c4..13cefe40fedc 100644
+--- a/services/core/java/com/android/server/wm/TaskPositioner.java
++++ b/services/core/java/com/android/server/wm/TaskPositioner.java
+@@ -145,8 +145,7 @@ class TaskPositioner implements IBinder.DeathRecipient {
+                 if (!mTmpRect.equals(mWindowDragBounds)) {
+                     Trace.traceBegin(TRACE_TAG_WINDOW_MANAGER,
+                             "wm.TaskPositioner.resizeTask");
+-                    mService.mAtmService.resizeTask(
+-                            mTask.mTaskId, mWindowDragBounds, RESIZE_MODE_USER);
++                    resizeTask(RESIZE_MODE_USER);
+                     Trace.traceEnd(Trace.TRACE_TAG_WINDOW_MANAGER);
+                 }
+             }
+@@ -178,8 +177,7 @@ class TaskPositioner implements IBinder.DeathRecipient {
+             if (wasResizing && !mTmpRect.equals(mWindowDragBounds)) {
+                 // We were using fullscreen surface during resizing. Request
+                 // resizeTask() one last time to restore surface to window size.
+-                mService.mAtmService.resizeTask(
+-                        mTask.mTaskId, mWindowDragBounds, RESIZE_MODE_USER_FORCED);
++                resizeTask(RESIZE_MODE_USER_FORCED);
+             }
+ 
+             // Post back to WM to handle clean-ups. We still need the input
+@@ -354,10 +352,7 @@ class TaskPositioner implements IBinder.DeathRecipient {
+ 
+             // The WindowPositionerEventReceiver callbacks are delivered on the same handler so this
+             // initial resize is always guaranteed to happen before subsequent drag resizes.
+-            mService.mH.post(() -> {
+-                mService.mAtmService.resizeTask(
+-                        mTask.mTaskId, startBounds, RESIZE_MODE_USER_FORCED);
+-            });
++            mService.mH.post(() -> resizeTask(RESIZE_MODE_USER_FORCED));
+         }
+ 
+         // Make sure we always have valid drag bounds even if the drag ends before any move events
+@@ -471,6 +466,16 @@ class TaskPositioner implements IBinder.DeathRecipient {
+                 "updateWindowDragBounds: " + mWindowDragBounds);
+     }
+ 
++    private void resizeTask(int reason) {
++        try {
++            mService.mAtmService.resizeTask(mTask.mTaskId, mWindowDragBounds, reason);
++        } catch (IllegalArgumentException i) {
++            String msg = i.getMessage();
++            msg = msg == null ? "(null)" : msg;
++            Slog.e(TAG, "cannot resize task: " + msg);
++        }
++    }
++
+     public String toShortString() {
+         return TAG;
+     }
+-- 
+2.47.1
+

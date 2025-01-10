@@ -1,0 +1,37 @@
+From 1189a1e576f74bbc746a6a92e320a059f0b8a7ad Mon Sep 17 00:00:00 2001
+From: Jprimero15 <jprimero15@aospa.co>
+Date: Thu, 18 May 2023 18:17:59 +0000
+Subject: [PATCH 04/16] Settings: Add back pulse to ambient on double tap
+ gestures
+
+* beneficial for devices that have no one tap gesture support.
+
+Change-Id: I83627235c980b5aeca19b64e54d58fba44976fb8
+Signed-off-by: Jprimero15 <jprimero15@aospa.co>
+---
+ res/values/aospa_arrays.xml | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/res/values/aospa_arrays.xml b/res/values/aospa_arrays.xml
+index 55ead00..9b5f7b5 100644
+--- a/res/values/aospa_arrays.xml
++++ b/res/values/aospa_arrays.xml
+@@ -19,6 +19,7 @@
+     <string-array name="gestures_entries">
+         <item>@string/gestures_disabled</item>
+         <item>@string/gestures_wake_device</item>
++        <item>@string/gestures_pulse_ambient_display</item>
+         <item>@string/gestures_toggle_flashlight</item>
+         <item>@string/gestures_toggle_airplane_mode</item>
+         <item>@string/gestures_play_pause_music</item>
+@@ -31,6 +32,7 @@
+     <string-array name="gestures_values">
+         <item>0</item>
+         <item>1</item>
++        <item>2</item>
+         <item>3</item>
+         <item>4</item>
+         <item>5</item>
+-- 
+2.47.1
+

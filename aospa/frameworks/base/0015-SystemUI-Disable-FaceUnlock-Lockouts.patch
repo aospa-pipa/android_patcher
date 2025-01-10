@@ -1,0 +1,61 @@
+From af3482d8d791f2f3ab45c5d638b1a8b6a5db9d1d Mon Sep 17 00:00:00 2001
+From: minaripenguin <minaripenguin@users.noreply.github.com>
+Date: Sun, 28 Apr 2024 08:22:52 +0800
+Subject: [PATCH 015/103] SystemUI: Disable FaceUnlock Lockouts
+
+Signed-off-by: minaripenguin <minaripenguin@users.noreply.github.com>
+---
+ .../repository/DeviceEntryFaceAuthRepository.kt    |  4 ++--
+ .../SystemUIDeviceEntryFaceAuthInteractor.kt       | 14 +++-----------
+ 2 files changed, 5 insertions(+), 13 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/deviceentry/data/repository/DeviceEntryFaceAuthRepository.kt b/packages/SystemUI/src/com/android/systemui/deviceentry/data/repository/DeviceEntryFaceAuthRepository.kt
+index 813fccffb62f..827152e057bf 100644
+--- a/packages/SystemUI/src/com/android/systemui/deviceentry/data/repository/DeviceEntryFaceAuthRepository.kt
++++ b/packages/SystemUI/src/com/android/systemui/deviceentry/data/repository/DeviceEntryFaceAuthRepository.kt
+@@ -225,7 +225,7 @@ constructor(
+             ?: flowOf(false)
+ 
+     override fun setLockedOut(isLockedOut: Boolean) {
+-        _isLockedOut.value = isLockedOut
++        _isLockedOut.value = false
+     }
+ 
+     private val faceLockoutResetCallback =
+@@ -461,7 +461,7 @@ constructor(
+             override fun onAuthenticationError(errorCode: Int, errString: CharSequence?) {
+                 val errorStatus = ErrorFaceAuthenticationStatus(errorCode, errString.toString())
+                 if (errorStatus.isLockoutError()) {
+-                    _isLockedOut.value = true
++                    _isLockedOut.value = false
+                 }
+                 _isAuthenticated.value = false
+                 _authenticationStatus.value = errorStatus
+diff --git a/packages/SystemUI/src/com/android/systemui/deviceentry/domain/interactor/SystemUIDeviceEntryFaceAuthInteractor.kt b/packages/SystemUI/src/com/android/systemui/deviceentry/domain/interactor/SystemUIDeviceEntryFaceAuthInteractor.kt
+index d12ea4573fbe..2e9c614f812c 100644
+--- a/packages/SystemUI/src/com/android/systemui/deviceentry/domain/interactor/SystemUIDeviceEntryFaceAuthInteractor.kt
++++ b/packages/SystemUI/src/com/android/systemui/deviceentry/domain/interactor/SystemUIDeviceEntryFaceAuthInteractor.kt
+@@ -287,17 +287,9 @@ constructor(
+     override val isBypassEnabled: Flow<Boolean> = repository.isBypassEnabled
+ 
+     private fun runFaceAuth(uiEvent: FaceAuthUiEvent, fallbackToDetect: Boolean) {
+-        if (repository.isLockedOut.value) {
+-            faceAuthenticationStatusOverride.value =
+-                ErrorFaceAuthenticationStatus(
+-                    BiometricFaceConstants.FACE_ERROR_LOCKOUT_PERMANENT,
+-                    context.resources.getString(R.string.keyguard_face_unlock_unavailable)
+-                )
+-        } else {
+-            faceAuthenticationStatusOverride.value = null
+-            faceAuthenticationLogger.authRequested(uiEvent)
+-            repository.requestAuthenticate(uiEvent, fallbackToDetection = fallbackToDetect)
+-        }
++        faceAuthenticationStatusOverride.value = null
++        faceAuthenticationLogger.authRequested(uiEvent)
++        repository.requestAuthenticate(uiEvent, fallbackToDetection = fallbackToDetect)
+     }
+ 
+     override fun isFaceAuthEnabledAndEnrolled(): Boolean =
+-- 
+2.47.1
+

@@ -1,0 +1,38 @@
+From bf089caca50f0d2fa7418ce57386ff181e68a550 Mon Sep 17 00:00:00 2001
+From: Yash <yashasvig@google.com>
+Date: Wed, 25 Sep 2024 16:28:58 +0000
+Subject: [PATCH] Add sdk_version to the kotlinx_coroutines_guava target
+
+Bug: 368668054
+Test: Presubmits
+(cherry picked from https://googleplex-android-review.googlesource.com/q/commit:756c14f8677375b29cca08d5bf687f759b65b610)
+Merged-In: I7eb8e6dbae978e981b77c59be8bb6f53dbd18594
+Change-Id: I7eb8e6dbae978e981b77c59be8bb6f53dbd18594
+---
+ Android.bp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/Android.bp b/Android.bp
+index cdb89c67..122719e4 100644
+--- a/Android.bp
++++ b/Android.bp
+@@ -216,6 +216,8 @@ filegroup {
+ // Maven coordinate: org.jetbrains.kotlinx:kotlinx-coroutines-guava
+ java_library {
+     name: "kotlinx_coroutines_guava",
++    sdk_version: "current",
++    min_sdk_version: "28",
+     host_supported: true,
+     srcs: ["integration/kotlinx-coroutines-guava/src/**/*.kt"],
+     kotlincflags: [
+@@ -258,7 +260,6 @@ java_library {
+     visibility: ["//visibility:public"],
+ }
+ 
+-
+ // Maven coordinate: org.jetbrains.kotlinx:kotlinx-coroutines-rx2
+ java_library {
+     name: "kotlinx_coroutines_rx2",
+-- 
+2.47.1
+

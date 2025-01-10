@@ -1,0 +1,37 @@
+From b7d98e7dc9effdeacf7114c04bb9a20b3f08090c Mon Sep 17 00:00:00 2001
+From: Pranav Vashi <neobuddy89@gmail.com>
+Date: Mon, 2 Dec 2024 10:28:44 +0530
+Subject: [PATCH 096/103] base: Fix lock gesture not working for secondary
+ users
+
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ services/core/java/com/android/server/wm/InsetsPolicy.java | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/services/core/java/com/android/server/wm/InsetsPolicy.java b/services/core/java/com/android/server/wm/InsetsPolicy.java
+index 22801b240cb3..2f80bb89d8d7 100644
+--- a/services/core/java/com/android/server/wm/InsetsPolicy.java
++++ b/services/core/java/com/android/server/wm/InsetsPolicy.java
+@@ -35,6 +35,7 @@ import android.content.res.Resources;
+ import android.os.Handler;
+ import android.os.IBinder;
+ import android.os.SystemClock;
++import android.os.UserHandle;
+ import android.provider.Settings;
+ import android.util.SparseArray;
+ import android.view.InsetsController;
+@@ -889,8 +890,8 @@ class InsetsPolicy {
+     void updateLockedStatus() {
+         mLastSwipeTime = 0L;
+         mLastUnlockedTime = 0L;
+-        mLockedGesture = Settings.System.getInt(mPolicy.getContext().getContentResolver(),
+-                Settings.System.LOCK_GESTURE_STATUS, 0) == 1;
++        mLockedGesture = Settings.System.getIntForUser(mPolicy.getContext().getContentResolver(),
++                Settings.System.LOCK_GESTURE_STATUS, 0, UserHandle.USER_CURRENT) == 1;
+     }
+ 
+     void warnGestureLocked() {
+-- 
+2.47.1
+

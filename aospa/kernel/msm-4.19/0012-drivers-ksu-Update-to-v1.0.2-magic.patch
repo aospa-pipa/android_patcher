@@ -1,0 +1,222 @@
+From 0a02ed8f598256febf548bb151cb0923afb66ebe Mon Sep 17 00:00:00 2001
+From: Sean Du <do4suki@gmail.com>
+Date: Thu, 12 Dec 2024 00:49:14 +0800
+Subject: [PATCH 12/21] drivers: ksu: Update to v1.0.2+magic
+
+From https://github.com/backslashxx/KernelSU/releases/tag/v1.0.2-6
+
+Change-Id: I3eca53309aad715949f3f5f8d11cdd6ebd48af07
+Signed-off-by: Sean Du <do4suki@gmail.com>
+---
+ drivers/ksu/Kconfig           |  8 ++++++++
+ drivers/ksu/Makefile          |  7 ++-----
+ drivers/ksu/apk_sign.c        |  7 +++++--
+ drivers/ksu/core_hook.c       | 31 ++++++++++++++++---------------
+ drivers/ksu/kernel_compat.c   |  4 ++--
+ drivers/ksu/kernel_compat.h   |  2 +-
+ drivers/ksu/selinux/selinux.h |  2 +-
+ drivers/ksu/setup.sh          |  2 +-
+ 8 files changed, 36 insertions(+), 27 deletions(-)
+
+diff --git a/drivers/ksu/Kconfig b/drivers/ksu/Kconfig
+index 67f177f4708a..1f3802f6decc 100644
+--- a/drivers/ksu/Kconfig
++++ b/drivers/ksu/Kconfig
+@@ -16,4 +16,12 @@ config KSU_DEBUG
+ 	help
+ 	  Enable KernelSU debug mode.
+ 
++config KSU_ALLOWLIST_WORKAROUND
++        bool "KernelSU Session Keyring Init workaround"
++        depends on KSU
++        default n
++        help
++          Enable session keyring init workaround for problematic devices.
++          Useful for situations where the SU allowlist is not kept after a reboot.
++
+ endmenu
+diff --git a/drivers/ksu/Makefile b/drivers/ksu/Makefile
+index 348c6c19c9ed..d5097059d42b 100644
+--- a/drivers/ksu/Makefile
++++ b/drivers/ksu/Makefile
+@@ -16,10 +16,10 @@ ccflags-y += -I$(objtree)/security/selinux -include $(srctree)/include/uapi/asm-
+ 
+ obj-$(CONFIG_KSU) += kernelsu.o
+ 
+-KSU_GIT_VERSION := 1672
++KSU_GIT_VERSION := 1826
+ 
+ # ksu_version: major * 10000 + git version + 200 for historical reasons
+-$(eval KSU_VERSION=$(shell expr 10000 + $(KSU_GIT_VERSION) + 200))
++$(eval KSU_VERSION=$(shell expr 10000 + $(KSU_GIT_VERSION) + 165))
+ $(info -- KernelSU version: $(KSU_VERSION))
+ ccflags-y += -DKSU_VERSION=$(KSU_VERSION)
+ 
+@@ -52,9 +52,6 @@ ccflags-y += -DEXPECTED_HASH=\"$(KSU_EXPECTED_HASH)\"
+ 
+ ifeq ($(shell grep -q "int path_umount" $(srctree)/fs/namespace.c; echo $$?),0)
+ ccflags-y += -DKSU_UMOUNT
+-else
+-$(info -- Did you know you can backport path_umount to fs/namespace.c from 5.9?)
+-$(info -- Read: https://kernelsu.org/guide/how-to-integrate-for-non-gki.html#how-to-backport-path-umount)
+ endif
+ 
+ ccflags-y += -Wno-implicit-function-declaration -Wno-strict-prototypes -Wno-int-conversion -Wno-gcc-compat
+diff --git a/drivers/ksu/apk_sign.c b/drivers/ksu/apk_sign.c
+index ba8b73f2eb2b..1f888b1e5cb8 100644
+--- a/drivers/ksu/apk_sign.c
++++ b/drivers/ksu/apk_sign.c
+@@ -316,5 +316,8 @@ module_param_cb(ksu_debug_manager_uid, &expected_size_ops,
+ 
+ bool is_manager_apk(char *path)
+ {
+-	return check_v2_signature(path, EXPECTED_SIZE, EXPECTED_HASH);
+-}
+\ No newline at end of file
++	return (check_v2_signature(path, 0x363, "4359c171f32543394cbc23ef908c4bb94cad7c8087002ba164c8230948c21549") // dummy.keystore
++	|| check_v2_signature(path, EXPECTED_SIZE, EXPECTED_HASH)  // ksu official
++/*	|| check_v2_signature(path, custom_size, custom_hash)  // add more as you like 	*/
++	);
++}
+diff --git a/drivers/ksu/core_hook.c b/drivers/ksu/core_hook.c
+index 429ba3306ea3..184db7a70963 100644
+--- a/drivers/ksu/core_hook.c
++++ b/drivers/ksu/core_hook.c
+@@ -15,6 +15,7 @@
+ #include <linux/sched.h>
+ #include <linux/security.h>
+ #include <linux/stddef.h>
++#include <linux/string.h>
+ #include <linux/types.h>
+ #include <linux/uaccess.h>
+ #include <linux/uidgid.h>
+@@ -197,7 +198,7 @@ int ksu_handle_rename(struct dentry *old_dentry, struct dentry *new_dentry)
+ 		return 0;
+ 	}
+ 
+-	if (strcmp(buf, "/system/packages.list")) {
++	if (!strstr(buf, "/system/packages.list")) {
+ 		return 0;
+ 	}
+ 	pr_info("renameat: %s -> %s, new path: %s\n", old_dentry->d_iname,
+@@ -449,14 +450,12 @@ static bool should_umount(struct path *path)
+ 	return false;
+ }
+ 
+-static int ksu_umount_mnt(struct path *path, int flags)
++static void ksu_umount_mnt(struct path *path, int flags)
+ {
+-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0) || defined(KSU_UMOUNT)
+-	return path_umount(path, flags);
+-#else
+-	// TODO: umount for non GKI kernel
+-	return -ENOSYS;
+-#endif
++	int err = path_umount(path, flags);
++	if (err) {
++		pr_info("umount %s failed: %d\n", path->dentry->d_iname, err);
++	}
+ }
+ 
+ static void try_umount(const char *mnt, bool check_mnt, int flags)
+@@ -476,11 +475,13 @@ static void try_umount(const char *mnt, bool check_mnt, int flags)
+ 	if (check_mnt && !should_umount(&path)) {
+ 		return;
+ 	}
+-
+-	err = ksu_umount_mnt(&path, flags);
+-	if (err) {
+-		pr_warn("umount %s failed: %d\n", mnt, err);
+-	}
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0) || defined(KSU_UMOUNT)
++	ksu_umount_mnt(&path, flags);
++#else
++	#error You should backport path_umount to fs/namespace.c !
++	#error Read: https://kernelsu.org/guide/how-to-integrate-for-non-gki.html#how-to-backport-path-umount
++	#error Read: https://github.com/tiann/KernelSU/pull/1464
++#endif
+ }
+ 
+ int ksu_handle_setuid(struct cred *new, const struct cred *old)
+@@ -625,7 +626,7 @@ static int ksu_task_prctl(int option, unsigned long arg2, unsigned long arg3,
+ 	return -ENOSYS;
+ }
+ // kernel 4.4 and 4.9
+-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) || defined(CONFIG_IS_HW_HISI)
++#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) || defined(CONFIG_IS_HW_HISI) || defined(CONFIG_KSU_ALLOWLIST_WORKAROUND)
+ static int ksu_key_permission(key_ref_t key_ref, const struct cred *cred,
+ 			      unsigned perm)
+ {
+@@ -658,7 +659,7 @@ static struct security_hook_list ksu_hooks[] = {
+ 	LSM_HOOK_INIT(task_prctl, ksu_task_prctl),
+ 	LSM_HOOK_INIT(inode_rename, ksu_inode_rename),
+ 	LSM_HOOK_INIT(task_fix_setuid, ksu_task_fix_setuid),
+-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) || defined(CONFIG_IS_HW_HISI)
++#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) || defined(CONFIG_IS_HW_HISI) || defined(CONFIG_KSU_ALLOWLIST_WORKAROUND)
+ 	LSM_HOOK_INIT(key_permission, ksu_key_permission)
+ #endif
+ };
+diff --git a/drivers/ksu/kernel_compat.c b/drivers/ksu/kernel_compat.c
+index b242bc637398..9f38767f1518 100644
+--- a/drivers/ksu/kernel_compat.c
++++ b/drivers/ksu/kernel_compat.c
+@@ -10,7 +10,7 @@
+ #include "klog.h" // IWYU pragma: keep
+ #include "kernel_compat.h" // Add check Huawei Device
+ 
+-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) || defined(CONFIG_IS_HW_HISI)
++#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) || defined(CONFIG_IS_HW_HISI) || defined(CONFIG_KSU_ALLOWLIST_WORKAROUND)
+ #include <linux/key.h>
+ #include <linux/errno.h>
+ #include <linux/cred.h>
+@@ -79,7 +79,7 @@ void ksu_android_ns_fs_check()
+ 
+ struct file *ksu_filp_open_compat(const char *filename, int flags, umode_t mode)
+ {
+-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) || defined(CONFIG_IS_HW_HISI)
++#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) || defined(CONFIG_IS_HW_HISI) || defined(CONFIG_KSU_ALLOWLIST_WORKAROUND)
+ 	if (init_session_keyring != NULL && !current_cred()->session_keyring &&
+ 	    (current->flags & PF_WQ_WORKER)) {
+ 		pr_info("installing init session keyring for older kernel\n");
+diff --git a/drivers/ksu/kernel_compat.h b/drivers/ksu/kernel_compat.h
+index ba9981857fd1..6d79f7edb382 100644
+--- a/drivers/ksu/kernel_compat.h
++++ b/drivers/ksu/kernel_compat.h
+@@ -24,7 +24,7 @@ extern long ksu_strncpy_from_user_nofault(char *dst,
+ 					  const void __user *unsafe_addr,
+ 					  long count);
+ 
+-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) || defined(CONFIG_IS_HW_HISI)
++#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) || defined(CONFIG_IS_HW_HISI) || defined(CONFIG_KSU_ALLOWLIST_WORKAROUND)
+ extern struct key *init_session_keyring;
+ #endif
+ 
+diff --git a/drivers/ksu/selinux/selinux.h b/drivers/ksu/selinux/selinux.h
+index ec64f01f35cd..07120c253268 100644
+--- a/drivers/ksu/selinux/selinux.h
++++ b/drivers/ksu/selinux/selinux.h
+@@ -4,7 +4,7 @@
+ #include "linux/types.h"
+ #include "linux/version.h"
+ 
+-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)) || defined(KSU_COMPAT_HAS_SELINUX_STATE)
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)) || defined(KSU_COMPAT_HAS_SELINUX_STATE)
+ #define KSU_COMPAT_USE_SELINUX_STATE
+ #endif
+ 
+diff --git a/drivers/ksu/setup.sh b/drivers/ksu/setup.sh
+index e688dbaf3ae5..fa35377026b0 100755
+--- a/drivers/ksu/setup.sh
++++ b/drivers/ksu/setup.sh
+@@ -39,7 +39,7 @@ perform_cleanup() {
+ # Sets up or update KernelSU environment
+ setup_kernelsu() {
+     echo "[+] Setting up KernelSU..."
+-    test -d "$GKI_ROOT/KernelSU" || git clone https://github.com/tiann/KernelSU && echo "[+] Repository cloned."
++    test -d "$GKI_ROOT/KernelSU" || git clone https://github.com/backslashxx/KernelSU && echo "[+] Repository cloned."
+     cd "$GKI_ROOT/KernelSU"
+     git stash && echo "[-] Stashed current changes."
+     if [ "$(git status | grep -Po 'v\d+(\.\d+)*' | head -n1)" ]; then
+-- 
+2.47.1
+

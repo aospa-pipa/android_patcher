@@ -1,0 +1,54 @@
+From b02288c54b8b3239399cce923cf616300b029d84 Mon Sep 17 00:00:00 2001
+From: Adithya R <gh0strider.2k18.reborn@gmail.com>
+Date: Tue, 20 Aug 2024 08:50:50 +0530
+Subject: [PATCH 6/7] sepolicy: Add support for LMOFreeform service
+
+Change-Id: I308176f8b186ecf365e4b98ac792c2f5e9872335
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ sepolicy/common/private/priv_app.te      | 1 +
+ sepolicy/common/private/service.te       | 2 ++
+ sepolicy/common/private/service_contexts | 2 ++
+ sepolicy/common/private/system_server.te | 3 +++
+ 4 files changed, 8 insertions(+)
+ create mode 100644 sepolicy/common/private/priv_app.te
+ create mode 100644 sepolicy/common/private/service.te
+ create mode 100644 sepolicy/common/private/service_contexts
+
+diff --git a/sepolicy/common/private/priv_app.te b/sepolicy/common/private/priv_app.te
+new file mode 100644
+index 000000000..d902eb269
+--- /dev/null
++++ b/sepolicy/common/private/priv_app.te
+@@ -0,0 +1 @@
++allow priv_app lmo_freeform_service:service_manager find;
+diff --git a/sepolicy/common/private/service.te b/sepolicy/common/private/service.te
+new file mode 100644
+index 000000000..5614344f0
+--- /dev/null
++++ b/sepolicy/common/private/service.te
+@@ -0,0 +1,2 @@
++# Freeform
++type lmo_freeform_service, system_api_service, system_server_service, service_manager_type;
+diff --git a/sepolicy/common/private/service_contexts b/sepolicy/common/private/service_contexts
+new file mode 100644
+index 000000000..74d9f10f5
+--- /dev/null
++++ b/sepolicy/common/private/service_contexts
+@@ -0,0 +1,2 @@
++# Freeform
++lmo_freeform                              u:object_r:lmo_freeform_service:s0
+diff --git a/sepolicy/common/private/system_server.te b/sepolicy/common/private/system_server.te
+index 40ade973f..3dcd260ca 100644
+--- a/sepolicy/common/private/system_server.te
++++ b/sepolicy/common/private/system_server.te
+@@ -2,3 +2,6 @@
+ get_prop(system_server, vendor_persist_camera_prop)
+ 
+ get_prop(system_server, vendor_wfd_sys_debug_prop)
++
++# Freeform
++add_service(system_server, lmo_freeform_service);
+-- 
+2.47.1
+

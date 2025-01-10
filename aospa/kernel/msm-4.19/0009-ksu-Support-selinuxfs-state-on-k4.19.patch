@@ -1,0 +1,29 @@
+From 6c8d8e2e83a1075192f3d2a584a7223ce5d3db2c Mon Sep 17 00:00:00 2001
+From: Yuan Si <do4suki@gmail.com>
+Date: Mon, 22 Jul 2024 15:35:02 +0800
+Subject: [PATCH 09/21] ksu: Support selinuxfs state on k4.19
+
+See https://github.com/aosp-mirror/kernel_common/commit/0619f0f5e36f12e100ef294f5980cfe7c93ff23e
+
+Change-Id: I857c23564b9b07050239dd1e5b6a6910b31cd854
+Signed-off-by: Yuan Si <do4suki@gmail.com>
+---
+ drivers/ksu/selinux/selinux.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/ksu/selinux/selinux.h b/drivers/ksu/selinux/selinux.h
+index 07120c253268..ec64f01f35cd 100644
+--- a/drivers/ksu/selinux/selinux.h
++++ b/drivers/ksu/selinux/selinux.h
+@@ -4,7 +4,7 @@
+ #include "linux/types.h"
+ #include "linux/version.h"
+ 
+-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)) || defined(KSU_COMPAT_HAS_SELINUX_STATE)
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)) || defined(KSU_COMPAT_HAS_SELINUX_STATE)
+ #define KSU_COMPAT_USE_SELINUX_STATE
+ #endif
+ 
+-- 
+2.47.1
+

@@ -1,0 +1,71 @@
+From 316d895ee2a5a18e80d523cef52e6bd5b9680d80 Mon Sep 17 00:00:00 2001
+From: Adithya R <gh0strider.2k18.reborn@gmail.com>
+Date: Thu, 31 Oct 2024 09:01:57 +0530
+Subject: [PATCH 058/103] wm: Show rounded corners on freeform window on
+ internal display
+
+Co-authored-by: Pranav Vashi <neobuddy89@gmail.com>
+Change-Id: I743aba4200a4d8786c09811de8a2cf5c574b885f
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ .../windowdecor/CaptionWindowDecoration.java   | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+diff --git a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/CaptionWindowDecoration.java b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/CaptionWindowDecoration.java
+index d0ca5b0fdce6..305caf27c356 100644
+--- a/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/CaptionWindowDecoration.java
++++ b/libs/WindowManager/Shell/src/com/android/wm/shell/windowdecor/CaptionWindowDecoration.java
+@@ -27,6 +27,7 @@ import android.app.WindowConfiguration.WindowingMode;
+ import android.content.Context;
+ import android.content.res.ColorStateList;
+ import android.content.res.Resources;
++import android.content.res.TypedArray;
+ import android.graphics.Color;
+ import android.graphics.Rect;
+ import android.graphics.drawable.GradientDrawable;
+@@ -34,11 +35,13 @@ import android.graphics.drawable.VectorDrawable;
+ import android.os.Handler;
+ import android.util.Size;
+ import android.view.Choreographer;
++import android.view.Display;
+ import android.view.SurfaceControl;
+ import android.view.View;
+ import android.view.ViewConfiguration;
+ import android.window.WindowContainerTransaction;
+ 
++import com.android.internal.policy.ScreenDecorationsUtils;
+ import com.android.wm.shell.R;
+ import com.android.wm.shell.ShellTaskOrganizer;
+ import com.android.wm.shell.common.DisplayController;
+@@ -198,6 +201,7 @@ public class CaptionWindowDecoration extends WindowDecoration<WindowDecorLinearL
+         mRelayoutParams.mShadowRadiusId = shadowRadiusID;
+         mRelayoutParams.mApplyStartTransactionOnDraw = applyStartTransactionOnDraw;
+         mRelayoutParams.mSetTaskPositionAndCrop = setTaskCropAndPosition;
++        mRelayoutParams.mCornerRadius = getCornerRadius();
+ 
+         relayout(mRelayoutParams, startT, finishT, wct, oldRootView, mResult);
+         // After this line, mTaskInfo is up-to-date and should be used instead of taskInfo
+@@ -242,6 +246,20 @@ public class CaptionWindowDecoration extends WindowDecoration<WindowDecorLinearL
+                 getFineResizeCornerSize(res), getLargeResizeCornerSize(res)), touchSlop);
+     }
+ 
++    private int getCornerRadius() {
++        final Display display = mDisplayController.getDisplay(mTaskInfo.displayId);
++        // Show rounded corners only on the internal display as we can't get rounded corners for
++        // external displays.
++        if (display.getType() != Display.TYPE_INTERNAL) {
++            return 0;
++        }
++        final TypedArray ta = mContext.obtainStyledAttributes(
++                new int[]{android.R.attr.dialogCornerRadius});
++        final int cornerRadius = ta.getDimensionPixelSize(0, 0);
++        ta.recycle();
++        return cornerRadius;
++    }
++
+     /**
+      * Sets up listeners when a new root view is created.
+      */
+-- 
+2.47.1
+

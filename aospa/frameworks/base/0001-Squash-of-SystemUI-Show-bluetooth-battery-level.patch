@@ -1,0 +1,710 @@
+From 89891bb1fee72c1a4ef75ce0b616c398a02ebe3d Mon Sep 17 00:00:00 2001
+From: LuK1337 <priv.luk@gmail.com>
+Date: Wed, 31 Oct 2018 16:31:19 +0100
+Subject: [PATCH 001/103] Squash of SystemUI: Show bluetooth battery level
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Author: LuK1337 <priv.luk@gmail.com>
+Date:   2018-10-31 16:31:19 +0100
+    SystemUI: Show bluetooth battery level when available
+
+    * Somewhat inspired by change committed by Gavin Ni <gisngy@gmail.com>
+      back in cm-13.0 days (see commit 88e7a6c). Since then completely
+      rewritten using BluetoothDevice API introduced in Oreo, with new
+      drawables meant to be used with 0-9 battery level range.
+
+    Change-Id: I6179bfd41e033591534e8cf3c6adc98ce715a13d
+
+Author: Luca Stefani <luca.stefani.ge1@gmail.com>
+Date:   2021-08-23 10:11:54 +0200
+    fixup! SystemUI: Show bluetooth battery level when available
+
+    The current update method is triggered in 2 cases:
+      the SystemUI bluetooth controller changes device state
+      the battery level changed intent is sent
+
+    Sadly the current SysUI controller doesn't handle battery level
+    changes, and is instead triggered in a few other cases ( ex audio
+    state changed ).
+    And since we use the data from SysUI controller for battery level
+    from changes in the global bt controller we may have 2 different
+    set of devices to work on. This could ( and does ) trigger
+    race conditions.
+
+    Instead add support battery level state changes within the SystemUI
+    controller to work on the same data set.
+
+    Change-Id: Ib57096fc2ebe151ac3860277a4db2319f230b514
+
+Change-Id: I34344907711b7b9fc4c1d15d4516bd53bf30ebb2
+Signed-off-by: Simão Gomes Viana <devel@superboring.dev>
+---
+ ...sys_data_bluetooth_connected_battery_0.xml | 47 +++++++++++++++++++
+ ...sys_data_bluetooth_connected_battery_1.xml | 47 +++++++++++++++++++
+ ...sys_data_bluetooth_connected_battery_2.xml | 47 +++++++++++++++++++
+ ...sys_data_bluetooth_connected_battery_3.xml | 47 +++++++++++++++++++
+ ...sys_data_bluetooth_connected_battery_4.xml | 47 +++++++++++++++++++
+ ...sys_data_bluetooth_connected_battery_5.xml | 47 +++++++++++++++++++
+ ...sys_data_bluetooth_connected_battery_6.xml | 47 +++++++++++++++++++
+ ...sys_data_bluetooth_connected_battery_7.xml | 47 +++++++++++++++++++
+ ...sys_data_bluetooth_connected_battery_8.xml | 47 +++++++++++++++++++
+ ...sys_data_bluetooth_connected_battery_9.xml | 44 +++++++++++++++++
+ .../statusbar/phone/PhoneStatusBarPolicy.java | 22 +++++++++
+ .../statusbar/policy/BluetoothController.java |  2 +
+ .../policy/BluetoothControllerImpl.java       | 19 ++++++++
+ .../utils/leaks/FakeBluetoothController.java  |  5 ++
+ 14 files changed, 515 insertions(+)
+ create mode 100644 packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_0.xml
+ create mode 100644 packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_1.xml
+ create mode 100644 packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_2.xml
+ create mode 100644 packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_3.xml
+ create mode 100644 packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_4.xml
+ create mode 100644 packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_5.xml
+ create mode 100644 packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_6.xml
+ create mode 100644 packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_7.xml
+ create mode 100644 packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_8.xml
+ create mode 100644 packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_9.xml
+
+diff --git a/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_0.xml b/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_0.xml
+new file mode 100644
+index 000000000000..3559e09db09b
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_0.xml
+@@ -0,0 +1,47 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++**
++** Copyright 2017, The Android Open Source Project
++**
++** Licensed under the Apache License, Version 2.0 (the "License");
++** you may not use this file except in compliance with the License.
++** You may obtain a copy of the License at
++**
++**     http://www.apache.org/licenses/LICENSE-2.0
++**
++** Unless required by applicable law or agreed to in writing, software
++** distributed under the License is distributed on an "AS IS" BASIS,
++** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++** See the License for the specific language governing permissions and
++** limitations under the License.
++*/
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++        android:width="20dp"
++        android:height="17dp"
++        android:viewportWidth="21.0"
++        android:viewportHeight="18.0">
++    <group
++        android:scaleX="0.75"
++        android:scaleY="0.75">
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M17.71,7.71L12,2h-1v7.59L6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 11,14.41L11,22h1l5.71,-5.71 -4.3,-4.29 4.3,-4.29zM13,5.83l1.88,1.88L13,9.59L13,5.83zM14.88,16.29L13,18.17v-3.76l1.88,1.88z"/>
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M5,12m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M19,12m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
++    </group>
++    <group
++        android:translateY="0.5"
++        android:translateX="0.5" >
++        <path
++            android:pathData="M15.77,1.064V15.94h3V1.064Z"
++            android:fillColor="#4DFFFFFF"/>
++        <path
++            android:pathData="M15.77,15.3V15.94h3V15.3Z"
++            android:fillColor="#FFFFFF"/>
++    </group>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_1.xml b/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_1.xml
+new file mode 100644
+index 000000000000..50c9438c707d
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_1.xml
+@@ -0,0 +1,47 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++**
++** Copyright 2017, The Android Open Source Project
++**
++** Licensed under the Apache License, Version 2.0 (the "License");
++** you may not use this file except in compliance with the License.
++** You may obtain a copy of the License at
++**
++**     http://www.apache.org/licenses/LICENSE-2.0
++**
++** Unless required by applicable law or agreed to in writing, software
++** distributed under the License is distributed on an "AS IS" BASIS,
++** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++** See the License for the specific language governing permissions and
++** limitations under the License.
++*/
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++        android:width="20dp"
++        android:height="17dp"
++        android:viewportWidth="21.0"
++        android:viewportHeight="18.0">
++    <group
++        android:scaleX="0.75"
++        android:scaleY="0.75">
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M17.71,7.71L12,2h-1v7.59L6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 11,14.41L11,22h1l5.71,-5.71 -4.3,-4.29 4.3,-4.29zM13,5.83l1.88,1.88L13,9.59L13,5.83zM14.88,16.29L13,18.17v-3.76l1.88,1.88z"/>
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M5,12m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M19,12m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
++    </group>
++    <group
++        android:translateY="0.5"
++        android:translateX="0.5" >
++        <path
++            android:pathData="M15.77,1.064V15.94h3V1.064Z"
++            android:fillColor="#4DFFFFFF"/>
++        <path
++            android:pathData="M15.77,13.6V15.94h3V13.6Z"
++            android:fillColor="#FFFFFF"/>
++    </group>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_2.xml b/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_2.xml
+new file mode 100644
+index 000000000000..0c82aa5c65ed
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_2.xml
+@@ -0,0 +1,47 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++**
++** Copyright 2017, The Android Open Source Project
++**
++** Licensed under the Apache License, Version 2.0 (the "License");
++** you may not use this file except in compliance with the License.
++** You may obtain a copy of the License at
++**
++**     http://www.apache.org/licenses/LICENSE-2.0
++**
++** Unless required by applicable law or agreed to in writing, software
++** distributed under the License is distributed on an "AS IS" BASIS,
++** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++** See the License for the specific language governing permissions and
++** limitations under the License.
++*/
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++        android:width="20dp"
++        android:height="17dp"
++        android:viewportWidth="21.0"
++        android:viewportHeight="18.0">
++    <group
++        android:scaleX="0.75"
++        android:scaleY="0.75">
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M17.71,7.71L12,2h-1v7.59L6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 11,14.41L11,22h1l5.71,-5.71 -4.3,-4.29 4.3,-4.29zM13,5.83l1.88,1.88L13,9.59L13,5.83zM14.88,16.29L13,18.17v-3.76l1.88,1.88z"/>
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M5,12m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M19,12m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
++    </group>
++    <group
++        android:translateY="0.5"
++        android:translateX="0.5" >
++        <path
++            android:pathData="M15.77,1.064V15.94h3V1.064Z"
++            android:fillColor="#4DFFFFFF"/>
++        <path
++            android:pathData="M15.77,11.9V15.94h3V11.9Z"
++            android:fillColor="#FFFFFF"/>
++    </group>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_3.xml b/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_3.xml
+new file mode 100644
+index 000000000000..0f394873af2d
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_3.xml
+@@ -0,0 +1,47 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++**
++** Copyright 2017, The Android Open Source Project
++**
++** Licensed under the Apache License, Version 2.0 (the "License");
++** you may not use this file except in compliance with the License.
++** You may obtain a copy of the License at
++**
++**     http://www.apache.org/licenses/LICENSE-2.0
++**
++** Unless required by applicable law or agreed to in writing, software
++** distributed under the License is distributed on an "AS IS" BASIS,
++** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++** See the License for the specific language governing permissions and
++** limitations under the License.
++*/
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++        android:width="20dp"
++        android:height="17dp"
++        android:viewportWidth="21.0"
++        android:viewportHeight="18.0">
++    <group
++        android:scaleX="0.75"
++        android:scaleY="0.75">
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M17.71,7.71L12,2h-1v7.59L6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 11,14.41L11,22h1l5.71,-5.71 -4.3,-4.29 4.3,-4.29zM13,5.83l1.88,1.88L13,9.59L13,5.83zM14.88,16.29L13,18.17v-3.76l1.88,1.88z"/>
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M5,12m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M19,12m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
++    </group>
++    <group
++        android:translateY="0.5"
++        android:translateX="0.5" >
++        <path
++            android:pathData="M15.77,1.064V15.94h3V1.064Z"
++            android:fillColor="#4DFFFFFF"/>
++        <path
++            android:pathData="M15.77,10.2V15.94h3V10.2Z"
++            android:fillColor="#FFFFFF"/>
++    </group>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_4.xml b/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_4.xml
+new file mode 100644
+index 000000000000..6a613d9f625e
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_4.xml
+@@ -0,0 +1,47 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++**
++** Copyright 2017, The Android Open Source Project
++**
++** Licensed under the Apache License, Version 2.0 (the "License");
++** you may not use this file except in compliance with the License.
++** You may obtain a copy of the License at
++**
++**     http://www.apache.org/licenses/LICENSE-2.0
++**
++** Unless required by applicable law or agreed to in writing, software
++** distributed under the License is distributed on an "AS IS" BASIS,
++** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++** See the License for the specific language governing permissions and
++** limitations under the License.
++*/
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++        android:width="20dp"
++        android:height="17dp"
++        android:viewportWidth="21.0"
++        android:viewportHeight="18.0">
++    <group
++        android:scaleX="0.75"
++        android:scaleY="0.75">
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M17.71,7.71L12,2h-1v7.59L6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 11,14.41L11,22h1l5.71,-5.71 -4.3,-4.29 4.3,-4.29zM13,5.83l1.88,1.88L13,9.59L13,5.83zM14.88,16.29L13,18.17v-3.76l1.88,1.88z"/>
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M5,12m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M19,12m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
++    </group>
++    <group
++        android:translateY="0.5"
++        android:translateX="0.5" >
++        <path
++            android:pathData="M15.77,1.064V15.94h3V1.064Z"
++            android:fillColor="#4DFFFFFF"/>
++        <path
++            android:pathData="M15.77,8.5V15.94h3V8.5Z"
++            android:fillColor="#FFFFFF"/>
++    </group>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_5.xml b/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_5.xml
+new file mode 100644
+index 000000000000..df0f93d9e026
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_5.xml
+@@ -0,0 +1,47 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++**
++** Copyright 2017, The Android Open Source Project
++**
++** Licensed under the Apache License, Version 2.0 (the "License");
++** you may not use this file except in compliance with the License.
++** You may obtain a copy of the License at
++**
++**     http://www.apache.org/licenses/LICENSE-2.0
++**
++** Unless required by applicable law or agreed to in writing, software
++** distributed under the License is distributed on an "AS IS" BASIS,
++** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++** See the License for the specific language governing permissions and
++** limitations under the License.
++*/
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++        android:width="20dp"
++        android:height="17dp"
++        android:viewportWidth="21.0"
++        android:viewportHeight="18.0">
++    <group
++        android:scaleX="0.75"
++        android:scaleY="0.75">
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M17.71,7.71L12,2h-1v7.59L6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 11,14.41L11,22h1l5.71,-5.71 -4.3,-4.29 4.3,-4.29zM13,5.83l1.88,1.88L13,9.59L13,5.83zM14.88,16.29L13,18.17v-3.76l1.88,1.88z"/>
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M5,12m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M19,12m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
++    </group>
++    <group
++        android:translateY="0.5"
++        android:translateX="0.5" >
++        <path
++            android:pathData="M15.77,1.064V15.94h3V1.064Z"
++            android:fillColor="#4DFFFFFF"/>
++        <path
++            android:pathData="M15.77,6.8V15.94h3V6.8Z"
++            android:fillColor="#FFFFFF"/>
++    </group>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_6.xml b/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_6.xml
+new file mode 100644
+index 000000000000..4924deada67d
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_6.xml
+@@ -0,0 +1,47 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++**
++** Copyright 2017, The Android Open Source Project
++**
++** Licensed under the Apache License, Version 2.0 (the "License");
++** you may not use this file except in compliance with the License.
++** You may obtain a copy of the License at
++**
++**     http://www.apache.org/licenses/LICENSE-2.0
++**
++** Unless required by applicable law or agreed to in writing, software
++** distributed under the License is distributed on an "AS IS" BASIS,
++** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++** See the License for the specific language governing permissions and
++** limitations under the License.
++*/
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++        android:width="20dp"
++        android:height="17dp"
++        android:viewportWidth="21.0"
++        android:viewportHeight="18.0">
++    <group
++        android:scaleX="0.75"
++        android:scaleY="0.75">
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M17.71,7.71L12,2h-1v7.59L6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 11,14.41L11,22h1l5.71,-5.71 -4.3,-4.29 4.3,-4.29zM13,5.83l1.88,1.88L13,9.59L13,5.83zM14.88,16.29L13,18.17v-3.76l1.88,1.88z"/>
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M5,12m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M19,12m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
++    </group>
++    <group
++        android:translateY="0.5"
++        android:translateX="0.5" >
++        <path
++            android:pathData="M15.77,1.064V15.94h3V1.064Z"
++            android:fillColor="#4DFFFFFF"/>
++        <path
++            android:pathData="M15.77,5.1V15.94h3V5.1Z"
++            android:fillColor="#FFFFFF"/>
++    </group>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_7.xml b/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_7.xml
+new file mode 100644
+index 000000000000..4c4ae035aa23
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_7.xml
+@@ -0,0 +1,47 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++**
++** Copyright 2017, The Android Open Source Project
++**
++** Licensed under the Apache License, Version 2.0 (the "License");
++** you may not use this file except in compliance with the License.
++** You may obtain a copy of the License at
++**
++**     http://www.apache.org/licenses/LICENSE-2.0
++**
++** Unless required by applicable law or agreed to in writing, software
++** distributed under the License is distributed on an "AS IS" BASIS,
++** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++** See the License for the specific language governing permissions and
++** limitations under the License.
++*/
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++        android:width="20dp"
++        android:height="17dp"
++        android:viewportWidth="21.0"
++        android:viewportHeight="18.0">
++    <group
++        android:scaleX="0.75"
++        android:scaleY="0.75">
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M17.71,7.71L12,2h-1v7.59L6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 11,14.41L11,22h1l5.71,-5.71 -4.3,-4.29 4.3,-4.29zM13,5.83l1.88,1.88L13,9.59L13,5.83zM14.88,16.29L13,18.17v-3.76l1.88,1.88z"/>
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M5,12m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M19,12m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
++    </group>
++    <group
++        android:translateY="0.5"
++        android:translateX="0.5" >
++        <path
++            android:pathData="M15.77,1.064V15.94h3V1.064Z"
++            android:fillColor="#4DFFFFFF"/>
++        <path
++            android:pathData="M15.77,3.4V15.94h3V3.4Z"
++            android:fillColor="#FFFFFF"/>
++    </group>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_8.xml b/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_8.xml
+new file mode 100644
+index 000000000000..6ba978aee111
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_8.xml
+@@ -0,0 +1,47 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++**
++** Copyright 2017, The Android Open Source Project
++**
++** Licensed under the Apache License, Version 2.0 (the "License");
++** you may not use this file except in compliance with the License.
++** You may obtain a copy of the License at
++**
++**     http://www.apache.org/licenses/LICENSE-2.0
++**
++** Unless required by applicable law or agreed to in writing, software
++** distributed under the License is distributed on an "AS IS" BASIS,
++** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++** See the License for the specific language governing permissions and
++** limitations under the License.
++*/
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++        android:width="20dp"
++        android:height="17dp"
++        android:viewportWidth="21.0"
++        android:viewportHeight="18.0">
++    <group
++        android:scaleX="0.75"
++        android:scaleY="0.75">
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M17.71,7.71L12,2h-1v7.59L6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 11,14.41L11,22h1l5.71,-5.71 -4.3,-4.29 4.3,-4.29zM13,5.83l1.88,1.88L13,9.59L13,5.83zM14.88,16.29L13,18.17v-3.76l1.88,1.88z"/>
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M5,12m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M19,12m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
++    </group>
++    <group
++        android:translateY="0.5"
++        android:translateX="0.5" >
++        <path
++            android:pathData="M15.77,1.064V15.94h3V1.064Z"
++            android:fillColor="#4DFFFFFF"/>
++        <path
++            android:pathData="M15.77,1.7V15.94h3V1.7Z"
++            android:fillColor="#FFFFFF"/>
++    </group>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_9.xml b/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_9.xml
+new file mode 100644
+index 000000000000..26ff151418a6
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/stat_sys_data_bluetooth_connected_battery_9.xml
+@@ -0,0 +1,44 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++**
++** Copyright 2017, The Android Open Source Project
++**
++** Licensed under the Apache License, Version 2.0 (the "License");
++** you may not use this file except in compliance with the License.
++** You may obtain a copy of the License at
++**
++**     http://www.apache.org/licenses/LICENSE-2.0
++**
++** Unless required by applicable law or agreed to in writing, software
++** distributed under the License is distributed on an "AS IS" BASIS,
++** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++** See the License for the specific language governing permissions and
++** limitations under the License.
++*/
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++        android:width="20dp"
++        android:height="17dp"
++        android:viewportWidth="21.0"
++        android:viewportHeight="18.0">
++    <group
++        android:scaleX="0.75"
++        android:scaleY="0.75">
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M17.71,7.71L12,2h-1v7.59L6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 11,14.41L11,22h1l5.71,-5.71 -4.3,-4.29 4.3,-4.29zM13,5.83l1.88,1.88L13,9.59L13,5.83zM14.88,16.29L13,18.17v-3.76l1.88,1.88z"/>
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M5,12m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
++        <path
++            android:fillColor="@android:color/white"
++            android:pathData="M19,12m-1.5,0a1.5,1.5 0,1 1,3 0a1.5,1.5 0,1 1,-3 0"/>
++    </group>
++    <group
++        android:translateY="0.5"
++        android:translateX="0.5" >
++        <path
++            android:pathData="M15.77,1.064V15.94h3V1.064Z"
++            android:fillColor="#FFFFFF"/>
++    </group>
++</vector>
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/PhoneStatusBarPolicy.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/PhoneStatusBarPolicy.java
+index b2dd5599e594..2dc899159242 100755
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/PhoneStatusBarPolicy.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/PhoneStatusBarPolicy.java
+@@ -484,6 +484,28 @@ public class PhoneStatusBarPolicy
+             if (mBluetooth.isBluetoothConnected()
+                     && (mBluetooth.isBluetoothAudioActive()
+                     || !mBluetooth.isBluetoothAudioProfileOnly())) {
++                int batteryLevel = mBluetooth.getBatteryLevel();
++                if (batteryLevel == 100) {
++                    iconId = R.drawable.stat_sys_data_bluetooth_connected_battery_9;
++                } else if (batteryLevel >= 90) {
++                    iconId = R.drawable.stat_sys_data_bluetooth_connected_battery_8;
++                } else if (batteryLevel >= 80) {
++                    iconId = R.drawable.stat_sys_data_bluetooth_connected_battery_7;
++                } else if (batteryLevel >= 70) {
++                    iconId = R.drawable.stat_sys_data_bluetooth_connected_battery_6;
++                } else if (batteryLevel >= 60) {
++                    iconId = R.drawable.stat_sys_data_bluetooth_connected_battery_5;
++                } else if (batteryLevel >= 50) {
++                    iconId = R.drawable.stat_sys_data_bluetooth_connected_battery_4;
++                } else if (batteryLevel >= 40) {
++                    iconId = R.drawable.stat_sys_data_bluetooth_connected_battery_3;
++                } else if (batteryLevel >= 30) {
++                    iconId = R.drawable.stat_sys_data_bluetooth_connected_battery_2;
++                } else if (batteryLevel >= 20) {
++                    iconId = R.drawable.stat_sys_data_bluetooth_connected_battery_1;
++                } else if (batteryLevel >= 10) {
++                    iconId = R.drawable.stat_sys_data_bluetooth_connected_battery_0;
++                }
+                 contentDescription = mResources.getString(
+                         R.string.accessibility_bluetooth_connected);
+                 bluetoothVisible = mBluetooth.isBluetoothEnabled();
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/policy/BluetoothController.java b/packages/SystemUI/src/com/android/systemui/statusbar/policy/BluetoothController.java
+index aab35096d8a6..ebb8b9c11db7 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/policy/BluetoothController.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/policy/BluetoothController.java
+@@ -47,6 +47,8 @@ public interface BluetoothController extends CallbackController<Callback>, Dumpa
+     void removeOnMetadataChangedListener(CachedBluetoothDevice device,
+             BluetoothAdapter.OnMetadataChangedListener listener);
+ 
++    int getBatteryLevel();
++
+     public interface Callback {
+         void onBluetoothStateChange(boolean enabled);
+         void onBluetoothDevicesChanged();
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/policy/BluetoothControllerImpl.java b/packages/SystemUI/src/com/android/systemui/statusbar/policy/BluetoothControllerImpl.java
+index ca9436315dcc..d4dbb8a9a1a4 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/policy/BluetoothControllerImpl.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/policy/BluetoothControllerImpl.java
+@@ -81,6 +81,7 @@ public class BluetoothControllerImpl implements BluetoothController, BluetoothCa
+     private int mConnectionState = BluetoothAdapter.STATE_DISCONNECTED;
+     private boolean mAudioProfileOnly;
+     private boolean mIsActive;
++    private int mBatteryLevel;
+ 
+     private final H mHandler;
+     private int mState;
+@@ -137,6 +138,7 @@ public class BluetoothControllerImpl implements BluetoothController, BluetoothCa
+         pw.print("  mEnabled="); pw.println(mEnabled);
+         pw.print("  mConnectionState="); pw.println(connectionStateToString(mConnectionState));
+         pw.print("  mAudioProfileOnly="); pw.println(mAudioProfileOnly);
++        pw.print("  mBatteryLevel="); pw.println(mBatteryLevel);
+         pw.print("  mIsActive="); pw.println(mIsActive);
+         pw.print("  mConnectedDevices="); pw.println(getConnectedDevices());
+         pw.print("  mCallbacks.size="); pw.println(mHandler.mCallbacks.size());
+@@ -300,6 +302,7 @@ public class BluetoothControllerImpl implements BluetoothController, BluetoothCa
+             mHandler.sendEmptyMessage(H.MSG_STATE_CHANGED);
+         }
+         updateAudioProfile();
++        updateBattery();
+     }
+ 
+     private void updateActive() {
+@@ -348,6 +351,22 @@ public class BluetoothControllerImpl implements BluetoothController, BluetoothCa
+         });
+     }
+ 
++    @Override
++    public int getBatteryLevel() {
++        if (!mConnectedDevices.isEmpty()) {
++            return mConnectedDevices.get(0).getBatteryLevel();
++        }
++        return -1;
++    }
++
++    private void updateBattery() {
++        int batteryLevel = getBatteryLevel();
++        if (batteryLevel != mBatteryLevel) {
++            mBatteryLevel = batteryLevel;
++            mHandler.sendEmptyMessage(H.MSG_STATE_CHANGED);
++        }
++    }
++
+     @Override
+     public void onBluetoothStateChanged(@AdapterState int bluetoothState) {
+         mLogger.logStateChange(BluetoothAdapter.nameForState(bluetoothState));
+diff --git a/packages/SystemUI/tests/utils/src/com/android/systemui/utils/leaks/FakeBluetoothController.java b/packages/SystemUI/tests/utils/src/com/android/systemui/utils/leaks/FakeBluetoothController.java
+index e685d4fb815d..5b34d0421808 100644
+--- a/packages/SystemUI/tests/utils/src/com/android/systemui/utils/leaks/FakeBluetoothController.java
++++ b/packages/SystemUI/tests/utils/src/com/android/systemui/utils/leaks/FakeBluetoothController.java
+@@ -98,4 +98,9 @@ public class FakeBluetoothController extends BaseLeakChecker<Callback> implement
+             BluetoothAdapter.OnMetadataChangedListener listener) {
+ 
+     }
++
++    @Override
++    public int getBatteryLevel() {
++        return 0;
++    }
+ }
+-- 
+2.47.1
+

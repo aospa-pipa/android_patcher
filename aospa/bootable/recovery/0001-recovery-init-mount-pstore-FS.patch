@@ -1,0 +1,28 @@
+From ac633703b6c25d19986fa9311693dc8d94607b75 Mon Sep 17 00:00:00 2001
+From: Vojtech Bocek <vbocek@gmail.com>
+Date: Sun, 8 Mar 2015 16:32:41 +0100
+Subject: [PATCH 01/17] recovery: init: mount pstore FS.
+
+Change-Id: I3fc544c948dbc5b4ac1361c6d0fbbed522f1448a
+Signed-off-by: chrisl7 <wandersonrodriguesf1@gmail.com>
+---
+ etc/init.rc | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/etc/init.rc b/etc/init.rc
+index bdf9ec075..3eacac930 100644
+--- a/etc/init.rc
++++ b/etc/init.rc
+@@ -49,6 +49,9 @@ on init
+     # Start essential services
+     start servicemanager
+ 
++    # pstore/ramoops previous console log
++    mount pstore pstore /sys/fs/pstore
++
+ on boot
+     ifup lo
+     hostname localhost
+-- 
+2.47.1
+

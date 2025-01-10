@@ -1,0 +1,32 @@
+From 85ec230587834ffca2280e56900272bcdeceb8d1 Mon Sep 17 00:00:00 2001
+From: Sean Du <do4suki@gmail.com>
+Date: Sun, 22 Dec 2024 04:47:58 +0800
+Subject: [PATCH] Revert "sidebar: Do not inject in apps under settings"
+
+This reverts commit a475c33aebde19285a5aeb118762e55be224a11b.
+
+Signed-off-by: Sean Du <do4suki@gmail.com>
+---
+ sidebar/app/src/main/AndroidManifest.xml | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/sidebar/app/src/main/AndroidManifest.xml b/sidebar/app/src/main/AndroidManifest.xml
+index ac95b6e..0bc627e 100644
+--- a/sidebar/app/src/main/AndroidManifest.xml
++++ b/sidebar/app/src/main/AndroidManifest.xml
+@@ -25,6 +25,12 @@
+             <intent-filter>
+                 <action android:name="com.android.settings.action.IA_SETTINGS" />
+             </intent-filter>
++            <meta-data
++                android:name="com.android.settings.category"
++                android:value="com.android.settings.category.ia.apps" />
++            <meta-data
++                android:name="com.android.settings.summary"
++                android:resource="@string/sidebar_summary" />
+         </activity>
+ 
+         <activity
+-- 
+2.47.1
+

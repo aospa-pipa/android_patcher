@@ -1,0 +1,27 @@
+From 68790a774d099ada011e3f1c96f0cc6336551ab9 Mon Sep 17 00:00:00 2001
+From: Luca Stefani <luca.stefani.ge1@gmail.com>
+Date: Sat, 2 Nov 2024 11:45:21 +0100
+Subject: [PATCH 2/2] Add vendor/aospa to kotlin plugins neverallow
+
+We don't want to fork prebuilts/sdk just for that
+
+Change-Id: I5f6ff87e341d2391354b1379291de92318599eeb
+---
+ android/neverallow.go | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/android/neverallow.go b/android/neverallow.go
+index 172f0c9c59..535ac02936 100644
+--- a/android/neverallow.go
++++ b/android/neverallow.go
+@@ -262,6 +262,7 @@ func createKotlinPluginRule() []Rule {
+ 		// Actual path prebuilts/sdk/current/androidx/m2repository/androidx/compose/compiler/compiler-hosted
+ 		"prebuilts/sdk/current/androidx",
+ 		"external/kotlinc",
++		"vendor/aospa/kotlin",
+ 	}
+ 
+ 	return []Rule{
+-- 
+2.47.1
+

@@ -1,0 +1,34 @@
+From 9076b30a9647214e70e11820f95bb597835a0944 Mon Sep 17 00:00:00 2001
+From: Pranav Vashi <neobuddy89@gmail.com>
+Date: Sat, 27 Jul 2024 02:57:07 +0530
+Subject: [PATCH 071/103] SystemUI: Update QS customizer background color
+
+* Use same background we use for notification.
+* Make it distinguishable from the tile background in light theme.
+
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ .../SystemUI/res/drawable/qs_customize_tile_decoration.xml | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/packages/SystemUI/res/drawable/qs_customize_tile_decoration.xml b/packages/SystemUI/res/drawable/qs_customize_tile_decoration.xml
+index 45efa41bab9a..ce9d88884131 100644
+--- a/packages/SystemUI/res/drawable/qs_customize_tile_decoration.xml
++++ b/packages/SystemUI/res/drawable/qs_customize_tile_decoration.xml
+@@ -13,8 +13,9 @@
+      See the License for the specific language governing permissions and
+      limitations under the License.
+ -->
+-<shape xmlns:android="http://schemas.android.com/apk/res/android">
+-    <solid android:color="?android:attr/colorBackground"/>
++<shape xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android">
++    <solid android:color="?androidprv:attr/materialColorSurfaceDim"/>
+     <corners android:topLeftRadius="?android:attr/dialogCornerRadius"
+              android:topRightRadius="?android:attr/dialogCornerRadius" />
+-</shape>
+\ No newline at end of file
++</shape>
+-- 
+2.47.1
+

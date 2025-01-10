@@ -1,0 +1,82 @@
+From a4187ef8c31aee7db15de4ec71b04d856631488e Mon Sep 17 00:00:00 2001
+From: Pranav Vashi <neobuddy89@gmail.com>
+Date: Sat, 2 Nov 2024 21:12:48 +0530
+Subject: [PATCH 055/103] SystemUI: Fix dark scrim on light theme on pixel
+ devices
+
+* Pixel devices are overlaying our modified scrim background to opaque.
+
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ .../android/systemui/qs/ui/composable/QuickSettingsScene.kt   | 2 +-
+ .../com/android/systemui/shade/ui/composable/ShadeScene.kt    | 4 ++--
+ packages/SystemUI/res/values/colors.xml                       | 4 ++--
+ .../src/com/android/systemui/statusbar/phone/ScrimState.java  | 2 +-
+ 4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsScene.kt b/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsScene.kt
+index 1b49b6702275..4eb18223df0d 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsScene.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/qs/ui/composable/QuickSettingsScene.kt
+@@ -278,7 +278,7 @@ private fun SceneScope.QuickSettingsScene(
+             modifier =
+                 Modifier.element(Shade.Elements.BackgroundScrim)
+                     .fillMaxSize()
+-                    .background(colorResource(R.color.shade_scrim_background_dark))
++                    .background(colorResource(R.color.shade_scrim_background))
+         )
+         Column(
+             horizontalAlignment = Alignment.CenterHorizontally,
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeScene.kt b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeScene.kt
+index ec81e23ae46b..eb0b574ea836 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeScene.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/shade/ui/composable/ShadeScene.kt
+@@ -260,7 +260,7 @@ private fun SceneScope.SingleShade(
+             modifier =
+                 Modifier.fillMaxSize()
+                     .element(Shade.Elements.BackgroundScrim)
+-                    .background(colorResource(R.color.shade_scrim_background_dark)),
++                    .background(colorResource(R.color.shade_scrim_background)),
+         )
+         Layout(
+             contents =
+@@ -439,7 +439,7 @@ private fun SceneScope.SplitShade(
+                 // Cannot set the alpha of the whole element to 0, because the mirror should be
+                 // in the QS column.
+                 .background(
+-                    colorResource(R.color.shade_scrim_background_dark).copy(alpha = contentAlpha)
++                    colorResource(R.color.shade_scrim_background).copy(alpha = contentAlpha)
+                 )
+     ) {
+         Column(
+diff --git a/packages/SystemUI/res/values/colors.xml b/packages/SystemUI/res/values/colors.xml
+index c9ac7858e912..98899797486d 100644
+--- a/packages/SystemUI/res/values/colors.xml
++++ b/packages/SystemUI/res/values/colors.xml
+@@ -29,8 +29,8 @@
+     <color name="status_bar_icons_hover_color_light">#38FFFFFF</color> <!-- 22% white -->
+     <color name="status_bar_icons_hover_color_dark">#38000000</color> <!-- 22% black -->
+ 
+-    <!-- The dark background color behind the shade -->
+-    <color name="shade_scrim_background_dark">@android:color/transparent</color>
++    <!-- Background color behind the shade -->
++    <color name="shade_scrim_background">@android:color/transparent</color>
+ 
+     <!-- The color of the background in the separated list of the Global Actions menu -->
+     <color name="global_actions_separated_background">#F5F5F5</color>
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java
+index e12863b13369..7d536010d1ed 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java
+@@ -385,7 +385,7 @@ public enum ScrimState {
+ 
+     public void init(ScrimView scrimInFront, ScrimView scrimBehind, DozeParameters dozeParameters,
+             DockManager dockManager) {
+-        mBackgroundColor = scrimBehind.getContext().getColor(R.color.shade_scrim_background_dark);
++        mBackgroundColor = scrimBehind.getContext().getColor(R.color.shade_scrim_background);
+         mScrimInFront = scrimInFront;
+         mScrimBehind = scrimBehind;
+ 
+-- 
+2.47.1
+

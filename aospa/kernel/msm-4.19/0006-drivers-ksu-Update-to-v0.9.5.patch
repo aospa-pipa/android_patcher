@@ -1,0 +1,3645 @@
+From 2a156d28e59536d1db6b72578f7bcca97e2ff0f3 Mon Sep 17 00:00:00 2001
+From: Yuan Si <do4suki@gmail.com>
+Date: Mon, 16 Oct 2023 01:08:45 +0800
+Subject: [PATCH 06/21] drivers: ksu: Update to v0.9.5
+
+Change-Id: I2847036bb858810034391e74ed44ac0f490fda9c
+Signed-off-by: Yuan Si <do4suki@gmail.com>
+---
+ drivers/ksu/Kconfig            |   6 +-
+ drivers/ksu/Makefile           |  65 +++--
+ drivers/ksu/allowlist.c        |  47 +--
+ drivers/ksu/allowlist.h        |   4 +-
+ drivers/ksu/apk_sign.c         | 316 ++++++++++++++------
+ drivers/ksu/apk_sign.h         |   5 +-
+ drivers/ksu/arch.h             |  24 +-
+ drivers/ksu/core_hook.c        | 520 +++++++++++++++++++++------------
+ drivers/ksu/core_hook.h        |   2 +-
+ drivers/ksu/include/ksu_hook.h |   4 +-
+ drivers/ksu/kernel_compat.c    |  26 +-
+ drivers/ksu/kernel_compat.h    |  21 +-
+ drivers/ksu/ksu.c              |  34 ++-
+ drivers/ksu/ksu.h              |   5 +-
+ drivers/ksu/ksud.c             | 231 ++++++++++++---
+ drivers/ksu/ksud.h             |   4 +
+ drivers/ksu/manager.c          |  92 ------
+ drivers/ksu/manager.h          |   6 +-
+ drivers/ksu/module_api.c       |  33 ---
+ drivers/ksu/selinux/rules.c    |  36 ++-
+ drivers/ksu/selinux/selinux.c  |  52 +++-
+ drivers/ksu/selinux/selinux.h  |   4 +
+ drivers/ksu/selinux/sepolicy.c |  64 ++--
+ drivers/ksu/selinux/sepolicy.h |   2 +-
+ drivers/ksu/setup.sh           | 105 ++++---
+ drivers/ksu/sucompat.c         | 204 +++++++++++--
+ drivers/ksu/throne_tracker.c   | 382 ++++++++++++++++++++++++
+ drivers/ksu/throne_tracker.h   |  10 +
+ drivers/ksu/uid_observer.c     | 140 ---------
+ drivers/ksu/uid_observer.h     |  10 -
+ 30 files changed, 1686 insertions(+), 768 deletions(-)
+ delete mode 100644 drivers/ksu/manager.c
+ delete mode 100644 drivers/ksu/module_api.c
+ create mode 100644 drivers/ksu/throne_tracker.c
+ create mode 100644 drivers/ksu/throne_tracker.h
+ delete mode 100644 drivers/ksu/uid_observer.c
+ delete mode 100644 drivers/ksu/uid_observer.h
+
+diff --git a/drivers/ksu/Kconfig b/drivers/ksu/Kconfig
+index 641e7123fecc..67f177f4708a 100644
+--- a/drivers/ksu/Kconfig
++++ b/drivers/ksu/Kconfig
+@@ -5,13 +5,15 @@ config KSU
+ 	depends on OVERLAY_FS
+ 	default y
+ 	help
+-	Enable kernel-level root privileges on Android System.
++	  Enable kernel-level root privileges on Android System.
++	  To compile as a module, choose M here: the
++	  module will be called kernelsu.
+ 
+ config KSU_DEBUG
+ 	bool "KernelSU debug mode"
+ 	depends on KSU
+ 	default n
+ 	help
+-	Enable KernelSU debug mode
++	  Enable KernelSU debug mode.
+ 
+ endmenu
+diff --git a/drivers/ksu/Makefile b/drivers/ksu/Makefile
+index 9c4c95c7bdd1..348c6c19c9ed 100644
+--- a/drivers/ksu/Makefile
++++ b/drivers/ksu/Makefile
+@@ -1,36 +1,63 @@
+-obj-y += ksu.o
+-obj-y += allowlist.o
+-kernelsu-objs := apk_sign.o
+-obj-y += kernelsu.o
+-obj-y += module_api.o
+-obj-y += sucompat.o
+-obj-y += uid_observer.o
+-obj-y += manager.o
+-obj-y += core_hook.o
+-obj-y += ksud.o
+-obj-y += embed_ksud.o
+-obj-y += kernel_compat.o
+-
+-obj-y += selinux/
+-
+-KSU_GIT_VERSION := 1044
++kernelsu-objs := ksu.o
++kernelsu-objs += allowlist.o
++kernelsu-objs += apk_sign.o
++kernelsu-objs += sucompat.o
++kernelsu-objs += throne_tracker.o
++kernelsu-objs += core_hook.o
++kernelsu-objs += ksud.o
++kernelsu-objs += embed_ksud.o
++kernelsu-objs += kernel_compat.o
++
++kernelsu-objs += selinux/selinux.o
++kernelsu-objs += selinux/sepolicy.o
++kernelsu-objs += selinux/rules.o
++ccflags-y += -I$(srctree)/security/selinux -I$(srctree)/security/selinux/include
++ccflags-y += -I$(objtree)/security/selinux -include $(srctree)/include/uapi/asm-generic/errno.h
++
++obj-$(CONFIG_KSU) += kernelsu.o
++
++KSU_GIT_VERSION := 1672
++
+ # ksu_version: major * 10000 + git version + 200 for historical reasons
+ $(eval KSU_VERSION=$(shell expr 10000 + $(KSU_GIT_VERSION) + 200))
+ $(info -- KernelSU version: $(KSU_VERSION))
+ ccflags-y += -DKSU_VERSION=$(KSU_VERSION)
+ 
++ifeq ($(shell grep -q " current_sid(void)" $(srctree)/security/selinux/include/objsec.h; echo $$?),0)
++ccflags-y += -DKSU_COMPAT_HAS_CURRENT_SID
++endif
++
++ifeq ($(shell grep -q "struct selinux_state " $(srctree)/security/selinux/include/security.h; echo $$?),0)
++ccflags-y += -DKSU_COMPAT_HAS_SELINUX_STATE
++endif
++
+ ifndef KSU_EXPECTED_SIZE
+ KSU_EXPECTED_SIZE := 0x033b
+ endif
+ 
+ ifndef KSU_EXPECTED_HASH
+-KSU_EXPECTED_HASH := 0xb0b91415
++KSU_EXPECTED_HASH := c371061b19d8c7d7d6133c6a9bafe198fa944e50c1b31c9d8daa8d7f1fc2d2d6
++endif
++
++ifdef KSU_MANAGER_PACKAGE
++ccflags-y += -DKSU_MANAGER_PACKAGE=\"$(KSU_MANAGER_PACKAGE)\"
++$(info -- KernelSU Manager package name: $(KSU_MANAGER_PACKAGE))
+ endif
+ 
+ $(info -- KernelSU Manager signature size: $(KSU_EXPECTED_SIZE))
+ $(info -- KernelSU Manager signature hash: $(KSU_EXPECTED_HASH))
+ 
+ ccflags-y += -DEXPECTED_SIZE=$(KSU_EXPECTED_SIZE)
+-ccflags-y += -DEXPECTED_HASH=$(KSU_EXPECTED_HASH)
++ccflags-y += -DEXPECTED_HASH=\"$(KSU_EXPECTED_HASH)\"
++
++ifeq ($(shell grep -q "int path_umount" $(srctree)/fs/namespace.c; echo $$?),0)
++ccflags-y += -DKSU_UMOUNT
++else
++$(info -- Did you know you can backport path_umount to fs/namespace.c from 5.9?)
++$(info -- Read: https://kernelsu.org/guide/how-to-integrate-for-non-gki.html#how-to-backport-path-umount)
++endif
++
+ ccflags-y += -Wno-implicit-function-declaration -Wno-strict-prototypes -Wno-int-conversion -Wno-gcc-compat
+-ccflags-y += -Wno-declaration-after-statement
++ccflags-y += -Wno-declaration-after-statement -Wno-unused-function
++
++# Keep a new line here!! Because someone may append config
+diff --git a/drivers/ksu/allowlist.c b/drivers/ksu/allowlist.c
+index f950c3350419..4fbba9355949 100644
+--- a/drivers/ksu/allowlist.c
++++ b/drivers/ksu/allowlist.c
+@@ -1,21 +1,22 @@
+-#include "ksu.h"
+-#include "linux/compiler.h"
+-#include "linux/fs.h"
+-#include "linux/gfp.h"
+-#include "linux/kernel.h"
+-#include "linux/list.h"
+-#include "linux/printk.h"
+-#include "linux/slab.h"
+-#include "linux/types.h"
+-#include "linux/version.h"
++#include <linux/compiler.h>
++#include <linux/fs.h>
++#include <linux/gfp.h>
++#include <linux/kernel.h>
++#include <linux/list.h>
++#include <linux/printk.h>
++#include <linux/slab.h>
++#include <linux/types.h>
++#include <linux/version.h>
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
+-#include "linux/compiler_types.h"
++#include <linux/compiler_types.h>
+ #endif
+ 
++#include "ksu.h"
+ #include "klog.h" // IWYU pragma: keep
+ #include "selinux/selinux.h"
+ #include "kernel_compat.h"
+ #include "allowlist.h"
++#include "manager.h"
+ 
+ #define FILE_MAGIC 0x7f4b5355 // ' KSU', u32
+ #define FILE_FORMAT_VERSION 3 // u32
+@@ -97,7 +98,7 @@ void ksu_show_allow_list(void)
+ {
+ 	struct perm_data *p = NULL;
+ 	struct list_head *pos = NULL;
+-	pr_info("ksu_show_allow_list");
++	pr_info("ksu_show_allow_list\n");
+ 	list_for_each (pos, &allow_list) {
+ 		p = list_entry(pos, struct perm_data, list);
+ 		pr_info("uid :%d, allow: %d\n", p->profile.current_uid,
+@@ -274,6 +275,11 @@ bool __ksu_is_allow_uid(uid_t uid)
+ 		return false;
+ 	}
+ 
++	if (likely(ksu_is_manager_uid_valid()) && unlikely(ksu_get_manager_uid() == uid)) {
++		// manager is always allowed!
++		return true;
++	}
++
+ 	if (likely(uid <= BITMAP_UID_MAX)) {
+ 		return !!(allow_list_bitmap[uid / BITS_PER_BYTE] & (1 << (uid % BITS_PER_BYTE)));
+ 	} else {
+@@ -289,6 +295,10 @@ bool __ksu_is_allow_uid(uid_t uid)
+ bool ksu_uid_should_umount(uid_t uid)
+ {
+ 	struct app_profile profile = { .current_uid = uid };
++	if (likely(ksu_is_manager_uid_valid()) && unlikely(ksu_get_manager_uid() == uid)) {
++		// we should not umount on manager!
++		return false;
++	}
+ 	bool found = ksu_get_app_profile(&profile);
+ 	if (!found) {
+ 		// no app profile found, it must be non root app
+@@ -351,7 +361,7 @@ void do_save_allow_list(struct work_struct *work)
+ 	loff_t off = 0;
+ 
+ 	struct file *fp =
+-		ksu_filp_open_compat(KERNEL_SU_ALLOWLIST, O_WRONLY | O_CREAT, 0644);
++		ksu_filp_open_compat(KERNEL_SU_ALLOWLIST, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+ 	if (IS_ERR(fp)) {
+ 		pr_err("save_allow_list create file failed: %ld\n", PTR_ERR(fp));
+ 		return;
+@@ -441,7 +451,7 @@ void do_load_allow_list(struct work_struct *work)
+ 	filp_close(fp, 0);
+ }
+ 
+-void ksu_prune_allowlist(bool (*is_uid_exist)(uid_t, void *), void *data)
++void ksu_prune_allowlist(bool (*is_uid_valid)(uid_t, char *, void *), void *data)
+ {
+ 	struct perm_data *np = NULL;
+ 	struct perm_data *n = NULL;
+@@ -451,13 +461,16 @@ void ksu_prune_allowlist(bool (*is_uid_exist)(uid_t, void *), void *data)
+ 	mutex_lock(&allowlist_mutex);
+ 	list_for_each_entry_safe (np, n, &allow_list, list) {
+ 		uid_t uid = np->profile.current_uid;
++		char *package = np->profile.key;
+ 		// we use this uid for special cases, don't prune it!
+ 		bool is_preserved_uid = uid == KSU_APP_PROFILE_PRESERVE_UID;
+-		if (!is_preserved_uid && !is_uid_exist(uid, data)) {
++		if (!is_preserved_uid && !is_uid_valid(uid, package, data)) {
+ 			modified = true;
+-			pr_info("prune uid: %d\n", uid);
++			pr_info("prune uid: %d, package: %s\n", uid, package);
+ 			list_del(&np->list);
+-			allow_list_bitmap[uid / BITS_PER_BYTE] &= ~(1 << (uid % BITS_PER_BYTE));
++			if (likely(uid <= BITMAP_UID_MAX)) {
++				allow_list_bitmap[uid / BITS_PER_BYTE] &= ~(1 << (uid % BITS_PER_BYTE));
++			}
+ 			remove_uid_from_arr(uid);
+ 			smp_mb();
+ 			kfree(np);
+diff --git a/drivers/ksu/allowlist.h b/drivers/ksu/allowlist.h
+index 04d47fb75b66..e89bf71fa10c 100644
+--- a/drivers/ksu/allowlist.h
++++ b/drivers/ksu/allowlist.h
+@@ -1,7 +1,7 @@
+ #ifndef __KSU_H_ALLOWLIST
+ #define __KSU_H_ALLOWLIST
+ 
+-#include "linux/types.h"
++#include <linux/types.h>
+ #include "ksu.h"
+ 
+ void ksu_allowlist_init(void);
+@@ -17,7 +17,7 @@ bool __ksu_is_allow_uid(uid_t uid);
+ 
+ bool ksu_get_allow_list(int *array, int *length, bool allow);
+ 
+-void ksu_prune_allowlist(bool (*is_uid_exist)(uid_t, void *), void *data);
++void ksu_prune_allowlist(bool (*is_uid_exist)(uid_t, char *, void *), void *data);
+ 
+ bool ksu_get_app_profile(struct app_profile *);
+ bool ksu_set_app_profile(struct app_profile *, bool persist);
+diff --git a/drivers/ksu/apk_sign.c b/drivers/ksu/apk_sign.c
+index 3a901e9702fc..ba8b73f2eb2b 100644
+--- a/drivers/ksu/apk_sign.c
++++ b/drivers/ksu/apk_sign.c
+@@ -1,12 +1,179 @@
+-#include "linux/fs.h"
+-#include "linux/moduleparam.h"
++#include <linux/err.h>
++#include <linux/fs.h>
++#include <linux/gfp.h>
++#include <linux/kernel.h>
++#include <linux/slab.h>
++#include <linux/version.h>
++#ifdef CONFIG_KSU_DEBUG
++#include <linux/moduleparam.h>
++#endif
++#include <crypto/hash.h>
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0)
++#include <crypto/sha2.h>
++#else
++#include <crypto/sha.h>
++#endif
+ 
+ #include "apk_sign.h"
+ #include "klog.h" // IWYU pragma: keep
+ #include "kernel_compat.h"
+ 
+-static __always_inline int
+-check_v2_signature(char *path, unsigned expected_size, unsigned expected_hash)
++
++struct sdesc {
++	struct shash_desc shash;
++	char ctx[];
++};
++
++static struct sdesc *init_sdesc(struct crypto_shash *alg)
++{
++	struct sdesc *sdesc;
++	int size;
++
++	size = sizeof(struct shash_desc) + crypto_shash_descsize(alg);
++	sdesc = kmalloc(size, GFP_KERNEL);
++	if (!sdesc)
++		return ERR_PTR(-ENOMEM);
++	sdesc->shash.tfm = alg;
++	return sdesc;
++}
++
++static int calc_hash(struct crypto_shash *alg, const unsigned char *data,
++		     unsigned int datalen, unsigned char *digest)
++{
++	struct sdesc *sdesc;
++	int ret;
++
++	sdesc = init_sdesc(alg);
++	if (IS_ERR(sdesc)) {
++		pr_info("can't alloc sdesc\n");
++		return PTR_ERR(sdesc);
++	}
++
++	ret = crypto_shash_digest(&sdesc->shash, data, datalen, digest);
++	kfree(sdesc);
++	return ret;
++}
++
++static int ksu_sha256(const unsigned char *data, unsigned int datalen,
++		      unsigned char *digest)
++{
++	struct crypto_shash *alg;
++	char *hash_alg_name = "sha256";
++	int ret;
++
++	alg = crypto_alloc_shash(hash_alg_name, 0, 0);
++	if (IS_ERR(alg)) {
++		pr_info("can't alloc alg %s\n", hash_alg_name);
++		return PTR_ERR(alg);
++	}
++	ret = calc_hash(alg, data, datalen, digest);
++	crypto_free_shash(alg);
++	return ret;
++}
++
++static bool check_block(struct file *fp, u32 *size4, loff_t *pos, u32 *offset,
++			unsigned expected_size, const char *expected_sha256)
++{
++	ksu_kernel_read_compat(fp, size4, 0x4, pos); // signer-sequence length
++	ksu_kernel_read_compat(fp, size4, 0x4, pos); // signer length
++	ksu_kernel_read_compat(fp, size4, 0x4, pos); // signed data length
++
++	*offset += 0x4 * 3;
++
++	ksu_kernel_read_compat(fp, size4, 0x4, pos); // digests-sequence length
++
++	*pos += *size4;
++	*offset += 0x4 + *size4;
++
++	ksu_kernel_read_compat(fp, size4, 0x4, pos); // certificates length
++	ksu_kernel_read_compat(fp, size4, 0x4, pos); // certificate length
++	*offset += 0x4 * 2;
++
++	if (*size4 == expected_size) {
++		*offset += *size4;
++
++#define CERT_MAX_LENGTH 1024
++		char cert[CERT_MAX_LENGTH];
++		if (*size4 > CERT_MAX_LENGTH) {
++			pr_info("cert length overlimit\n");
++			return false;
++		}
++		ksu_kernel_read_compat(fp, cert, *size4, pos);
++		unsigned char digest[SHA256_DIGEST_SIZE];
++		if (IS_ERR(ksu_sha256(cert, *size4, digest))) {
++			pr_info("sha256 error\n");
++			return false;
++		}
++
++		char hash_str[SHA256_DIGEST_SIZE * 2 + 1];
++		hash_str[SHA256_DIGEST_SIZE * 2] = '\0';
++
++		bin2hex(hash_str, digest, SHA256_DIGEST_SIZE);
++		pr_info("sha256: %s, expected: %s\n", hash_str,
++			expected_sha256);
++		if (strcmp(expected_sha256, hash_str) == 0) {
++			return true;
++		}
++	}
++	return false;
++}
++
++struct zip_entry_header {
++	uint32_t signature;
++	uint16_t version;
++	uint16_t flags;
++	uint16_t compression;
++	uint16_t mod_time;
++	uint16_t mod_date;
++	uint32_t crc32;
++	uint32_t compressed_size;
++	uint32_t uncompressed_size;
++	uint16_t file_name_length;
++	uint16_t extra_field_length;
++} __attribute__((packed));
++
++// This is a necessary but not sufficient condition, but it is enough for us
++static bool has_v1_signature_file(struct file *fp)
++{
++	struct zip_entry_header header;
++	const char MANIFEST[] = "META-INF/MANIFEST.MF";
++
++	loff_t pos = 0;
++
++	while (ksu_kernel_read_compat(fp, &header,
++				      sizeof(struct zip_entry_header), &pos) ==
++	       sizeof(struct zip_entry_header)) {
++		if (header.signature != 0x04034b50) {
++			// ZIP magic: 'PK'
++			return false;
++		}
++		// Read the entry file name
++		if (header.file_name_length == sizeof(MANIFEST) - 1) {
++			char fileName[sizeof(MANIFEST)];
++			ksu_kernel_read_compat(fp, fileName,
++					       header.file_name_length, &pos);
++			fileName[header.file_name_length] = '\0';
++
++			// Check if the entry matches META-INF/MANIFEST.MF
++			if (strncmp(MANIFEST, fileName, sizeof(MANIFEST) - 1) ==
++			    0) {
++				return true;
++			}
++		} else {
++			// Skip the entry file name
++			pos += header.file_name_length;
++		}
++
++		// Skip to the next entry
++		pos += header.extra_field_length + header.compressed_size;
++	}
++
++	return false;
++}
++
++static __always_inline bool check_v2_signature(char *path,
++					       unsigned expected_size,
++					       const char *expected_sha256)
+ {
+ 	unsigned char buffer[0x11] = { 0 };
+ 	u32 size4;
+@@ -14,18 +181,21 @@ check_v2_signature(char *path, unsigned expected_size, unsigned expected_hash)
+ 
+ 	loff_t pos;
+ 
+-	int sign = -1;
++	bool v2_signing_valid = false;
++	int v2_signing_blocks = 0;
++	bool v3_signing_exist = false;
++	bool v3_1_signing_exist = false;
++
+ 	int i;
+ 	struct file *fp = ksu_filp_open_compat(path, O_RDONLY, 0);
+ 	if (IS_ERR(fp)) {
+-		pr_err("open %s error.", path);
+-		return PTR_ERR(fp);
++		pr_err("open %s error.\n", path);
++		return false;
+ 	}
+ 
+ 	// disable inotify for this file
+ 	fp->f_mode |= FMODE_NONOTIFY;
+ 
+-	sign = 1;
+ 	// https://en.wikipedia.org/wiki/Zip_(file_format)#End_of_central_directory_record_(EOCD)
+ 	for (i = 0;; ++i) {
+ 		unsigned short n;
+@@ -61,92 +231,76 @@ check_v2_signature(char *path, unsigned expected_size, unsigned expected_hash)
+ 		goto clean;
+ 	}
+ 
+-	for (;;) {
++	int loop_count = 0;
++	while (loop_count++ < 10) {
+ 		uint32_t id;
+ 		uint32_t offset;
+-		ksu_kernel_read_compat(fp, &size8, 0x8, &pos); // sequence length
++		ksu_kernel_read_compat(fp, &size8, 0x8,
++				       &pos); // sequence length
+ 		if (size8 == size_of_block) {
+ 			break;
+ 		}
+ 		ksu_kernel_read_compat(fp, &id, 0x4, &pos); // id
+ 		offset = 4;
+-		pr_info("id: 0x%08x\n", id);
+-		if ((id ^ 0xdeadbeefu) == 0xafa439f5u ||
+-		    (id ^ 0xdeadbeefu) == 0x2efed62f) {
+-			ksu_kernel_read_compat(fp, &size4, 0x4,
+-				    &pos); // signer-sequence length
+-			ksu_kernel_read_compat(fp, &size4, 0x4, &pos); // signer length
+-			ksu_kernel_read_compat(fp, &size4, 0x4,
+-				    &pos); // signed data length
+-			offset += 0x4 * 3;
+-
+-			ksu_kernel_read_compat(fp, &size4, 0x4,
+-				    &pos); // digests-sequence length
+-			pos += size4;
+-			offset += 0x4 + size4;
+-
+-			ksu_kernel_read_compat(fp, &size4, 0x4,
+-				    &pos); // certificates length
+-			ksu_kernel_read_compat(fp, &size4, 0x4,
+-				    &pos); // certificate length
+-			offset += 0x4 * 2;
+-#if 0
+-			int hash = 1;
+-			signed char c;
+-			for (i = 0; i < size4; ++i) {
+-				ksu_kernel_read_compat(fp, &c, 0x1, &pos);
+-				hash = 31 * hash + c;
+-			}
+-			offset += size4;
+-			pr_info("    size: 0x%04x, hash: 0x%08x\n", size4, ((unsigned) hash) ^ 0x14131211u);
+-#else
+-			if (size4 == expected_size) {
+-				int hash = 1;
+-				signed char c;
+-				for (i = 0; i < size4; ++i) {
+-					ksu_kernel_read_compat(fp, &c, 0x1, &pos);
+-					hash = 31 * hash + c;
+-				}
+-				offset += size4;
+-				if ((((unsigned)hash) ^ 0x14131211u) ==
+-				    expected_hash) {
+-					sign = 0;
+-					break;
+-				}
+-			}
+-			// don't try again.
+-			break;
++		if (id == 0x7109871au) {
++			v2_signing_blocks++;
++			v2_signing_valid =
++				check_block(fp, &size4, &pos, &offset,
++					    expected_size, expected_sha256);
++		} else if (id == 0xf05368c0u) {
++			// http://aospxref.com/android-14.0.0_r2/xref/frameworks/base/core/java/android/util/apk/ApkSignatureSchemeV3Verifier.java#73
++			v3_signing_exist = true;
++		} else if (id == 0x1b93ad61u) {
++			// http://aospxref.com/android-14.0.0_r2/xref/frameworks/base/core/java/android/util/apk/ApkSignatureSchemeV3Verifier.java#74
++			v3_1_signing_exist = true;
++		} else {
++#ifdef CONFIG_KSU_DEBUG
++			pr_info("Unknown id: 0x%08x\n", id);
+ #endif
+ 		}
+ 		pos += (size8 - offset);
+ 	}
+ 
++	if (v2_signing_blocks != 1) {
++#ifdef CONFIG_KSU_DEBUG
++		pr_err("Unexpected v2 signature count: %d\n",
++		       v2_signing_blocks);
++#endif
++		v2_signing_valid = false;
++	}
++
++	if (v2_signing_valid) {
++		int has_v1_signing = has_v1_signature_file(fp);
++		if (has_v1_signing) {
++			pr_err("Unexpected v1 signature scheme found!\n");
++			filp_close(fp, 0);
++			return false;
++		}
++	}
+ clean:
+ 	filp_close(fp, 0);
+ 
+-	return sign;
++	if (v3_signing_exist || v3_1_signing_exist) {
++#ifdef CONFIG_KSU_DEBUG
++		pr_err("Unexpected v3 signature scheme found!\n");
++#endif
++		return false;
++	}
++
++	return v2_signing_valid;
+ }
+ 
+ #ifdef CONFIG_KSU_DEBUG
+ 
+-unsigned ksu_expected_size = EXPECTED_SIZE;
+-unsigned ksu_expected_hash = EXPECTED_HASH;
++int ksu_debug_manager_uid = -1;
+ 
+ #include "manager.h"
+ 
+ static int set_expected_size(const char *val, const struct kernel_param *kp)
+ {
+ 	int rv = param_set_uint(val, kp);
+-	ksu_invalidate_manager_uid();
+-	pr_info("ksu_expected_size set to %x", ksu_expected_size);
+-	return rv;
+-}
+-
+-static int set_expected_hash(const char *val, const struct kernel_param *kp)
+-{
+-	int rv = param_set_uint(val, kp);
+-	ksu_invalidate_manager_uid();
+-	pr_info("ksu_expected_hash set to %x", ksu_expected_hash);
++	ksu_set_manager_uid(ksu_debug_manager_uid);
++	pr_info("ksu_manager_uid set to %d\n", ksu_debug_manager_uid);
+ 	return rv;
+ }
+ 
+@@ -155,26 +309,12 @@ static struct kernel_param_ops expected_size_ops = {
+ 	.get = param_get_uint,
+ };
+ 
+-static struct kernel_param_ops expected_hash_ops = {
+-	.set = set_expected_hash,
+-	.get = param_get_uint,
+-};
+-
+-module_param_cb(ksu_expected_size, &expected_size_ops, &ksu_expected_size,
+-		S_IRUSR | S_IWUSR);
+-module_param_cb(ksu_expected_hash, &expected_hash_ops, &ksu_expected_hash,
+-		S_IRUSR | S_IWUSR);
+-
+-int is_manager_apk(char *path)
+-{
+-	return check_v2_signature(path, ksu_expected_size, ksu_expected_hash);
+-}
++module_param_cb(ksu_debug_manager_uid, &expected_size_ops,
++		&ksu_debug_manager_uid, S_IRUSR | S_IWUSR);
+ 
+-#else
++#endif
+ 
+-int is_manager_apk(char *path)
++bool is_manager_apk(char *path)
+ {
+ 	return check_v2_signature(path, EXPECTED_SIZE, EXPECTED_HASH);
+-}
+-
+-#endif
++}
+\ No newline at end of file
+diff --git a/drivers/ksu/apk_sign.h b/drivers/ksu/apk_sign.h
+index 52cbc9d0d2f3..bed501c49264 100644
+--- a/drivers/ksu/apk_sign.h
++++ b/drivers/ksu/apk_sign.h
+@@ -1,7 +1,8 @@
+ #ifndef __KSU_H_APK_V2_SIGN
+ #define __KSU_H_APK_V2_SIGN
+ 
+-// return 0 if signature match
+-int is_manager_apk(char *path);
++#include <linux/types.h>
++
++bool is_manager_apk(char *path);
+ 
+ #endif
+diff --git a/drivers/ksu/arch.h b/drivers/ksu/arch.h
+index 1678fd1b0ca8..f36ec5f509fa 100644
+--- a/drivers/ksu/arch.h
++++ b/drivers/ksu/arch.h
+@@ -1,7 +1,7 @@
+ #ifndef __KSU_H_ARCH
+ #define __KSU_H_ARCH
+ 
+-#include "linux/version.h"
++#include <linux/version.h>
+ 
+ #if defined(__aarch64__)
+ 
+@@ -20,8 +20,16 @@
+ 
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 16, 0)
+ #define PRCTL_SYMBOL "__arm64_sys_prctl"
++#define SYS_READ_SYMBOL "__arm64_sys_read"
++#define SYS_NEWFSTATAT_SYMBOL "__arm64_sys_newfstatat"
++#define SYS_FACCESSAT_SYMBOL "__arm64_sys_faccessat"
++#define SYS_EXECVE_SYMBOL "__arm64_sys_execve"
+ #else
+ #define PRCTL_SYMBOL "sys_prctl"
++#define SYS_READ_SYMBOL "sys_read"
++#define SYS_NEWFSTATAT_SYMBOL "sys_newfstatat"
++#define SYS_FACCESSAT_SYMBOL "sys_faccessat"
++#define SYS_EXECVE_SYMBOL "sys_execve"
+ #endif
+ 
+ #elif defined(__x86_64__)
+@@ -41,8 +49,16 @@
+ #define __PT_IP_REG ip
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 16, 0)
+ #define PRCTL_SYMBOL "__x64_sys_prctl"
++#define SYS_READ_SYMBOL "__x64_sys_read"
++#define SYS_NEWFSTATAT_SYMBOL "__x64_sys_newfstatat"
++#define SYS_FACCESSAT_SYMBOL "__x64_sys_faccessat"
++#define SYS_EXECVE_SYMBOL "__x64_sys_execve"
+ #else
+ #define PRCTL_SYMBOL "sys_prctl"
++#define SYS_READ_SYMBOL "sys_read"
++#define SYS_NEWFSTATAT_SYMBOL "sys_newfstatat"
++#define SYS_FACCESSAT_SYMBOL "sys_faccessat"
++#define SYS_EXECVE_SYMBOL "sys_execve"
+ #endif
+ 
+ #else
+@@ -67,4 +83,10 @@
+ #define PT_REGS_SP(x) (__PT_REGS_CAST(x)->__PT_SP_REG)
+ #define PT_REGS_IP(x) (__PT_REGS_CAST(x)->__PT_IP_REG)
+ 
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 16, 0)
++#define PT_REAL_REGS(regs) ((struct pt_regs *)PT_REGS_PARM1(regs))
++#else
++#define PT_REAL_REGS(regs) ((regs))
++#endif
++
+ #endif
+diff --git a/drivers/ksu/core_hook.c b/drivers/ksu/core_hook.c
+index c6ac7d66db21..429ba3306ea3 100644
+--- a/drivers/ksu/core_hook.c
++++ b/drivers/ksu/core_hook.c
+@@ -1,22 +1,36 @@
+-#include "linux/capability.h"
+-#include "linux/cred.h"
+-#include "linux/dcache.h"
+-#include "linux/err.h"
+-#include "linux/init.h"
+-#include "linux/kernel.h"
+-#include "linux/kprobes.h"
+-#include "linux/lsm_hooks.h"
+-#include "linux/nsproxy.h"
+-#include "linux/path.h"
+-#include "linux/printk.h"
+-#include "linux/uaccess.h"
+-#include "linux/uidgid.h"
+-#include "linux/version.h"
+-#include "linux/mount.h"
+-
+-#include "linux/fs.h"
+-#include "linux/namei.h"
+-#include "linux/rcupdate.h"
++#include <linux/capability.h>
++#include <linux/cred.h>
++#include <linux/dcache.h>
++#include <linux/err.h>
++#include <linux/init.h>
++#include <linux/init_task.h>
++#include <linux/kallsyms.h>
++#include <linux/kernel.h>
++#include <linux/kprobes.h>
++#include <linux/lsm_hooks.h>
++#include <linux/mm.h>
++#include <linux/nsproxy.h>
++#include <linux/path.h>
++#include <linux/printk.h>
++#include <linux/sched.h>
++#include <linux/security.h>
++#include <linux/stddef.h>
++#include <linux/types.h>
++#include <linux/uaccess.h>
++#include <linux/uidgid.h>
++#include <linux/version.h>
++#include <linux/mount.h>
++
++#include <linux/fs.h>
++#include <linux/namei.h>
++
++#ifdef MODULE
++#include <linux/list.h>
++#include <linux/irqflags.h>
++#include <linux/mm_types.h>
++#include <linux/rcupdate.h>
++#include <linux/vmalloc.h>
++#endif
+ 
+ #include "allowlist.h"
+ #include "arch.h"
+@@ -26,9 +40,12 @@
+ #include "ksud.h"
+ #include "manager.h"
+ #include "selinux/selinux.h"
+-#include "uid_observer.h"
++#include "throne_tracker.h"
++#include "throne_tracker.h"
+ #include "kernel_compat.h"
+ 
++static bool ksu_module_mounted = false;
++
+ extern int handle_sepolicy(unsigned long arg3, void __user *arg4);
+ 
+ static inline bool is_allow_su()
+@@ -40,16 +57,11 @@ static inline bool is_allow_su()
+ 	return ksu_is_allow_uid(current_uid().val);
+ }
+ 
+-static inline bool is_isolated_uid(uid_t uid)
++static inline bool is_unsupported_uid(uid_t uid)
+ {
+-#define FIRST_ISOLATED_UID 99000
+-#define LAST_ISOLATED_UID 99999
+-#define FIRST_APP_ZYGOTE_ISOLATED_UID 90000
+-#define LAST_APP_ZYGOTE_ISOLATED_UID 98999
++#define LAST_APPLICATION_UID 19999
+ 	uid_t appid = uid % 100000;
+-	return (appid >= FIRST_ISOLATED_UID && appid <= LAST_ISOLATED_UID) ||
+-	       (appid >= FIRST_APP_ZYGOTE_ISOLATED_UID &&
+-		appid <= LAST_APP_ZYGOTE_ISOLATED_UID);
++	return appid > LAST_APPLICATION_UID;
+ }
+ 
+ static struct group_info root_groups = { .usage = ATOMIC_INIT(2) };
+@@ -122,8 +134,12 @@ void escape_to_root(void)
+ 	BUILD_BUG_ON(sizeof(profile->capabilities.effective) !=
+ 		     sizeof(kernel_cap_t));
+ 
+-	// capabilities
+-	memcpy(&cred->cap_effective, &profile->capabilities.effective,
++	// setup capabilities
++	// we need CAP_DAC_READ_SEARCH becuase `/data/adb/ksud` is not accessible for non root process
++	// we add it here but don't add it to cap_inhertiable, it would be dropped automaticly after exec!
++	u64 cap_for_ksud =
++		profile->capabilities.effective | CAP_DAC_READ_SEARCH;
++	memcpy(&cred->cap_effective, &cap_for_ksud,
+ 	       sizeof(cred->cap_effective));
+ 	memcpy(&cred->cap_inheritable, &profile->capabilities.effective,
+ 	       sizeof(cred->cap_inheritable));
+@@ -184,10 +200,10 @@ int ksu_handle_rename(struct dentry *old_dentry, struct dentry *new_dentry)
+ 	if (strcmp(buf, "/system/packages.list")) {
+ 		return 0;
+ 	}
+-	pr_info("renameat: %s -> %s, new path: %s", old_dentry->d_iname,
++	pr_info("renameat: %s -> %s, new path: %s\n", old_dentry->d_iname,
+ 		new_dentry->d_iname, buf);
+ 
+-	update_uid();
++	track_throne();
+ 
+ 	return 0;
+ }
+@@ -203,88 +219,39 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
+ 		return 0;
+ 	}
+ 
+-	// always ignore isolated app uid
+-	if (is_isolated_uid(current_uid().val)) {
+-		return 0;
++	// TODO: find it in throne tracker!
++	uid_t current_uid_val = current_uid().val;
++	uid_t manager_uid = ksu_get_manager_uid();
++	if (current_uid_val != manager_uid &&
++	    current_uid_val % 100000 == manager_uid) {
++		ksu_set_manager_uid(current_uid_val);
+ 	}
+ 
+-	static uid_t last_failed_uid = -1;
+-	if (last_failed_uid == current_uid().val) {
++	bool from_root = 0 == current_uid().val;
++	bool from_manager = is_manager();
++
++	if (!from_root && !from_manager) {
++		// only root or manager can access this interface
+ 		return 0;
+ 	}
+ 
+-	// pr_info("option: 0x%x, cmd: %ld\n", option, arg2);
+-
+-	if (arg2 == CMD_BECOME_MANAGER) {
+-		// quick check
+-		if (is_manager()) {
+-			if (copy_to_user(result, &reply_ok, sizeof(reply_ok))) {
+-				pr_err("become_manager: prctl reply error\n");
+-			}
+-			return 0;
+-		}
+-		if (ksu_is_manager_uid_valid()) {
+-			pr_info("manager already exist: %d\n",
+-				ksu_get_manager_uid());
+-			return 0;
+-		}
+-
+-		// someone wants to be root manager, just check it!
+-		// arg3 should be `/data/user/<userId>/<manager_package_name>`
+-		char param[128];
+-		if (ksu_strncpy_from_user_nofault(param, arg3, sizeof(param)) == -EFAULT) {
+ #ifdef CONFIG_KSU_DEBUG
+-			pr_err("become_manager: copy param err\n");
++	pr_info("option: 0x%x, cmd: %ld\n", option, arg2);
+ #endif
+-			return 0;
+-		}
+ 
+-		// for user 0, it is /data/data
+-		// for user 999, it is /data/user/999
+-		const char *prefix;
+-		char prefixTmp[64];
+-		int userId = current_uid().val / 100000;
+-		if (userId == 0) {
+-			prefix = "/data/data";
+-		} else {
+-			snprintf(prefixTmp, sizeof(prefixTmp), "/data/user/%d",
+-				 userId);
+-			prefix = prefixTmp;
+-		}
+-
+-		if (startswith(param, (char *)prefix) != 0) {
+-			pr_info("become_manager: invalid param: %s\n", param);
+-			return 0;
+-		}
+-
+-		// stat the param, app must have permission to do this
+-		// otherwise it may fake the path!
+-		struct path path;
+-		if (kern_path(param, LOOKUP_DIRECTORY, &path)) {
+-			pr_err("become_manager: kern_path err\n");
+-			return 0;
+-		}
+-		if (path.dentry->d_inode->i_uid.val != current_uid().val) {
+-			pr_err("become_manager: path uid != current uid\n");
+-			path_put(&path);
+-			return 0;
+-		}
+-		char *pkg = param + strlen(prefix);
+-		pr_info("become_manager: param pkg: %s\n", pkg);
+-
+-		bool success = become_manager(pkg);
+-		if (success) {
++	if (arg2 == CMD_BECOME_MANAGER) {
++		if (from_manager) {
+ 			if (copy_to_user(result, &reply_ok, sizeof(reply_ok))) {
+ 				pr_err("become_manager: prctl reply error\n");
+ 			}
++			return 0;
+ 		}
+-		path_put(&path);
+ 		return 0;
+ 	}
+ 
+ 	if (arg2 == CMD_GRANT_ROOT) {
+ 		if (is_allow_su()) {
+-			pr_info("allow root for: %d\n", current_uid());
++			pr_info("allow root for: %d\n", current_uid().val);
+ 			escape_to_root();
+ 			if (copy_to_user(result, &reply_ok, sizeof(reply_ok))) {
+ 				pr_err("grant_root: prctl reply error\n");
+@@ -295,17 +262,23 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
+ 
+ 	// Both root manager and root processes should be allowed to get version
+ 	if (arg2 == CMD_GET_VERSION) {
+-		if (is_manager() || 0 == current_uid().val) {
+-			u32 version = KERNEL_SU_VERSION;
+-			if (copy_to_user(arg3, &version, sizeof(version))) {
+-				pr_err("prctl reply error, cmd: %d\n", arg2);
+-			}
++		u32 version = KERNEL_SU_VERSION;
++		if (copy_to_user(arg3, &version, sizeof(version))) {
++			pr_err("prctl reply error, cmd: %lu\n", arg2);
++		}
++#ifdef MODULE
++		u32 is_lkm = 0x1;
++#else
++		u32 is_lkm = 0x0;
++#endif
++		if (arg4 && copy_to_user(arg4, &is_lkm, sizeof(is_lkm))) {
++			pr_err("prctl reply error, cmd: %lu\n", arg2);
+ 		}
+ 		return 0;
+ 	}
+ 
+ 	if (arg2 == CMD_REPORT_EVENT) {
+-		if (0 != current_uid().val) {
++		if (!from_root) {
+ 			return 0;
+ 		}
+ 		switch (arg3) {
+@@ -313,7 +286,7 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
+ 			static bool post_fs_data_lock = false;
+ 			if (!post_fs_data_lock) {
+ 				post_fs_data_lock = true;
+-				pr_info("post-fs-data triggered");
++				pr_info("post-fs-data triggered\n");
+ 				on_post_fs_data();
+ 			}
+ 			break;
+@@ -322,10 +295,15 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
+ 			static bool boot_complete_lock = false;
+ 			if (!boot_complete_lock) {
+ 				boot_complete_lock = true;
+-				pr_info("boot_complete triggered");
++				pr_info("boot_complete triggered\n");
+ 			}
+ 			break;
+ 		}
++		case EVENT_MODULE_MOUNTED: {
++			ksu_module_mounted = true;
++			pr_info("module mounted!\n");
++			break;
++		}
+ 		default:
+ 			break;
+ 		}
+@@ -333,7 +311,7 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
+ 	}
+ 
+ 	if (arg2 == CMD_SET_SEPOLICY) {
+-		if (0 != current_uid().val) {
++		if (!from_root) {
+ 			return 0;
+ 		}
+ 		if (!handle_sepolicy(arg3, arg4)) {
+@@ -346,9 +324,6 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
+ 	}
+ 
+ 	if (arg2 == CMD_CHECK_SAFEMODE) {
+-		if (!is_manager() && 0 != current_uid().val) {
+-			return 0;
+-		}
+ 		if (ksu_is_safe_mode()) {
+ 			pr_warn("safemode enabled!\n");
+ 			if (copy_to_user(result, &reply_ok, sizeof(reply_ok))) {
+@@ -359,57 +334,49 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
+ 	}
+ 
+ 	if (arg2 == CMD_GET_ALLOW_LIST || arg2 == CMD_GET_DENY_LIST) {
+-		if (is_manager() || 0 == current_uid().val) {
+-			u32 array[128];
+-			u32 array_length;
+-			bool success =
+-				ksu_get_allow_list(array, &array_length,
+-						   arg2 == CMD_GET_ALLOW_LIST);
+-			if (success) {
+-				if (!copy_to_user(arg4, &array_length,
+-						  sizeof(array_length)) &&
+-				    !copy_to_user(arg3, array,
+-						  sizeof(u32) * array_length)) {
+-					if (copy_to_user(result, &reply_ok,
+-							 sizeof(reply_ok))) {
+-						pr_err("prctl reply error, cmd: %d\n",
+-						       arg2);
+-					}
+-				} else {
+-					pr_err("prctl copy allowlist error\n");
++		u32 array[128];
++		u32 array_length;
++		bool success = ksu_get_allow_list(array, &array_length,
++						  arg2 == CMD_GET_ALLOW_LIST);
++		if (success) {
++			if (!copy_to_user(arg4, &array_length,
++					  sizeof(array_length)) &&
++			    !copy_to_user(arg3, array,
++					  sizeof(u32) * array_length)) {
++				if (copy_to_user(result, &reply_ok,
++						 sizeof(reply_ok))) {
++					pr_err("prctl reply error, cmd: %lu\n",
++					       arg2);
+ 				}
++			} else {
++				pr_err("prctl copy allowlist error\n");
+ 			}
+ 		}
+ 		return 0;
+ 	}
+ 
+ 	if (arg2 == CMD_UID_GRANTED_ROOT || arg2 == CMD_UID_SHOULD_UMOUNT) {
+-		if (is_manager() || 0 == current_uid().val) {
+-			uid_t target_uid = (uid_t)arg3;
+-			bool allow = false;
+-			if (arg2 == CMD_UID_GRANTED_ROOT) {
+-				allow = ksu_is_allow_uid(target_uid);
+-			} else if (arg2 == CMD_UID_SHOULD_UMOUNT) {
+-				allow = ksu_uid_should_umount(target_uid);
+-			} else {
+-				pr_err("unknown cmd: %d\n", arg2);
+-			}
+-			if (!copy_to_user(arg4, &allow, sizeof(allow))) {
+-				if (copy_to_user(result, &reply_ok,
+-						 sizeof(reply_ok))) {
+-					pr_err("prctl reply error, cmd: %d\n",
+-					       arg2);
+-				}
+-			} else {
+-				pr_err("prctl copy err, cmd: %d\n", arg2);
++		uid_t target_uid = (uid_t)arg3;
++		bool allow = false;
++		if (arg2 == CMD_UID_GRANTED_ROOT) {
++			allow = ksu_is_allow_uid(target_uid);
++		} else if (arg2 == CMD_UID_SHOULD_UMOUNT) {
++			allow = ksu_uid_should_umount(target_uid);
++		} else {
++			pr_err("unknown cmd: %lu\n", arg2);
++		}
++		if (!copy_to_user(arg4, &allow, sizeof(allow))) {
++			if (copy_to_user(result, &reply_ok, sizeof(reply_ok))) {
++				pr_err("prctl reply error, cmd: %lu\n", arg2);
+ 			}
++		} else {
++			pr_err("prctl copy err, cmd: %lu\n", arg2);
+ 		}
+ 		return 0;
+ 	}
+ 
+ 	// all other cmds are for 'root manager'
+-	if (!is_manager()) {
+-		last_failed_uid = current_uid().val;
++	if (!from_manager) {
+ 		return 0;
+ 	}
+ 
+@@ -428,7 +395,7 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
+ 				return 0;
+ 			}
+ 			if (copy_to_user(result, &reply_ok, sizeof(reply_ok))) {
+-				pr_err("prctl reply error, cmd: %d\n", arg2);
++				pr_err("prctl reply error, cmd: %lu\n", arg2);
+ 			}
+ 		}
+ 		return 0;
+@@ -444,7 +411,7 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
+ 		// todo: validate the params
+ 		if (ksu_set_app_profile(&profile, true)) {
+ 			if (copy_to_user(result, &reply_ok, sizeof(reply_ok))) {
+-				pr_err("prctl reply error, cmd: %d\n", arg2);
++				pr_err("prctl reply error, cmd: %lu\n", arg2);
+ 			}
+ 		}
+ 		return 0;
+@@ -482,7 +449,17 @@ static bool should_umount(struct path *path)
+ 	return false;
+ }
+ 
+-static void try_umount(const char *mnt)
++static int ksu_umount_mnt(struct path *path, int flags)
++{
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0) || defined(KSU_UMOUNT)
++	return path_umount(path, flags);
++#else
++	// TODO: umount for non GKI kernel
++	return -ENOSYS;
++#endif
++}
++
++static void try_umount(const char *mnt, bool check_mnt, int flags)
+ {
+ 	struct path path;
+ 	int err = kern_path(mnt, 0, &path);
+@@ -490,21 +467,29 @@ static void try_umount(const char *mnt)
+ 		return;
+ 	}
+ 
++	if (path.dentry != path.mnt->mnt_root) {
++		// it is not root mountpoint, maybe umounted by others already.
++		return;
++	}
++
+ 	// we are only interest in some specific mounts
+-	if (!should_umount(&path)) {
++	if (check_mnt && !should_umount(&path)) {
+ 		return;
+ 	}
+ 
+-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
+-	err = path_umount(&path, 0);
++	err = ksu_umount_mnt(&path, flags);
+ 	if (err) {
+-		pr_info("umount %s failed: %d\n", mnt, err);
++		pr_warn("umount %s failed: %d\n", mnt, err);
+ 	}
+-#endif
+ }
+ 
+ int ksu_handle_setuid(struct cred *new, const struct cred *old)
+ {
++	// this hook is used for umounting overlayfs for some uid, if there isn't any module mounted, just ignore it!
++	if (!ksu_module_mounted) {
++		return 0;
++	}
++
+ 	if (!new || !old) {
+ 		return 0;
+ 	}
+@@ -517,10 +502,8 @@ int ksu_handle_setuid(struct cred *new, const struct cred *old)
+ 		return 0;
+ 	}
+ 
+-	// todo: check old process's selinux context, if it is not zygote, ignore it!
+-
+-	if (!is_appuid(new_uid)) {
+-		// pr_info("handle setuid ignore non application uid: %d\n", new_uid.val);
++	if (!is_appuid(new_uid) || is_unsupported_uid(new_uid.val)) {
++		// pr_info("handle setuid ignore non application or isolated uid: %d\n", new_uid.val);
+ 		return 0;
+ 	}
+ 
+@@ -537,14 +520,31 @@ int ksu_handle_setuid(struct cred *new, const struct cred *old)
+ #endif
+ 	}
+ 
++	// check old process's selinux context, if it is not zygote, ignore it!
++	// because some su apps may setuid to untrusted_app but they are in global mount namespace
++	// when we umount for such process, that is a disaster!
++	bool is_zygote_child = is_zygote(old->security);
++	if (!is_zygote_child) {
++		pr_info("handle umount ignore non zygote child: %d\n",
++			current->pid);
++		return 0;
++	}
++#ifdef CONFIG_KSU_DEBUG
+ 	// umount the target mnt
+-	pr_info("handle umount for uid: %d\n", new_uid.val);
++	pr_info("handle umount for uid: %d, pid: %d\n", new_uid.val,
++		current->pid);
++#endif
+ 
+ 	// fixme: use `collect_mounts` and `iterate_mount` to iterate all mountpoint and
+ 	// filter the mountpoint whose target is `/data/adb`
+-	try_umount("/system");
+-	try_umount("/vendor");
+-	try_umount("/product");
++	try_umount("/system", true, 0);
++	try_umount("/vendor", true, 0);
++	try_umount("/product", true, 0);
++	try_umount("/data/adb/modules", false, MNT_DETACH);
++
++	// try umount ksu temp path
++	try_umount("/debug_ramdisk", false, MNT_DETACH);
++	try_umount("/sbin", false, MNT_DETACH);
+ 
+ 	return 0;
+ }
+@@ -553,11 +553,7 @@ int ksu_handle_setuid(struct cred *new, const struct cred *old)
+ 
+ static int handler_pre(struct kprobe *p, struct pt_regs *regs)
+ {
+-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 16, 0)
+-	struct pt_regs *real_regs = (struct pt_regs *)PT_REGS_PARM1(regs);
+-#else
+-	struct pt_regs *real_regs = regs;
+-#endif
++	struct pt_regs *real_regs = PT_REAL_REGS(regs);
+ 	int option = (int)PT_REGS_PARM1(real_regs);
+ 	unsigned long arg2 = (unsigned long)PT_REGS_PARM2(real_regs);
+ 	unsigned long arg3 = (unsigned long)PT_REGS_PARM3(real_regs);
+@@ -629,7 +625,7 @@ static int ksu_task_prctl(int option, unsigned long arg2, unsigned long arg3,
+ 	return -ENOSYS;
+ }
+ // kernel 4.4 and 4.9
+-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
++#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) || defined(CONFIG_IS_HW_HISI)
+ static int ksu_key_permission(key_ref_t key_ref, const struct cred *cred,
+ 			      unsigned perm)
+ {
+@@ -641,7 +637,7 @@ static int ksu_key_permission(key_ref_t key_ref, const struct cred *cred,
+ 		return 0;
+ 	}
+ 	init_session_keyring = cred->session_keyring;
+-	pr_info("kernel_compat: got init_session_keyring");
++	pr_info("kernel_compat: got init_session_keyring\n");
+ 	return 0;
+ }
+ #endif
+@@ -657,11 +653,12 @@ static int ksu_task_fix_setuid(struct cred *new, const struct cred *old,
+ 	return ksu_handle_setuid(new, old);
+ }
+ 
++#ifndef MODULE
+ static struct security_hook_list ksu_hooks[] = {
+ 	LSM_HOOK_INIT(task_prctl, ksu_task_prctl),
+ 	LSM_HOOK_INIT(inode_rename, ksu_inode_rename),
+ 	LSM_HOOK_INIT(task_fix_setuid, ksu_task_fix_setuid),
+-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
++#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) || defined(CONFIG_IS_HW_HISI)
+ 	LSM_HOOK_INIT(key_permission, ksu_key_permission)
+ #endif
+ };
+@@ -676,21 +673,184 @@ void __init ksu_lsm_hook_init(void)
+ #endif
+ }
+ 
++#else
++static int override_security_head(void *head, const void *new_head, size_t len)
++{
++	unsigned long base = (unsigned long)head & PAGE_MASK;
++	unsigned long offset = offset_in_page(head);
++
++	// this is impossible for our case because the page alignment
++	// but be careful for other cases!
++	BUG_ON(offset + len > PAGE_SIZE);
++	struct page *page = phys_to_page(__pa(base));
++	if (!page) {
++		return -EFAULT;
++	}
++
++	void *addr = vmap(&page, 1, VM_MAP, PAGE_KERNEL);
++	if (!addr) {
++		return -ENOMEM;
++	}
++	local_irq_disable();
++	memcpy(addr + offset, new_head, len);
++	local_irq_enable();
++	vunmap(addr);
++	return 0;
++}
++
++static void free_security_hook_list(struct hlist_head *head)
++{
++	struct hlist_node *temp;
++	struct security_hook_list *entry;
++
++	if (!head)
++		return;
++
++	hlist_for_each_entry_safe (entry, temp, head, list) {
++		hlist_del(&entry->list);
++		kfree(entry);
++	}
++
++	kfree(head);
++}
++
++struct hlist_head *copy_security_hlist(struct hlist_head *orig)
++{
++	struct hlist_head *new_head = kmalloc(sizeof(*new_head), GFP_KERNEL);
++	if (!new_head)
++		return NULL;
++
++	INIT_HLIST_HEAD(new_head);
++
++	struct security_hook_list *entry;
++	struct security_hook_list *new_entry;
++
++	hlist_for_each_entry (entry, orig, list) {
++		new_entry = kmalloc(sizeof(*new_entry), GFP_KERNEL);
++		if (!new_entry) {
++			free_security_hook_list(new_head);
++			return NULL;
++		}
++
++		*new_entry = *entry;
++
++		hlist_add_tail_rcu(&new_entry->list, new_head);
++	}
++
++	return new_head;
++}
++
++#define LSM_SEARCH_MAX 180 // This should be enough to iterate
++static void *find_head_addr(void *security_ptr, int *index)
++{
++	if (!security_ptr) {
++		return NULL;
++	}
++	struct hlist_head *head_start =
++		(struct hlist_head *)&security_hook_heads;
++
++	for (int i = 0; i < LSM_SEARCH_MAX; i++) {
++		struct hlist_head *head = head_start + i;
++		struct security_hook_list *pos;
++		hlist_for_each_entry (pos, head, list) {
++			if (pos->hook.capget == security_ptr) {
++				if (index) {
++					*index = i;
++				}
++				return head;
++			}
++		}
++	}
++
++	return NULL;
++}
++
++#define GET_SYMBOL_ADDR(sym)                                                   \
++	({                                                                     \
++		void *addr = kallsyms_lookup_name(#sym ".cfi_jt");             \
++		if (!addr) {                                                   \
++			addr = kallsyms_lookup_name(#sym);                     \
++		}                                                              \
++		addr;                                                          \
++	})
++
++#define KSU_LSM_HOOK_HACK_INIT(head_ptr, name, func)                           \
++	do {                                                                   \
++		static struct security_hook_list hook = {                      \
++			.hook = { .name = func }                               \
++		};                                                             \
++		hook.head = head_ptr;                                          \
++		hook.lsm = "ksu";                                              \
++		struct hlist_head *new_head = copy_security_hlist(hook.head);  \
++		if (!new_head) {                                               \
++			pr_err("Failed to copy security list: %s\n", #name);   \
++			break;                                                 \
++		}                                                              \
++		hlist_add_tail_rcu(&hook.list, new_head);                      \
++		if (override_security_head(hook.head, new_head,                \
++					   sizeof(*new_head))) {               \
++			free_security_hook_list(new_head);                     \
++			pr_err("Failed to hack lsm for: %s\n", #name);         \
++		}                                                              \
++	} while (0)
++
++void __init ksu_lsm_hook_init(void)
++{
++	void *cap_prctl = GET_SYMBOL_ADDR(cap_task_prctl);
++	void *prctl_head = find_head_addr(cap_prctl, NULL);
++	if (prctl_head) {
++		if (prctl_head != &security_hook_heads.task_prctl) {
++			pr_warn("prctl's address has shifted!\n");
++		}
++		KSU_LSM_HOOK_HACK_INIT(prctl_head, task_prctl, ksu_task_prctl);
++	} else {
++		pr_warn("Failed to find task_prctl!\n");
++	}
++
++	int inode_killpriv_index = -1;
++	void *cap_killpriv = GET_SYMBOL_ADDR(cap_inode_killpriv);
++	find_head_addr(cap_killpriv, &inode_killpriv_index);
++	if (inode_killpriv_index < 0) {
++		pr_warn("Failed to find inode_rename, use kprobe instead!\n");
++		register_kprobe(&renameat_kp);
++	} else {
++		int inode_rename_index = inode_killpriv_index +
++					 &security_hook_heads.inode_rename -
++					 &security_hook_heads.inode_killpriv;
++		struct hlist_head *head_start =
++			(struct hlist_head *)&security_hook_heads;
++		void *inode_rename_head = head_start + inode_rename_index;
++		if (inode_rename_head != &security_hook_heads.inode_rename) {
++			pr_warn("inode_rename's address has shifted!\n");
++		}
++		KSU_LSM_HOOK_HACK_INIT(inode_rename_head, inode_rename,
++				       ksu_inode_rename);
++	}
++	void *cap_setuid = GET_SYMBOL_ADDR(cap_task_fix_setuid);
++	void *setuid_head = find_head_addr(cap_setuid, NULL);
++	if (setuid_head) {
++		if (setuid_head != &security_hook_heads.task_fix_setuid) {
++			pr_warn("setuid's address has shifted!\n");
++		}
++		KSU_LSM_HOOK_HACK_INIT(setuid_head, task_fix_setuid,
++				       ksu_task_fix_setuid);
++	} else {
++		pr_warn("Failed to find task_fix_setuid!\n");
++	}
++	smp_mb();
++}
++#endif
++
+ void __init ksu_core_init(void)
+ {
+-#ifndef MODULE
+-	pr_info("ksu_lsm_hook_init\n");
+ 	ksu_lsm_hook_init();
+-#else
+-	pr_info("ksu_kprobe_init\n");
+-	ksu_kprobe_init();
+-#endif
+ }
+ 
+ void ksu_core_exit(void)
+ {
+-#ifndef MODULE
+-	pr_info("ksu_kprobe_exit\n");
+-	ksu_kprobe_exit();
++#ifdef CONFIG_KPROBES
++	pr_info("ksu_core_kprobe_exit\n");
++	// we dont use this now
++	// ksu_kprobe_exit();
+ #endif
+ }
+diff --git a/drivers/ksu/core_hook.h b/drivers/ksu/core_hook.h
+index 8e8bfc2caef4..616951e8db35 100644
+--- a/drivers/ksu/core_hook.h
++++ b/drivers/ksu/core_hook.h
+@@ -1,7 +1,7 @@
+ #ifndef __KSU_H_KSU_CORE
+ #define __KSU_H_KSU_CORE
+ 
+-#include "linux/init.h"
++#include <linux/init.h>
+ 
+ void __init ksu_core_init(void);
+ void ksu_core_exit(void);
+diff --git a/drivers/ksu/include/ksu_hook.h b/drivers/ksu/include/ksu_hook.h
+index d4a2cddb06e2..ea0b04d3e538 100644
+--- a/drivers/ksu/include/ksu_hook.h
++++ b/drivers/ksu/include/ksu_hook.h
+@@ -1,8 +1,8 @@
+ #ifndef __KSU_H_KSHOOK
+ #define __KSU_H_KSHOOK
+ 
+-#include "linux/fs.h"
+-#include "linux/types.h"
++#include <linux/fs.h>
++#include <linux/types.h>
+ 
+ // For sucompat
+ 
+diff --git a/drivers/ksu/kernel_compat.c b/drivers/ksu/kernel_compat.c
+index 3e216657e637..b242bc637398 100644
+--- a/drivers/ksu/kernel_compat.c
++++ b/drivers/ksu/kernel_compat.c
+@@ -1,21 +1,19 @@
+-#include "linux/version.h"
+-#include "linux/fs.h"
+-#include "linux/nsproxy.h"
++#include <linux/version.h>
++#include <linux/fs.h>
++#include <linux/nsproxy.h>
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+-#include "linux/sched/task.h"
+-#include "linux/uaccess.h"
+-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
+-#include "linux/uaccess.h"
+-#include "linux/sched.h"
++#include <linux/sched/task.h>
+ #else
+-#include "linux/sched.h"
++#include <linux/sched.h>
+ #endif
++#include <linux/uaccess.h>
+ #include "klog.h" // IWYU pragma: keep
++#include "kernel_compat.h" // Add check Huawei Device
+ 
+-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
+-#include "linux/key.h"
+-#include "linux/errno.h"
+-#include "linux/cred.h"
++#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) || defined(CONFIG_IS_HW_HISI)
++#include <linux/key.h>
++#include <linux/errno.h>
++#include <linux/cred.h>
+ struct key *init_session_keyring = NULL;
+ 
+ static inline int install_session_keyring(struct key *keyring)
+@@ -81,7 +79,7 @@ void ksu_android_ns_fs_check()
+ 
+ struct file *ksu_filp_open_compat(const char *filename, int flags, umode_t mode)
+ {
+-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
++#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) || defined(CONFIG_IS_HW_HISI)
+ 	if (init_session_keyring != NULL && !current_cred()->session_keyring &&
+ 	    (current->flags & PF_WQ_WORKER)) {
+ 		pr_info("installing init session keyring for older kernel\n");
+diff --git a/drivers/ksu/kernel_compat.h b/drivers/ksu/kernel_compat.h
+index f97080d41eae..ba9981857fd1 100644
+--- a/drivers/ksu/kernel_compat.h
++++ b/drivers/ksu/kernel_compat.h
+@@ -1,15 +1,30 @@
+ #ifndef __KSU_H_KERNEL_COMPAT
+ #define __KSU_H_KERNEL_COMPAT
+ 
+-#include "linux/fs.h"
++#include <linux/fs.h>
++#include <linux/version.h>
++#include "ss/policydb.h"
+ #include "linux/key.h"
+-#include "linux/version.h"
++
++/*
++ * Adapt to Huawei HISI kernel without affecting other kernels ,
++ * Huawei Hisi Kernel EBITMAP Enable or Disable Flag ,
++ * From ss/ebitmap.h
++ */
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0)) &&                           \
++		(LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)) ||               \
++	(LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)) &&                      \
++		(LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0))
++#ifdef HISI_SELINUX_EBITMAP_RO
++#define CONFIG_IS_HW_HISI
++#endif
++#endif
+ 
+ extern long ksu_strncpy_from_user_nofault(char *dst,
+ 					  const void __user *unsafe_addr,
+ 					  long count);
+ 
+-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
++#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) || defined(CONFIG_IS_HW_HISI)
+ extern struct key *init_session_keyring;
+ #endif
+ 
+diff --git a/drivers/ksu/ksu.c b/drivers/ksu/ksu.c
+index 28b8c0078b1e..3639edc21503 100644
+--- a/drivers/ksu/ksu.c
++++ b/drivers/ksu/ksu.c
+@@ -1,13 +1,15 @@
+-#include "linux/fs.h"
+-#include "linux/module.h"
+-#include "linux/workqueue.h"
++#include <linux/export.h>
++#include <linux/fs.h>
++#include <linux/kobject.h>
++#include <linux/module.h>
++#include <linux/workqueue.h>
+ 
+ #include "allowlist.h"
+ #include "arch.h"
+ #include "core_hook.h"
+ #include "klog.h" // IWYU pragma: keep
+ #include "ksu.h"
+-#include "uid_observer.h"
++#include "throne_tracker.h"
+ 
+ static struct workqueue_struct *ksu_workqueue;
+ 
+@@ -30,8 +32,10 @@ int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv,
+ 					    flags);
+ }
+ 
+-extern void ksu_enable_sucompat();
+-extern void ksu_enable_ksud();
++extern void ksu_sucompat_init();
++extern void ksu_sucompat_exit();
++extern void ksu_ksud_init();
++extern void ksu_ksud_exit();
+ 
+ int __init kernelsu_init(void)
+ {
+@@ -51,15 +55,20 @@ int __init kernelsu_init(void)
+ 
+ 	ksu_allowlist_init();
+ 
+-	ksu_uid_observer_init();
++	ksu_throne_tracker_init();
+ 
+ #ifdef CONFIG_KPROBES
+-	ksu_enable_sucompat();
+-	ksu_enable_ksud();
++	ksu_sucompat_init();
++	ksu_ksud_init();
+ #else
+ 	pr_alert("KPROBES is disabled, KernelSU may not work, please check https://kernelsu.org/guide/how-to-integrate-for-non-gki.html");
+ #endif
+ 
++#ifdef MODULE
++#ifndef CONFIG_KSU_DEBUG
++	kobject_del(&THIS_MODULE->mkobj.kobj);
++#endif
++#endif
+ 	return 0;
+ }
+ 
+@@ -67,10 +76,15 @@ void kernelsu_exit(void)
+ {
+ 	ksu_allowlist_exit();
+ 
+-	ksu_uid_observer_exit();
++	ksu_throne_tracker_exit();
+ 
+ 	destroy_workqueue(ksu_workqueue);
+ 
++#ifdef CONFIG_KPROBES
++	ksu_ksud_exit();
++	ksu_sucompat_exit();
++#endif
++
+ 	ksu_core_exit();
+ }
+ 
+diff --git a/drivers/ksu/ksu.h b/drivers/ksu/ksu.h
+index cdffb5aece87..35d1b14dbb7c 100644
+--- a/drivers/ksu/ksu.h
++++ b/drivers/ksu/ksu.h
+@@ -1,8 +1,8 @@
+ #ifndef __KSU_H_KSU
+ #define __KSU_H_KSU
+ 
+-#include "linux/types.h"
+-#include "linux/workqueue.h"
++#include <linux/types.h>
++#include <linux/workqueue.h>
+ 
+ #define KERNEL_SU_VERSION KSU_VERSION
+ #define KERNEL_SU_OPTION 0xDEADBEEF
+@@ -24,6 +24,7 @@
+ 
+ #define EVENT_POST_FS_DATA 1
+ #define EVENT_BOOT_COMPLETED 2
++#define EVENT_MODULE_MOUNTED 3
+ 
+ #define KSU_APP_PROFILE_VER 2
+ #define KSU_MAX_PACKAGE_NAME 256
+diff --git a/drivers/ksu/ksud.c b/drivers/ksu/ksud.c
+index 55cd1997082d..68e473524284 100644
+--- a/drivers/ksu/ksud.c
++++ b/drivers/ksu/ksud.c
+@@ -1,15 +1,24 @@
+-#include "asm/current.h"
+-#include "linux/compat.h"
+-#include "linux/dcache.h"
+-#include "linux/err.h"
+-#include "linux/fs.h"
+-#include "linux/input-event-codes.h"
+-#include "linux/kprobes.h"
+-#include "linux/printk.h"
+-#include "linux/types.h"
+-#include "linux/uaccess.h"
+-#include "linux/version.h"
+-#include "linux/workqueue.h"
++#include <asm/current.h>
++#include <linux/compat.h>
++#include <linux/cred.h>
++#include <linux/dcache.h>
++#include <linux/err.h>
++#include <linux/file.h>
++#include <linux/fs.h>
++#include <linux/version.h>
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
++#include <linux/input-event-codes.h>
++#else
++#include <uapi/linux/input.h>
++#endif
++#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)
++#include <linux/aio.h>
++#endif
++#include <linux/kprobes.h>
++#include <linux/printk.h>
++#include <linux/types.h>
++#include <linux/uaccess.h>
++#include <linux/workqueue.h>
+ 
+ #include "allowlist.h"
+ #include "arch.h"
+@@ -55,18 +64,23 @@ bool ksu_execveat_hook __read_mostly = true;
+ bool ksu_input_hook __read_mostly = true;
+ #endif
+ 
++u32 ksu_devpts_sid;
++
+ void on_post_fs_data(void)
+ {
+ 	static bool done = false;
+ 	if (done) {
+-		pr_info("on_post_fs_data already done");
++		pr_info("on_post_fs_data already done\n");
+ 		return;
+ 	}
+ 	done = true;
+-	pr_info("on_post_fs_data!");
++	pr_info("on_post_fs_data!\n");
+ 	ksu_load_allow_list();
+ 	// sanity check, this may influence the performance
+ 	stop_input_hook();
++
++	ksu_devpts_sid = ksu_get_devpts_sid();
++	pr_info("devpts sid: %d\n", ksu_devpts_sid);
+ }
+ 
+ #define MAX_ARG_STRINGS 0x7FFFFFFF
+@@ -107,7 +121,7 @@ static const char __user *get_user_arg_ptr(struct user_arg_ptr argv, int nr)
+  * count() counts the number of strings in array ARGV.
+  */
+ 
+- /*
++/*
+  * Make sure old GCC compiler can use __maybe_unused,
+  * Test passed in 4.4.x ~ 4.9.x when use GCC.
+  */
+@@ -138,9 +152,10 @@ static int __maybe_unused count(struct user_arg_ptr argv, int max)
+ 	return i;
+ }
+ 
+-// the call from execve_handler_pre won't provided correct value for __never_use_argument, use them after fix execve_handler_pre, keeping them for consistence for manually patched code
++// IMPORTANT NOTE: the call from execve_handler_pre WON'T provided correct value for envp and flags in GKI version
+ int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
+-			     struct user_arg_ptr *argv, void *__never_use_envp, int *__never_use_flags)
++			     struct user_arg_ptr *argv,
++			     struct user_arg_ptr *envp, int *flags)
+ {
+ #ifndef CONFIG_KPROBES
+ 	if (!ksu_execveat_hook) {
+@@ -151,7 +166,11 @@ int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
+ 
+ 	static const char app_process[] = "/system/bin/app_process";
+ 	static bool first_app_process = true;
++
++	/* This applies to versions Android 10+ */
+ 	static const char system_bin_init[] = "/system/bin/init";
++	/* This applies to versions between Android 6 ~ 9  */
++	static const char old_system_init[] = "/init";
+ 	static bool init_second_stage_executed = false;
+ 
+ 	if (!filename_ptr)
+@@ -163,7 +182,8 @@ int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
+ 	}
+ 
+ 	if (unlikely(!memcmp(filename->name, system_bin_init,
+-		    sizeof(system_bin_init) - 1))) {
++			     sizeof(system_bin_init) - 1) &&
++		     argv)) {
+ 		// /system/bin/init executed
+ 		int argc = count(*argv, MAX_ARG_STRINGS);
+ 		pr_info("/system/bin/init argc: %d\n", argc);
+@@ -171,8 +191,10 @@ int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
+ 			const char __user *p = get_user_arg_ptr(*argv, 1);
+ 			if (p && !IS_ERR(p)) {
+ 				char first_arg[16];
+-                                ksu_strncpy_from_user_nofault(first_arg, p, sizeof(first_arg));
+-				pr_info("first arg: %s\n", first_arg);
++				ksu_strncpy_from_user_nofault(
++					first_arg, p, sizeof(first_arg));
++				pr_info("/system/bin/init first arg: %s\n",
++					first_arg);
+ 				if (!strcmp(first_arg, "second_stage")) {
+ 					pr_info("/system/bin/init second_stage executed\n");
+ 					apply_kernelsu_rules();
+@@ -183,12 +205,74 @@ int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
+ 				pr_err("/system/bin/init parse args err!\n");
+ 			}
+ 		}
++	} else if (unlikely(!memcmp(filename->name, old_system_init,
++				    sizeof(old_system_init) - 1) &&
++			    argv)) {
++		// /init executed
++		int argc = count(*argv, MAX_ARG_STRINGS);
++		pr_info("/init argc: %d\n", argc);
++		if (argc > 1 && !init_second_stage_executed) {
++			/* This applies to versions between Android 6 ~ 7 */
++			const char __user *p = get_user_arg_ptr(*argv, 1);
++			if (p && !IS_ERR(p)) {
++				char first_arg[16];
++				ksu_strncpy_from_user_nofault(
++					first_arg, p, sizeof(first_arg));
++				pr_info("/init first arg: %s\n", first_arg);
++				if (!strcmp(first_arg, "--second-stage")) {
++					pr_info("/init second_stage executed\n");
++					apply_kernelsu_rules();
++					init_second_stage_executed = true;
++					ksu_android_ns_fs_check();
++				}
++			} else {
++				pr_err("/init parse args err!\n");
++			}
++		} else if (argc == 1 && !init_second_stage_executed && envp) {
++			/* This applies to versions between Android 8 ~ 9  */
++			int envc = count(*envp, MAX_ARG_STRINGS);
++			if (envc > 0) {
++				int n;
++				for (n = 1; n <= envc; n++) {
++					const char __user *p =
++						get_user_arg_ptr(*envp, n);
++					if (!p || IS_ERR(p)) {
++						continue;
++					}
++					char env[256];
++					// Reading environment variable strings from user space
++					if (ksu_strncpy_from_user_nofault(
++						    env, p, sizeof(env)) < 0)
++						continue;
++					// Parsing environment variable names and values
++					char *env_name = env;
++					char *env_value = strchr(env, '=');
++					if (env_value == NULL)
++						continue;
++					// Replace equal sign with string terminator
++					*env_value = '\0';
++					env_value++;
++					// Check if the environment variable name and value are matching
++					if (!strcmp(env_name,
++						    "INIT_SECOND_STAGE") &&
++					    (!strcmp(env_value, "1") ||
++					     !strcmp(env_value, "true"))) {
++						pr_info("/init second_stage executed\n");
++						apply_kernelsu_rules();
++						init_second_stage_executed =
++							true;
++						ksu_android_ns_fs_check();
++					}
++				}
++			}
++		}
+ 	}
+ 
+-	if (unlikely(first_app_process &&
+-	    !memcmp(filename->name, app_process, sizeof(app_process) - 1))) {
++	if (unlikely(first_app_process && !memcmp(filename->name, app_process,
++						  sizeof(app_process) - 1))) {
+ 		first_app_process = false;
+-		pr_info("exec app_process, /data prepared, second_stage: %d\n", init_second_stage_executed);
++		pr_info("exec app_process, /data prepared, second_stage: %d\n",
++			init_second_stage_executed);
+ 		on_post_fs_data(); // we keep this for old ksud
+ 		stop_execve_hook();
+ 	}
+@@ -207,7 +291,8 @@ static ssize_t read_proxy(struct file *file, char __user *buf, size_t count,
+ 	bool first_read = file->f_pos == 0;
+ 	ssize_t ret = orig_read(file, buf, count, pos);
+ 	if (first_read) {
+-		pr_info("read_proxy append %ld + %ld", ret, read_count_append);
++		pr_info("read_proxy append %ld + %ld\n", ret,
++			read_count_append);
+ 		ret += read_count_append;
+ 	}
+ 	return ret;
+@@ -218,7 +303,7 @@ static ssize_t read_iter_proxy(struct kiocb *iocb, struct iov_iter *to)
+ 	bool first_read = iocb->ki_pos == 0;
+ 	ssize_t ret = orig_read_iter(iocb, to);
+ 	if (first_read) {
+-		pr_info("read_iter_proxy append %ld + %ld", ret,
++		pr_info("read_iter_proxy append %ld + %ld\n", ret,
+ 			read_count_append);
+ 		ret += read_count_append;
+ 	}
+@@ -283,17 +368,17 @@ int ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,
+ 
+ 	size_t rc_count = strlen(KERNEL_SU_RC);
+ 
+-	pr_info("vfs_read: %s, comm: %s, count: %d, rc_count: %d\n", dpath,
++	pr_info("vfs_read: %s, comm: %s, count: %zu, rc_count: %zu\n", dpath,
+ 		current->comm, count, rc_count);
+ 
+ 	if (count < rc_count) {
+-		pr_err("count: %d < rc_count: %d", count, rc_count);
++		pr_err("count: %zu < rc_count: %zu\n", count, rc_count);
+ 		return 0;
+ 	}
+ 
+ 	size_t ret = copy_to_user(buf, KERNEL_SU_RC, rc_count);
+ 	if (ret) {
+-		pr_err("copy ksud.rc failed: %d\n", ret);
++		pr_err("copy ksud.rc failed: %zu\n", ret);
+ 		return 0;
+ 	}
+ 
+@@ -319,6 +404,18 @@ int ksu_handle_vfs_read(struct file **file_ptr, char __user **buf_ptr,
+ 	return 0;
+ }
+ 
++int ksu_handle_sys_read(unsigned int fd, char __user **buf_ptr,
++			size_t *count_ptr)
++{
++	struct file *file = fget(fd);
++	if (!file) {
++		return 0;
++	}
++	int result = ksu_handle_vfs_read(&file, buf_ptr, count_ptr, NULL);
++	fput(file);
++	return result;
++}
++
+ static unsigned int volumedown_pressed_count = 0;
+ 
+ static bool is_volumedown_enough(unsigned int count)
+@@ -394,7 +491,32 @@ static int execve_handler_pre(struct kprobe *p, struct pt_regs *regs)
+ 	return ksu_handle_execveat_ksud(fd, filename_ptr, &argv, NULL, NULL);
+ }
+ 
+-static int read_handler_pre(struct kprobe *p, struct pt_regs *regs)
++static int sys_execve_handler_pre(struct kprobe *p, struct pt_regs *regs)
++{
++	struct pt_regs *real_regs = PT_REAL_REGS(regs);
++	const char __user **filename_user =
++		(const char **)&PT_REGS_PARM1(real_regs);
++	const char __user *const __user *__argv =
++		(const char __user *const __user *)PT_REGS_PARM2(real_regs);
++	struct user_arg_ptr argv = { .ptr.native = __argv };
++	struct filename filename_in, *filename_p;
++	char path[32];
++
++	if (!filename_user)
++		return 0;
++
++	memset(path, 0, sizeof(path));
++	ksu_strncpy_from_user_nofault(path, *filename_user, 32);
++	filename_in.name = path;
++
++	filename_p = &filename_in;
++	return ksu_handle_execveat_ksud(AT_FDCWD, &filename_p, &argv, NULL,
++					NULL);
++}
++
++// remove this later!
++__maybe_unused static int vfs_read_handler_pre(struct kprobe *p,
++					       struct pt_regs *regs)
+ {
+ 	struct file **file_ptr = (struct file **)&PT_REGS_PARM1(regs);
+ 	char __user **buf_ptr = (char **)&PT_REGS_PARM2(regs);
+@@ -404,6 +526,16 @@ static int read_handler_pre(struct kprobe *p, struct pt_regs *regs)
+ 	return ksu_handle_vfs_read(file_ptr, buf_ptr, count_ptr, pos_ptr);
+ }
+ 
++static int sys_read_handler_pre(struct kprobe *p, struct pt_regs *regs)
++{
++	struct pt_regs *real_regs = PT_REAL_REGS(regs);
++	unsigned int fd = PT_REGS_PARM1(real_regs);
++	char __user **buf_ptr = (char __user **)&PT_REGS_PARM2(real_regs);
++	size_t count_ptr = (size_t *)&PT_REGS_PARM3(real_regs);
++
++	return ksu_handle_sys_read(fd, buf_ptr, count_ptr);
++}
++
+ static int input_handle_event_handler_pre(struct kprobe *p,
+ 					  struct pt_regs *regs)
+ {
+@@ -413,6 +545,12 @@ static int input_handle_event_handler_pre(struct kprobe *p,
+ 	return ksu_handle_input_handle_event(type, code, value);
+ }
+ 
++#if 1
++static struct kprobe execve_kp = {
++	.symbol_name = SYS_EXECVE_SYMBOL,
++	.pre_handler = sys_execve_handler_pre,
++};
++#else
+ static struct kprobe execve_kp = {
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
+ 	.symbol_name = "do_execveat_common",
+@@ -423,14 +561,22 @@ static struct kprobe execve_kp = {
+ #endif
+ 	.pre_handler = execve_handler_pre,
+ };
++#endif
+ 
++#if 1
++static struct kprobe vfs_read_kp = {
++	.symbol_name = SYS_READ_SYMBOL,
++	.pre_handler = sys_read_handler_pre,
++};
++#else
+ static struct kprobe vfs_read_kp = {
+ 	.symbol_name = "vfs_read",
+-	.pre_handler = read_handler_pre,
++	.pre_handler = vfs_read_handler_pre,
+ };
++#endif
+ 
+-static struct kprobe input_handle_event_kp = {
+-	.symbol_name = "input_handle_event",
++static struct kprobe input_event_kp = {
++	.symbol_name = "input_event",
+ 	.pre_handler = input_handle_event_handler_pre,
+ };
+ 
+@@ -446,7 +592,7 @@ static void do_stop_execve_hook(struct work_struct *work)
+ 
+ static void do_stop_input_hook(struct work_struct *work)
+ {
+-	unregister_kprobe(&input_handle_event_kp);
++	unregister_kprobe(&input_event_kp);
+ }
+ #endif
+ 
+@@ -457,6 +603,7 @@ static void stop_vfs_read_hook()
+ 	pr_info("unregister vfs_read kprobe: %d!\n", ret);
+ #else
+ 	ksu_vfs_read_hook = false;
++	pr_info("stop vfs_read_hook\n");
+ #endif
+ }
+ 
+@@ -467,6 +614,7 @@ static void stop_execve_hook()
+ 	pr_info("unregister execve kprobe: %d!\n", ret);
+ #else
+ 	ksu_execveat_hook = false;
++	pr_info("stop execve_hook\n");
+ #endif
+ }
+ 
+@@ -482,11 +630,12 @@ static void stop_input_hook()
+ 	pr_info("unregister input kprobe: %d!\n", ret);
+ #else
+ 	ksu_input_hook = false;
++	pr_info("stop input_hook\n");
+ #endif
+ }
+ 
+ // ksud: module support
+-void ksu_enable_ksud()
++void ksu_ksud_init()
+ {
+ #ifdef CONFIG_KPROBES
+ 	int ret;
+@@ -497,11 +646,21 @@ void ksu_enable_ksud()
+ 	ret = register_kprobe(&vfs_read_kp);
+ 	pr_info("ksud: vfs_read_kp: %d\n", ret);
+ 
+-	ret = register_kprobe(&input_handle_event_kp);
+-	pr_info("ksud: input_handle_event_kp: %d\n", ret);
++	ret = register_kprobe(&input_event_kp);
++	pr_info("ksud: input_event_kp: %d\n", ret);
+ 
+ 	INIT_WORK(&stop_vfs_read_work, do_stop_vfs_read_hook);
+ 	INIT_WORK(&stop_execve_hook_work, do_stop_execve_hook);
+ 	INIT_WORK(&stop_input_hook_work, do_stop_input_hook);
+ #endif
+ }
++
++void ksu_ksud_exit()
++{
++#ifdef CONFIG_KPROBES
++	unregister_kprobe(&execve_kp);
++	// this should be done before unregister vfs_read_kp
++	// unregister_kprobe(&vfs_read_kp);
++	unregister_kprobe(&input_event_kp);
++#endif
++}
+\ No newline at end of file
+diff --git a/drivers/ksu/ksud.h b/drivers/ksu/ksud.h
+index 5a32a527757f..cc2df243a8f0 100644
+--- a/drivers/ksu/ksud.h
++++ b/drivers/ksu/ksud.h
+@@ -1,10 +1,14 @@
+ #ifndef __KSU_H_KSUD
+ #define __KSU_H_KSUD
+ 
++#include <linux/types.h>
++
+ #define KSUD_PATH "/data/adb/ksud"
+ 
+ void on_post_fs_data(void);
+ 
+ bool ksu_is_safe_mode(void);
+ 
++extern u32 ksu_devpts_sid;
++
+ #endif
+diff --git a/drivers/ksu/manager.c b/drivers/ksu/manager.c
+deleted file mode 100644
+index 2329477a9b56..000000000000
+--- a/drivers/ksu/manager.c
++++ /dev/null
+@@ -1,92 +0,0 @@
+-#include "linux/cred.h"
+-#include "linux/gfp.h"
+-#include "linux/slab.h"
+-#include "linux/uidgid.h"
+-#include "linux/version.h"
+-
+-#include "linux/fdtable.h"
+-#include "linux/fs.h"
+-#include "linux/rcupdate.h"
+-
+-#include "apk_sign.h"
+-#include "klog.h" // IWYU pragma: keep
+-#include "ksu.h"
+-#include "manager.h"
+-
+-uid_t ksu_manager_uid = KSU_INVALID_UID;
+-
+-bool become_manager(char *pkg)
+-{
+-	struct fdtable *files_table;
+-	int i = 0;
+-	struct path files_path;
+-	char *cwd;
+-	char *buf;
+-	bool result = false;
+-
+-	// must be zygote's direct child, otherwise any app can fork a new process and
+-	// open manager's apk
+-	if (task_uid(current->real_parent).val != 0) {
+-		pr_info("parent is not zygote!\n");
+-		return false;
+-	}
+-
+-	buf = (char *)kmalloc(PATH_MAX, GFP_ATOMIC);
+-	if (!buf) {
+-		pr_err("kalloc path failed.\n");
+-		return false;
+-	}
+-
+-	files_table = files_fdtable(current->files);
+-
+-	int pkg_len = strlen(pkg);
+-	// todo: use iterate_fd
+-	for (i = 0; files_table->fd[i] != NULL; i++) {
+-		files_path = files_table->fd[i]->f_path;
+-		if (!d_is_reg(files_path.dentry)) {
+-			continue;
+-		}
+-		cwd = d_path(&files_path, buf, PATH_MAX);
+-		if (startswith(cwd, "/data/app/") != 0 ||
+-		    endswith(cwd, "/base.apk") != 0) {
+-			continue;
+-		}
+-		// we have found the apk!
+-		pr_info("found apk: %s", cwd);
+-		char *pkg_index = strstr(cwd, pkg);
+-		if (!pkg_index) {
+-			pr_info("apk path not match package name!\n");
+-			continue;
+-		}
+-		char *next_char = pkg_index + pkg_len;
+-		// because we ensure the cwd must startswith `/data/app` and endswith `base.apk`
+-		// we don't need to check if the pointer is out of bounds
+-		if (*next_char != '-') {
+-			// from android 8.1: http://aospxref.com/android-8.1.0_r81/xref/frameworks/base/services/core/java/com/android/server/pm/PackageManagerService.java#17612
+-			// to android 13: http://aospxref.com/android-13.0.0_r3/xref/frameworks/base/services/core/java/com/android/server/pm/PackageManagerServiceUtils.java#1208
+-			// /data/app/~~[randomStringA]/[packageName]-[randomStringB]
+-			// the previous char must be `/` and the next char must be `-`
+-			// because we use strstr instead of equals, this is a strong verfication.
+-			pr_info("invalid pkg: %s\n", pkg);
+-			continue;
+-		}
+-		if (is_manager_apk(cwd) == 0) {
+-			// check passed
+-			uid_t uid = current_uid().val;
+-			pr_info("manager uid: %d\n", uid);
+-
+-			ksu_set_manager_uid(uid);
+-
+-			result = true;
+-			goto clean;
+-		} else {
+-			pr_info("manager signature invalid!");
+-		}
+-
+-		break;
+-	}
+-
+-clean:
+-	kfree(buf);
+-	return result;
+-}
+diff --git a/drivers/ksu/manager.h b/drivers/ksu/manager.h
+index 9429d758f89d..be5bbced6f73 100644
+--- a/drivers/ksu/manager.h
++++ b/drivers/ksu/manager.h
+@@ -1,8 +1,8 @@
+ #ifndef __KSU_H_KSU_MANAGER
+ #define __KSU_H_KSU_MANAGER
+ 
+-#include "linux/cred.h"
+-#include "linux/types.h"
++#include <linux/cred.h>
++#include <linux/types.h>
+ 
+ #define KSU_INVALID_UID -1
+ 
+@@ -33,6 +33,4 @@ static inline void ksu_invalidate_manager_uid()
+ 	ksu_manager_uid = KSU_INVALID_UID;
+ }
+ 
+-bool become_manager(char *pkg);
+-
+ #endif
+diff --git a/drivers/ksu/module_api.c b/drivers/ksu/module_api.c
+deleted file mode 100644
+index 999d5102741f..000000000000
+--- a/drivers/ksu/module_api.c
++++ /dev/null
+@@ -1,33 +0,0 @@
+-#include "linux/kallsyms.h"
+-
+-#define RE_EXPORT_SYMBOL1(ret, func, t1, v1)                                   \
+-	ret ksu_##func(t1 v1)                                                  \
+-	{                                                                      \
+-		return func(v1);                                               \
+-	}                                                                      \
+-	EXPORT_SYMBOL(ksu_##func);
+-
+-#define RE_EXPORT_SYMBOL2(ret, func, t1, v1, t2, v2)                           \
+-	ret ksu_##func(t1 v1, t2 v2)                                           \
+-	{                                                                      \
+-		return func(v1, v2);                                           \
+-	}                                                                      \
+-	EXPORT_SYMBOL(ksu_##func);
+-
+-RE_EXPORT_SYMBOL1(unsigned long, kallsyms_lookup_name, const char *, name)
+-
+-// RE_EXPORT_SYMBOL2(int, register_kprobe, struct kprobe *, p)
+-// RE_EXPORT_SYMBOL2(void, unregister_kprobe, struct kprobe *, p)
+-
+-// RE_EXPORT_SYMBOL2(int, register_kprobe, struct kprobe *, p)
+-// RE_EXPORT_SYMBOL2(void, unregister_kprobe, struct kprobe *, p)
+-
+-// int ksu_register_kprobe(struct kprobe *p);
+-// void ksu_unregister_kprobe(struct kprobe *p);
+-// int ksu_register_kprobes(struct kprobe **kps, int num);
+-// void ksu_unregister_kprobes(struct kprobe **kps, int num);
+-
+-// int ksu_register_kretprobe(struct kretprobe *rp);
+-// void unregister_kretprobe(struct kretprobe *rp);
+-// int register_kretprobes(struct kretprobe **rps, int num);
+-// void unregister_kretprobes(struct kretprobe **rps, int num);
+diff --git a/drivers/ksu/selinux/rules.c b/drivers/ksu/selinux/rules.c
+index dbc9aef3072e..1ba6d853f2a9 100644
+--- a/drivers/ksu/selinux/rules.c
++++ b/drivers/ksu/selinux/rules.c
+@@ -1,6 +1,6 @@
+-#include "linux/uaccess.h"
+-#include "linux/types.h"
+-#include "linux/version.h"
++#include <linux/uaccess.h>
++#include <linux/types.h>
++#include <linux/version.h>
+ 
+ #include "../klog.h" // IWYU pragma: keep
+ #include "selinux.h"
+@@ -39,7 +39,7 @@ static struct policydb *get_policydb(void)
+ void apply_kernelsu_rules()
+ {
+ 	if (!getenforce()) {
+-		pr_info("SELinux permissive or disabled, apply rules!");
++		pr_info("SELinux permissive or disabled, apply rules!\n");
+ 	}
+ 
+ 	rcu_read_lock();
+@@ -63,11 +63,17 @@ void apply_kernelsu_rules()
+ 		ksu_allowxperm(db, KERNEL_SU_DOMAIN, ALL, "blk_file", ALL);
+ 		ksu_allowxperm(db, KERNEL_SU_DOMAIN, ALL, "fifo_file", ALL);
+ 		ksu_allowxperm(db, KERNEL_SU_DOMAIN, ALL, "chr_file", ALL);
++		ksu_allowxperm(db, KERNEL_SU_DOMAIN, ALL, "file", ALL);
+ 	}
+ 
+ 	// we need to save allowlist in /data/adb/ksu
+ 	ksu_allow(db, "kernel", "adb_data_file", "dir", ALL);
+ 	ksu_allow(db, "kernel", "adb_data_file", "file", ALL);
++	// we need to search /data/app
++	ksu_allow(db, "kernel", "apk_data_file", "file", "open");
++	ksu_allow(db, "kernel", "apk_data_file", "dir", "open");
++	ksu_allow(db, "kernel", "apk_data_file", "dir", "read");
++	ksu_allow(db, "kernel", "apk_data_file", "dir", "search");
+ 	// we may need to do mount on shell
+ 	ksu_allow(db, "kernel", "shell_data_file", "file", ALL);
+ 	// we need to read /data/system/packages.list
+@@ -83,7 +89,10 @@ void apply_kernelsu_rules()
+ 	ksu_allow(db, "kernel", "system_data_file", "dir", ALL);
+ 	// our ksud triggered by init
+ 	ksu_allow(db, "init", "adb_data_file", "file", ALL);
++	ksu_allow(db, "init", "adb_data_file", "dir", ALL); // #1289
+ 	ksu_allow(db, "init", KERNEL_SU_DOMAIN, ALL, ALL);
++	// we need to umount modules in zygote
++	ksu_allow(db, "zygote", "adb_data_file", "dir", "search");
+ 
+ 	// copied from Magisk rules
+ 	// suRights
+@@ -121,11 +130,9 @@ void apply_kernelsu_rules()
+ 	// Allow all binder transactions
+ 	ksu_allow(db, ALL, KERNEL_SU_DOMAIN, "binder", ALL);
+ 
+-	// Allow system server devpts
+-	ksu_allow(db, "system_server", "untrusted_app_all_devpts", "chr_file",
+-		  "read");
+-	ksu_allow(db, "system_server", "untrusted_app_all_devpts", "chr_file",
+-		  "write");
++    // Allow system server kill su process
++    ksu_allow(db, "system_server", KERNEL_SU_DOMAIN, "process", "getpgid");
++    ksu_allow(db, "system_server", KERNEL_SU_DOMAIN, "process", "sigkill");
+ 
+ 	rcu_read_unlock();
+ }
+@@ -174,7 +181,8 @@ static int get_object(char *buf, char __user *user_object, size_t buf_sz,
+ // reset avc cache table, otherwise the new rules will not take effect if already denied
+ static void reset_avc_cache()
+ {
+-#ifndef KSU_COMPAT_USE_SELINUX_STATE
++#if ((!defined(KSU_COMPAT_USE_SELINUX_STATE)) || \
++        LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0))
+ 	avc_ss_reset(0);
+ 	selnl_notify_policyload(0);
+ 	selinux_status_update_policyload(0);
+@@ -249,7 +257,7 @@ int handle_sepolicy(unsigned long arg3, void __user *arg4)
+ 		} else if (subcmd == 4) {
+ 			success = ksu_dontaudit(db, s, t, c, p);
+ 		} else {
+-			pr_err("sepol: unknown subcmd: %d", subcmd);
++			pr_err("sepol: unknown subcmd: %d\n", subcmd);
+ 		}
+ 		ret = success ? 0 : -1;
+ 
+@@ -294,7 +302,7 @@ int handle_sepolicy(unsigned long arg3, void __user *arg4)
+ 		} else if (subcmd == 3) {
+ 			success = ksu_dontauditxperm(db, s, t, c, perm_set);
+ 		} else {
+-			pr_err("sepol: unknown subcmd: %d", subcmd);
++			pr_err("sepol: unknown subcmd: %d\n", subcmd);
+ 		}
+ 		ret = success ? 0 : -1;
+ 	} else if (cmd == CMD_TYPE_STATE) {
+@@ -311,7 +319,7 @@ int handle_sepolicy(unsigned long arg3, void __user *arg4)
+ 		} else if (subcmd == 2) {
+ 			success = ksu_enforce(db, src);
+ 		} else {
+-			pr_err("sepol: unknown subcmd: %d", subcmd);
++			pr_err("sepol: unknown subcmd: %d\n", subcmd);
+ 		}
+ 		if (success)
+ 			ret = 0;
+@@ -426,7 +434,7 @@ int handle_sepolicy(unsigned long arg3, void __user *arg4)
+ 			success = ksu_type_member(db, src, tgt, cls,
+ 						  default_type);
+ 		} else {
+-			pr_err("sepol: unknown subcmd: %d", subcmd);
++			pr_err("sepol: unknown subcmd: %d\n", subcmd);
+ 		}
+ 		if (success)
+ 			ret = 0;
+diff --git a/drivers/ksu/selinux/selinux.c b/drivers/ksu/selinux/selinux.c
+index a0989149d029..c333e8a800e6 100644
+--- a/drivers/ksu/selinux/selinux.c
++++ b/drivers/ksu/selinux/selinux.c
+@@ -8,8 +8,6 @@
+ 
+ #define KERNEL_SU_DOMAIN "u:r:su:s0"
+ 
+-static u32 ksu_sid;
+-
+ static int transive_to_domain(const char *domain)
+ {
+ 	struct cred *cred;
+@@ -27,12 +25,10 @@ static int transive_to_domain(const char *domain)
+ 
+ 	error = security_secctx_to_secid(domain, strlen(domain), &sid);
+ 	if (error) {
+-		pr_info("security_secctx_to_secid %s -> sid: %d, error: %d\n", domain, sid, error);
++		pr_info("security_secctx_to_secid %s -> sid: %d, error: %d\n",
++			domain, sid, error);
+ 	}
+ 	if (!error) {
+-		if (!ksu_sid)
+-			ksu_sid = sid;
+-
+ 		tsec->sid = sid;
+ 		tsec->create_sid = 0;
+ 		tsec->keycreate_sid = 0;
+@@ -44,7 +40,7 @@ static int transive_to_domain(const char *domain)
+ void setup_selinux(const char *domain)
+ {
+ 	if (transive_to_domain(domain)) {
+-		pr_err("transive domain failed.");
++		pr_err("transive domain failed.\n");
+ 		return;
+ 	}
+ 
+@@ -105,5 +101,45 @@ static inline u32 current_sid(void)
+ 
+ bool is_ksu_domain()
+ {
+-	return ksu_sid && current_sid() == ksu_sid;
++	char *domain;
++	u32 seclen;
++	bool result;
++	int err = security_secid_to_secctx(current_sid(), &domain, &seclen);
++	if (err) {
++		return false;
++	}
++	result = strncmp(KERNEL_SU_DOMAIN, domain, seclen) == 0;
++	security_release_secctx(domain, seclen);
++	return result;
++}
++
++bool is_zygote(void *sec)
++{
++	struct task_security_struct *tsec = (struct task_security_struct *)sec;
++	if (!tsec) {
++		return false;
++	}
++	char *domain;
++	u32 seclen;
++	bool result;
++	int err = security_secid_to_secctx(tsec->sid, &domain, &seclen);
++	if (err) {
++		return false;
++	}
++	result = strncmp("u:r:zygote:s0", domain, seclen) == 0;
++	security_release_secctx(domain, seclen);
++	return result;
+ }
++
++#define DEVPTS_DOMAIN "u:object_r:devpts:s0"
++
++u32 ksu_get_devpts_sid()
++{
++	u32 devpts_sid = 0;
++	int err = security_secctx_to_secid(DEVPTS_DOMAIN, strlen(DEVPTS_DOMAIN),
++					   &devpts_sid);
++	if (err) {
++		pr_info("get devpts sid err %d\n", err);
++	}
++	return devpts_sid;
++}
+\ No newline at end of file
+diff --git a/drivers/ksu/selinux/selinux.h b/drivers/ksu/selinux/selinux.h
+index 1ccc0d53ea3d..07120c253268 100644
+--- a/drivers/ksu/selinux/selinux.h
++++ b/drivers/ksu/selinux/selinux.h
+@@ -16,6 +16,10 @@ bool getenforce();
+ 
+ bool is_ksu_domain();
+ 
++bool is_zygote(void *cred);
++
+ void apply_kernelsu_rules();
+ 
++u32 ksu_get_devpts_sid();
++
+ #endif
+diff --git a/drivers/ksu/selinux/sepolicy.c b/drivers/ksu/selinux/sepolicy.c
+index 9685983daf47..acdc45ad81f7 100644
+--- a/drivers/ksu/selinux/sepolicy.c
++++ b/drivers/ksu/selinux/sepolicy.c
+@@ -1,26 +1,15 @@
+-#include "sepolicy.h"
+-#include "linux/gfp.h"
+-#include "linux/printk.h"
+-#include "linux/slab.h"
+-#include "linux/version.h"
++#include <linux/gfp.h>
++#include <linux/printk.h>
++#include <linux/slab.h>
++#include <linux/version.h>
+ 
++#include "sepolicy.h"
+ #include "../klog.h" // IWYU pragma: keep
+ #include "ss/symtab.h"
++#include "../kernel_compat.h" // Add check Huawei Device
+ 
+ #define KSU_SUPPORT_ADD_TYPE
+ 
+-/*
+- * Adapt to Huawei HISI kernel without affecting other kernels ,
+- * Huawei Hisi Kernel EBITMAP Enable or Disable Flag ,
+- * From ss/ebitmap.h
+- */
+-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0) &&                           \
+-	LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
+-#ifdef HISI_SELINUX_EBITMAP_RO
+-#define CONFIG_IS_HW_HISI
+-#endif
+-#endif
+-
+ //////////////////////////////////////////////////////
+ // Declaration
+ //////////////////////////////////////////////////////
+@@ -592,14 +581,14 @@ static bool add_filename_trans(struct policydb *db, const char *s,
+ 		trans = (struct filename_trans_datum *)kcalloc(sizeof(*trans),
+ 							       1, GFP_ATOMIC);
+ 		if (!trans) {
+-			pr_err("add_filename_trans: Failed to alloc datum");
++			pr_err("add_filename_trans: Failed to alloc datum\n");
+ 			return false;
+ 		}
+ 		struct filename_trans *new_key =
+ 			(struct filename_trans *)kmalloc(sizeof(*new_key),
+ 							 GFP_ATOMIC);
+ 		if (!new_key) {
+-			pr_err("add_filename_trans: Failed to alloc new_key");
++			pr_err("add_filename_trans: Failed to alloc new_key\n");
+ 			return false;
+ 		}
+ 		*new_key = key;
+@@ -619,6 +608,22 @@ static bool add_genfscon(struct policydb *db, const char *fs_name,
+ 	return false;
+ }
+ 
++static void *ksu_realloc(void *old, size_t new_size, size_t old_size)
++{
++	// we can't use krealloc, because it may be read-only
++	void *new = kzalloc(new_size, GFP_ATOMIC);
++	if (!new) {
++		return NULL;
++	}
++	if (old_size) {
++		memcpy(new, old, old_size);
++	}
++	// we can't use kfree, because it may be read-only
++	// there maybe some leaks, maybe we can check ptr_write, but it's not a big deal
++	// kfree(old);
++	return new;
++}
++
+ static bool add_type(struct policydb *db, const char *type_name, bool attr)
+ {
+ #ifdef KSU_SUPPORT_ADD_TYPE
+@@ -652,29 +657,30 @@ static bool add_type(struct policydb *db, const char *type_name, bool attr)
+ 	}
+ 
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
+-	size_t new_size = sizeof(struct ebitmap) * db->p_types.nprim;
+ 	struct ebitmap *new_type_attr_map_array =
+-		(krealloc(db->type_attr_map_array, new_size, GFP_ATOMIC));
+-
+-	struct type_datum **new_type_val_to_struct =
+-		krealloc(db->type_val_to_struct,
+-			 sizeof(*db->type_val_to_struct) * db->p_types.nprim,
+-			 GFP_ATOMIC);
++		ksu_realloc(db->type_attr_map_array,
++			    value * sizeof(struct ebitmap),
++			    (value - 1) * sizeof(struct ebitmap));
+ 
+ 	if (!new_type_attr_map_array) {
+ 		pr_err("add_type: alloc type_attr_map_array failed\n");
+ 		return false;
+ 	}
+ 
++	struct type_datum **new_type_val_to_struct =
++		ksu_realloc(db->type_val_to_struct,
++			    sizeof(*db->type_val_to_struct) * value,
++			    sizeof(*db->type_val_to_struct) * (value - 1));
++
+ 	if (!new_type_val_to_struct) {
+ 		pr_err("add_type: alloc type_val_to_struct failed\n");
+ 		return false;
+ 	}
+ 
+ 	char **new_val_to_name_types =
+-		krealloc(db->sym_val_to_name[SYM_TYPES],
+-			 sizeof(char *) * db->symtab[SYM_TYPES].nprim,
+-			 GFP_KERNEL);
++		ksu_realloc(db->sym_val_to_name[SYM_TYPES],
++			    sizeof(char *) * value,
++			    sizeof(char *) * (value - 1));
+ 	if (!new_val_to_name_types) {
+ 		pr_err("add_type: alloc val_to_name failed\n");
+ 		return false;
+diff --git a/drivers/ksu/selinux/sepolicy.h b/drivers/ksu/selinux/sepolicy.h
+index a50712369f42..675d1499e46d 100644
+--- a/drivers/ksu/selinux/sepolicy.h
++++ b/drivers/ksu/selinux/sepolicy.h
+@@ -1,7 +1,7 @@
+ #ifndef __KSU_H_SEPOLICY
+ #define __KSU_H_SEPOLICY
+ 
+-#include "linux/types.h"
++#include <linux/types.h>
+ 
+ #include "ss/policydb.h"
+ 
+diff --git a/drivers/ksu/setup.sh b/drivers/ksu/setup.sh
+index 556a689dac9f..e688dbaf3ae5 100755
+--- a/drivers/ksu/setup.sh
++++ b/drivers/ksu/setup.sh
+@@ -1,50 +1,75 @@
+ #!/bin/sh
+-set -eux
++set -eu
+ 
+ GKI_ROOT=$(pwd)
+ 
+-echo "[+] GKI_ROOT: $GKI_ROOT"
++display_usage() {
++    echo "Usage: $0 [--cleanup | <commit-or-tag>]"
++    echo "  --cleanup:              Cleans up previous modifications made by the script."
++    echo "  <commit-or-tag>:        Sets up or updates the KernelSU to specified tag or commit."
++    echo "  -h, --help:             Displays this usage information."
++    echo "  (no args):              Sets up or updates the KernelSU environment to the latest tagged version."
++}
+ 
+-if test -d "$GKI_ROOT/common/drivers"; then
+-     DRIVER_DIR="$GKI_ROOT/common/drivers"
+-elif test -d "$GKI_ROOT/drivers"; then
+-     DRIVER_DIR="$GKI_ROOT/drivers"
+-else
+-     echo '[ERROR] "drivers/" directory is not found.'
+-     echo '[+] You should modify this script by yourself.'
+-     exit 127
+-fi
++initialize_variables() {
++    if test -d "$GKI_ROOT/common/drivers"; then
++         DRIVER_DIR="$GKI_ROOT/common/drivers"
++    elif test -d "$GKI_ROOT/drivers"; then
++         DRIVER_DIR="$GKI_ROOT/drivers"
++    else
++         echo '[ERROR] "drivers/" directory not found.'
++         exit 127
++    fi
+ 
+-test -d "$GKI_ROOT/KernelSU" || git clone https://github.com/tiann/KernelSU
+-cd "$GKI_ROOT/KernelSU"
+-git stash
+-if [ "$(git status | grep -Po 'v\d+(\.\d+)*' | head -n1)" ]; then
+-     git checkout main
+-fi
+-git pull
+-if [ -z "${1-}" ]; then
+-    git checkout "$(git describe --abbrev=0 --tags)"
+-else
+-    git checkout "$1"
+-fi
+-cd "$GKI_ROOT"
++    DRIVER_MAKEFILE=$DRIVER_DIR/Makefile
++    DRIVER_KCONFIG=$DRIVER_DIR/Kconfig
++}
+ 
+-echo "[+] GKI_ROOT: $GKI_ROOT"
+-echo "[+] Copy kernel su driver to $DRIVER_DIR"
++# Reverts modifications made by this script
++perform_cleanup() {
++    echo "[+] Cleaning up..."
++    [ -L "$DRIVER_DIR/kernelsu" ] && rm "$DRIVER_DIR/kernelsu" && echo "[-] Symlink removed."
++    grep -q "kernelsu" "$DRIVER_MAKEFILE" && sed -i '/kernelsu/d' "$DRIVER_MAKEFILE" && echo "[-] Makefile reverted."
++    grep -q "drivers/kernelsu/Kconfig" "$DRIVER_KCONFIG" && sed -i '/drivers\/kernelsu\/Kconfig/d' "$DRIVER_KCONFIG" && echo "[-] Kconfig reverted."
++    if [ -d "$GKI_ROOT/KernelSU" ]; then
++        rm -rf "$GKI_ROOT/KernelSU" && echo "[-] KernelSU directory deleted."
++    fi
++}
+ 
+-cd "$DRIVER_DIR"
+-if test -d "$GKI_ROOT/common/drivers"; then
+-     ln -sf "../../KernelSU/kernel" "kernelsu"
+-elif test -d "$GKI_ROOT/drivers"; then
+-     ln -sf "../KernelSU/kernel" "kernelsu"
+-fi
+-cd "$GKI_ROOT"
+-
+-echo '[+] Add kernel su driver to Makefile'
++# Sets up or update KernelSU environment
++setup_kernelsu() {
++    echo "[+] Setting up KernelSU..."
++    test -d "$GKI_ROOT/KernelSU" || git clone https://github.com/tiann/KernelSU && echo "[+] Repository cloned."
++    cd "$GKI_ROOT/KernelSU"
++    git stash && echo "[-] Stashed current changes."
++    if [ "$(git status | grep -Po 'v\d+(\.\d+)*' | head -n1)" ]; then
++        git checkout main && echo "[-] Switched to main branch."
++    fi
++    git pull && echo "[+] Repository updated."
++    if [ -z "${1-}" ]; then
++        git checkout "$(git describe --abbrev=0 --tags)" && echo "[-] Checked out latest tag."
++    else
++        git checkout "$1" && echo "[-] Checked out $1." || echo "[-] Checkout default branch"
++    fi
++    cd "$DRIVER_DIR"
++    ln -sf "$(realpath --relative-to="$DRIVER_DIR" "$GKI_ROOT/KernelSU/kernel")" "kernelsu" && echo "[+] Symlink created."
+ 
+-DRIVER_MAKEFILE=$DRIVER_DIR/Makefile
+-DRIVER_KCONFIG=$DRIVER_DIR/Kconfig
+-grep -q "kernelsu" "$DRIVER_MAKEFILE" || printf "obj-\$(CONFIG_KSU) += kernelsu/\n" >> "$DRIVER_MAKEFILE"
+-grep -q "kernelsu" "$DRIVER_KCONFIG" || sed -i "/endmenu/i\\source \"drivers/kernelsu/Kconfig\"" "$DRIVER_KCONFIG"
++    # Add entries in Makefile and Kconfig if not already existing
++    grep -q "kernelsu" "$DRIVER_MAKEFILE" || printf "\nobj-\$(CONFIG_KSU) += kernelsu/\n" >> "$DRIVER_MAKEFILE" && echo "[+] Modified Makefile."
++    grep -q "source \"drivers/kernelsu/Kconfig\"" "$DRIVER_KCONFIG" || sed -i "/endmenu/i\source \"drivers/kernelsu/Kconfig\"" "$DRIVER_KCONFIG" && echo "[+] Modified Kconfig."
++    echo '[+] Done.'
++}
+ 
+-echo '[+] Done.'
+\ No newline at end of file
++# Process command-line arguments
++if [ "$#" -eq 0 ]; then
++    initialize_variables
++    setup_kernelsu
++elif [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
++    display_usage
++elif [ "$1" = "--cleanup" ]; then
++    initialize_variables
++    perform_cleanup
++else
++    initialize_variables
++    setup_kernelsu "$@"
++fi
+diff --git a/drivers/ksu/sucompat.c b/drivers/ksu/sucompat.c
+index ef08cabdb5e0..9b45cd0d9490 100644
+--- a/drivers/ksu/sucompat.c
++++ b/drivers/ksu/sucompat.c
+@@ -1,17 +1,20 @@
+-#include "asm/current.h"
+-#include "linux/cred.h"
+-#include "linux/err.h"
+-#include "linux/fs.h"
+-#include "linux/kprobes.h"
+-#include "linux/types.h"
+-#include "linux/uaccess.h"
+-#include "linux/version.h"
++#include <linux/dcache.h>
++#include <linux/security.h>
++#include <asm/current.h>
++#include <linux/cred.h>
++#include <linux/err.h>
++#include <linux/fs.h>
++#include <linux/kprobes.h>
++#include <linux/types.h>
++#include <linux/uaccess.h>
++#include <linux/version.h>
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
+-#include "linux/sched/task_stack.h"
++#include <linux/sched/task_stack.h>
+ #else
+-#include "linux/sched.h"
++#include <linux/sched.h>
+ #endif
+ 
++#include "objsec.h"
+ #include "allowlist.h"
+ #include "arch.h"
+ #include "klog.h" // IWYU pragma: keep
+@@ -39,8 +42,15 @@ static char __user *sh_user_path(void)
+ 	return userspace_stack_buffer(sh_path, sizeof(sh_path));
+ }
+ 
++static char __user *ksud_user_path(void)
++{
++	static const char ksud_path[] = KSUD_PATH;
++
++	return userspace_stack_buffer(ksud_path, sizeof(ksud_path));
++}
++
+ int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,
+-			 int *flags)
++			 int *__unused_flags)
+ {
+ 	const char su[] = SU_PATH;
+ 
+@@ -75,19 +85,35 @@ int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags)
+ 
+ 	char path[sizeof(su) + 1];
+ 	memset(path, 0, sizeof(path));
++// Remove this later!! we use syscall hook, so this will never happen!!!!!
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0) && 0
++	// it becomes a `struct filename *` after 5.18
++	// https://elixir.bootlin.com/linux/v5.18/source/fs/stat.c#L216
++	const char sh[] = SH_PATH;
++	struct filename *filename = *((struct filename **)filename_user);
++	if (IS_ERR(filename)) {
++		return 0;
++	}
++	if (likely(memcmp(filename->name, su, sizeof(su))))
++		return 0;
++	pr_info("vfs_statx su->sh!\n");
++	memcpy((void *)filename->name, sh, sizeof(sh));
++#else
+ 	ksu_strncpy_from_user_nofault(path, *filename_user, sizeof(path));
+ 
+ 	if (unlikely(!memcmp(path, su, sizeof(su)))) {
+ 		pr_info("newfstatat su->sh!\n");
+ 		*filename_user = sh_user_path();
+ 	}
++#endif
+ 
+ 	return 0;
+ }
+ 
+ // the call from execve_handler_pre won't provided correct value for __never_use_argument, use them after fix execve_handler_pre, keeping them for consistence for manually patched code
+ int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
+-				 void *__never_use_argv, void *__never_use_envp, int *__never_use_flags)
++				 void *__never_use_argv, void *__never_use_envp,
++				 int *__never_use_flags)
+ {
+ 	struct filename *filename;
+ 	const char sh[] = KSUD_PATH;
+@@ -115,11 +141,69 @@ int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
+ 	return 0;
+ }
+ 
++int ksu_handle_execve_sucompat(int *fd, const char __user **filename_user,
++			       void *__never_use_argv, void *__never_use_envp,
++			       int *__never_use_flags)
++{
++	const char su[] = SU_PATH;
++	char path[sizeof(su) + 1];
++
++	if (unlikely(!filename_user))
++		return 0;
++
++	memset(path, 0, sizeof(path));
++	ksu_strncpy_from_user_nofault(path, *filename_user, sizeof(path));
++
++	if (likely(memcmp(path, su, sizeof(su))))
++		return 0;
++
++	if (!ksu_is_allow_uid(current_uid().val))
++		return 0;
++
++	pr_info("sys_execve su found\n");
++	*filename_user = ksud_user_path();
++
++	escape_to_root();
++
++	return 0;
++}
++
++int ksu_handle_devpts(struct inode *inode)
++{
++	if (!current->mm) {
++		return 0;
++	}
++
++	uid_t uid = current_uid().val;
++	if (uid % 100000 < 10000) {
++		// not untrusted_app, ignore it
++		return 0;
++	}
++
++	if (!ksu_is_allow_uid(uid))
++		return 0;
++
++	if (ksu_devpts_sid) {
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
++		struct inode_security_struct *sec = selinux_inode(inode);
++#else
++		struct inode_security_struct *sec =
++			(struct inode_security_struct *)inode->i_security;
++#endif
++		if (sec) {
++			sec->sid = ksu_devpts_sid;
++		}
++	}
++
++	return 0;
++}
++
+ #ifdef CONFIG_KPROBES
+ 
+-static int faccessat_handler_pre(struct kprobe *p, struct pt_regs *regs)
++__maybe_unused static int faccessat_handler_pre(struct kprobe *p,
++						struct pt_regs *regs)
+ {
+-	int *dfd = (int *)PT_REGS_PARM1(regs);
++	int *dfd = (int *)&PT_REGS_PARM1(regs);
+ 	const char __user **filename_user = (const char **)&PT_REGS_PARM2(regs);
+ 	int *mode = (int *)&PT_REGS_PARM3(regs);
+ 	// Both sys_ and do_ is C function
+@@ -128,21 +212,44 @@ static int faccessat_handler_pre(struct kprobe *p, struct pt_regs *regs)
+ 	return ksu_handle_faccessat(dfd, filename_user, mode, flags);
+ }
+ 
+-static int newfstatat_handler_pre(struct kprobe *p, struct pt_regs *regs)
++static int sys_faccessat_handler_pre(struct kprobe *p, struct pt_regs *regs)
++{
++	struct pt_regs *real_regs = PT_REAL_REGS(regs);
++	int *dfd = (int *)&PT_REGS_PARM1(real_regs);
++	const char __user **filename_user =
++		(const char **)&PT_REGS_PARM2(real_regs);
++	int *mode = (int *)&PT_REGS_PARM3(real_regs);
++
++	return ksu_handle_faccessat(dfd, filename_user, mode, NULL);
++}
++
++__maybe_unused static int newfstatat_handler_pre(struct kprobe *p,
++						 struct pt_regs *regs)
+ {
+ 	int *dfd = (int *)&PT_REGS_PARM1(regs);
+ 	const char __user **filename_user = (const char **)&PT_REGS_PARM2(regs);
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
+-// static int vfs_statx(int dfd, const char __user *filename, int flags, struct kstat *stat, u32 request_mask)
++	// static int vfs_statx(int dfd, const char __user *filename, int flags, struct kstat *stat, u32 request_mask)
+ 	int *flags = (int *)&PT_REGS_PARM3(regs);
+ #else
+-// int vfs_fstatat(int dfd, const char __user *filename, struct kstat *stat,int flag)
++	// int vfs_fstatat(int dfd, const char __user *filename, struct kstat *stat,int flag)
+ 	int *flags = (int *)&PT_REGS_CCALL_PARM4(regs);
+ #endif
+ 
+ 	return ksu_handle_stat(dfd, filename_user, flags);
+ }
+ 
++static int sys_newfstatat_handler_pre(struct kprobe *p, struct pt_regs *regs)
++{
++	struct pt_regs *real_regs = PT_REAL_REGS(regs);
++	int *dfd = (int *)&PT_REGS_PARM1(real_regs);
++	const char __user **filename_user =
++		(const char **)&PT_REGS_PARM2(real_regs);
++	int *flags = (int *)&PT_REGS_SYSCALL_PARM4(real_regs);
++
++	return ksu_handle_stat(dfd, filename_user, flags);
++}
++
+ // https://elixir.bootlin.com/linux/v5.10.158/source/fs/exec.c#L1864
+ static int execve_handler_pre(struct kprobe *p, struct pt_regs *regs)
+ {
+@@ -153,6 +260,22 @@ static int execve_handler_pre(struct kprobe *p, struct pt_regs *regs)
+ 	return ksu_handle_execveat_sucompat(fd, filename_ptr, NULL, NULL, NULL);
+ }
+ 
++static int sys_execve_handler_pre(struct kprobe *p, struct pt_regs *regs)
++{
++	struct pt_regs *real_regs = PT_REAL_REGS(regs);
++	const char __user **filename_user =
++		(const char **)&PT_REGS_PARM1(real_regs);
++
++	return ksu_handle_execve_sucompat(AT_FDCWD, filename_user, NULL, NULL,
++					  NULL);
++}
++
++#if 1
++static struct kprobe faccessat_kp = {
++	.symbol_name = SYS_FACCESSAT_SYMBOL,
++	.pre_handler = sys_faccessat_handler_pre,
++};
++#else
+ static struct kprobe faccessat_kp = {
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0)
+ 	.symbol_name = "do_faccessat",
+@@ -161,7 +284,14 @@ static struct kprobe faccessat_kp = {
+ #endif
+ 	.pre_handler = faccessat_handler_pre,
+ };
++#endif
+ 
++#if 1
++static struct kprobe newfstatat_kp = {
++	.symbol_name = SYS_NEWFSTATAT_SYMBOL,
++	.pre_handler = sys_newfstatat_handler_pre,
++};
++#else
+ static struct kprobe newfstatat_kp = {
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
+ 	.symbol_name = "vfs_statx",
+@@ -170,7 +300,14 @@ static struct kprobe newfstatat_kp = {
+ #endif
+ 	.pre_handler = newfstatat_handler_pre,
+ };
++#endif
+ 
++#if 1
++static struct kprobe execve_kp = {
++	.symbol_name = SYS_EXECVE_SYMBOL,
++	.pre_handler = sys_execve_handler_pre,
++};
++#else
+ static struct kprobe execve_kp = {
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
+ 	.symbol_name = "do_execveat_common",
+@@ -181,11 +318,30 @@ static struct kprobe execve_kp = {
+ #endif
+ 	.pre_handler = execve_handler_pre,
+ };
++#endif
++
++static int pts_unix98_lookup_pre(struct kprobe *p, struct pt_regs *regs)
++{
++	struct inode *inode;
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
++	struct file *file = (struct file *)PT_REGS_PARM2(regs);
++	inode = file->f_path.dentry->d_inode;
++#else
++	inode = (struct inode *)PT_REGS_PARM2(regs);
++#endif
++
++	return ksu_handle_devpts(inode);
++}
++
++static struct kprobe pts_unix98_lookup_kp = { .symbol_name =
++						      "pts_unix98_lookup",
++					      .pre_handler =
++						      pts_unix98_lookup_pre };
+ 
+ #endif
+ 
+ // sucompat: permited process can execute 'su' to gain root access.
+-void ksu_enable_sucompat()
++void ksu_sucompat_init()
+ {
+ #ifdef CONFIG_KPROBES
+ 	int ret;
+@@ -195,5 +351,17 @@ void ksu_enable_sucompat()
+ 	pr_info("sucompat: newfstatat_kp: %d\n", ret);
+ 	ret = register_kprobe(&faccessat_kp);
+ 	pr_info("sucompat: faccessat_kp: %d\n", ret);
++	ret = register_kprobe(&pts_unix98_lookup_kp);
++	pr_info("sucompat: devpts_kp: %d\n", ret);
++#endif
++}
++
++void ksu_sucompat_exit()
++{
++#ifdef CONFIG_KPROBES
++	unregister_kprobe(&execve_kp);
++	unregister_kprobe(&newfstatat_kp);
++	unregister_kprobe(&faccessat_kp);
++	unregister_kprobe(&pts_unix98_lookup_kp);
+ #endif
+ }
+diff --git a/drivers/ksu/throne_tracker.c b/drivers/ksu/throne_tracker.c
+new file mode 100644
+index 000000000000..c709a6921a23
+--- /dev/null
++++ b/drivers/ksu/throne_tracker.c
+@@ -0,0 +1,382 @@
++#include <linux/err.h>
++#include <linux/fs.h>
++#include <linux/list.h>
++#include <linux/slab.h>
++#include <linux/string.h>
++#include <linux/types.h>
++#include <linux/version.h>
++
++#include "allowlist.h"
++#include "klog.h" // IWYU pragma: keep
++#include "ksu.h"
++#include "manager.h"
++#include "throne_tracker.h"
++#include "kernel_compat.h"
++
++uid_t ksu_manager_uid = KSU_INVALID_UID;
++
++#define SYSTEM_PACKAGES_LIST_PATH "/data/system/packages.list.tmp"
++
++struct uid_data {
++	struct list_head list;
++	u32 uid;
++	char package[KSU_MAX_PACKAGE_NAME];
++};
++
++static int get_pkg_from_apk_path(char *pkg, const char *path)
++{
++	int len = strlen(path);
++	if (len >= KSU_MAX_PACKAGE_NAME || len < 1)
++		return -1;
++
++	const char *last_slash = NULL;
++	const char *second_last_slash = NULL;
++
++	int i;
++	for (i = len - 1; i >= 0; i--) {
++		if (path[i] == '/') {
++			if (!last_slash) {
++				last_slash = &path[i];
++			} else {
++				second_last_slash = &path[i];
++				break;
++			}
++		}
++	}
++
++	if (!last_slash || !second_last_slash)
++		return -1;
++
++	const char *last_hyphen = strchr(second_last_slash, '-');
++	if (!last_hyphen || last_hyphen > last_slash)
++		return -1;
++
++	int pkg_len = last_hyphen - second_last_slash - 1;
++	if (pkg_len >= KSU_MAX_PACKAGE_NAME || pkg_len <= 0)
++		return -1;
++
++	// Copying the package name
++	strncpy(pkg, second_last_slash + 1, pkg_len);
++	pkg[pkg_len] = '\0';
++
++	return 0;
++}
++
++static void crown_manager(const char *apk, struct list_head *uid_data)
++{
++	char pkg[KSU_MAX_PACKAGE_NAME];
++	if (get_pkg_from_apk_path(pkg, apk) < 0) {
++		pr_err("Failed to get package name from apk path: %s\n", apk);
++		return;
++	}
++
++	pr_info("manager pkg: %s\n", pkg);
++
++#ifdef KSU_MANAGER_PACKAGE
++	// pkg is `/<real package>`
++	if (strncmp(pkg, KSU_MANAGER_PACKAGE, sizeof(KSU_MANAGER_PACKAGE))) {
++		pr_info("manager package is inconsistent with kernel build: %s\n",
++			KSU_MANAGER_PACKAGE);
++		return;
++	}
++#endif
++	struct list_head *list = (struct list_head *)uid_data;
++	struct uid_data *np;
++
++	list_for_each_entry (np, list, list) {
++		if (strncmp(np->package, pkg, KSU_MAX_PACKAGE_NAME) == 0) {
++			pr_info("Crowning manager: %s(uid=%d)\n", pkg, np->uid);
++			ksu_set_manager_uid(np->uid);
++			break;
++		}
++	}
++}
++
++#define DATA_PATH_LEN 384 // 384 is enough for /data/app/<package>/base.apk
++
++struct data_path {
++	char dirpath[DATA_PATH_LEN];
++	int depth;
++	struct list_head list;
++};
++
++struct apk_path_hash {
++	unsigned int hash;
++	bool exists;
++	struct list_head list;
++};
++
++static struct list_head apk_path_hash_list = LIST_HEAD_INIT(apk_path_hash_list);
++
++struct my_dir_context {
++	struct dir_context ctx;
++	struct list_head *data_path_list;
++	char *parent_dir;
++	void *private_data;
++	int depth;
++	int *stop;
++};
++// https://docs.kernel.org/filesystems/porting.html
++// filldir_t (readdir callbacks) calling conventions have changed. Instead of returning 0 or -E... it returns bool now. false means "no more" (as -E... used to) and true - "keep going" (as 0 in old calling conventions). Rationale: callers never looked at specific -E... values anyway. -> iterate_shared() instances require no changes at all, all filldir_t ones in the tree converted.
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
++#define FILLDIR_RETURN_TYPE bool
++#define FILLDIR_ACTOR_CONTINUE true
++#define FILLDIR_ACTOR_STOP false
++#else
++#define FILLDIR_RETURN_TYPE int
++#define FILLDIR_ACTOR_CONTINUE 0
++#define FILLDIR_ACTOR_STOP -EINVAL
++#endif
++
++FILLDIR_RETURN_TYPE my_actor(struct dir_context *ctx, const char *name,
++			     int namelen, loff_t off, u64 ino,
++			     unsigned int d_type)
++{
++	struct my_dir_context *my_ctx =
++		container_of(ctx, struct my_dir_context, ctx);
++	char dirpath[DATA_PATH_LEN];
++
++	if (!my_ctx) {
++		pr_err("Invalid context\n");
++		return FILLDIR_ACTOR_STOP;
++	}
++	if (my_ctx->stop && *my_ctx->stop) {
++		pr_info("Stop searching\n");
++		return FILLDIR_ACTOR_STOP;
++	}
++
++	if (!strncmp(name, "..", namelen) || !strncmp(name, ".", namelen))
++		return FILLDIR_ACTOR_CONTINUE; // Skip "." and ".."
++
++	if (snprintf(dirpath, DATA_PATH_LEN, "%s/%.*s", my_ctx->parent_dir,
++		     namelen, name) >= DATA_PATH_LEN) {
++		pr_err("Path too long: %s/%.*s\n", my_ctx->parent_dir, namelen,
++		       name);
++		return FILLDIR_ACTOR_CONTINUE;
++	}
++
++	if (d_type == DT_DIR && my_ctx->depth > 0 &&
++	    (my_ctx->stop && !*my_ctx->stop)) {
++		struct data_path *data = kmalloc(sizeof(struct data_path), GFP_ATOMIC);
++
++		if (!data) {
++			pr_err("Failed to allocate memory for %s\n", dirpath);
++			return FILLDIR_ACTOR_CONTINUE;
++		}
++
++		strscpy(data->dirpath, dirpath, DATA_PATH_LEN);
++		data->depth = my_ctx->depth - 1;
++		list_add_tail(&data->list, my_ctx->data_path_list);
++	} else {
++		if ((namelen == 8) && (strncmp(name, "base.apk", namelen) == 0)) {
++			struct apk_path_hash *pos, *n;
++#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 8, 0)
++			unsigned int hash = full_name_hash(dirpath, strlen(dirpath));
++#else
++			unsigned int hash = full_name_hash(NULL, dirpath, strlen(dirpath));
++#endif
++			list_for_each_entry(pos, &apk_path_hash_list, list) {
++				if (hash == pos->hash) {
++					pos->exists = true;
++					return FILLDIR_ACTOR_CONTINUE;
++				}
++			}
++
++			bool is_manager = is_manager_apk(dirpath);
++			pr_info("Found new base.apk at path: %s, is_manager: %d\n",
++				dirpath, is_manager);
++			if (is_manager) {
++				crown_manager(dirpath, my_ctx->private_data);
++				*my_ctx->stop = 1;
++
++				// Manager found, clear APK cache list
++				list_for_each_entry_safe(pos, n, &apk_path_hash_list, list) {
++					list_del(&pos->list);
++					kfree(pos);
++				}
++			} else {
++				struct apk_path_hash *apk_data = kmalloc(sizeof(struct apk_path_hash), GFP_ATOMIC);
++				apk_data->hash = hash;
++				apk_data->exists = true;
++				list_add_tail(&apk_data->list, &apk_path_hash_list);
++			}
++		}
++	}
++
++	return FILLDIR_ACTOR_CONTINUE;
++}
++
++void search_manager(const char *path, int depth, struct list_head *uid_data)
++{
++	int i, stop = 0;
++	struct list_head data_path_list;
++	INIT_LIST_HEAD(&data_path_list);
++
++	// Initialize APK cache list
++	struct apk_path_hash *pos, *n;
++	list_for_each_entry(pos, &apk_path_hash_list, list) {
++		pos->exists = false;
++	}
++
++	// First depth
++	struct data_path data;
++	strscpy(data.dirpath, path, DATA_PATH_LEN);
++	data.depth = depth;
++	list_add_tail(&data.list, &data_path_list);
++
++	for (i = depth; i > 0; i--) {
++		struct data_path *pos, *n;
++
++		list_for_each_entry_safe(pos, n, &data_path_list, list) {
++			struct my_dir_context ctx = { .ctx.actor = my_actor,
++						      .data_path_list = &data_path_list,
++						      .parent_dir = pos->dirpath,
++						      .private_data = uid_data,
++						      .depth = pos->depth,
++						      .stop = &stop };
++			struct file *file;
++
++			if (!stop) {
++				file = ksu_filp_open_compat(pos->dirpath, O_RDONLY | O_NOFOLLOW, 0);
++				if (IS_ERR(file)) {
++					pr_err("Failed to open directory: %s, err: %ld\n", pos->dirpath, PTR_ERR(file));
++					return;
++				}
++
++				iterate_dir(file, &ctx.ctx);
++				filp_close(file, NULL);
++			}
++
++			list_del(&pos->list);
++			if (pos != &data)
++				kfree(pos);
++		}
++	}
++
++	// Remove stale cached APK entries
++	list_for_each_entry_safe(pos, n, &apk_path_hash_list, list) {
++		if (!pos->exists) {
++			list_del(&pos->list);
++			kfree(pos);
++		}
++	}
++}
++
++static bool is_uid_exist(uid_t uid, char *package, void *data)
++{
++	struct list_head *list = (struct list_head *)data;
++	struct uid_data *np;
++
++	bool exist = false;
++	list_for_each_entry (np, list, list) {
++		if (np->uid == uid % 100000 &&
++		    strncmp(np->package, package, KSU_MAX_PACKAGE_NAME) == 0) {
++			exist = true;
++			break;
++		}
++	}
++	return exist;
++}
++
++void track_throne()
++{
++	struct file *fp =
++		ksu_filp_open_compat(SYSTEM_PACKAGES_LIST_PATH, O_RDONLY, 0);
++	if (IS_ERR(fp)) {
++		pr_err("%s: open " SYSTEM_PACKAGES_LIST_PATH " failed: %ld\n",
++		       __func__, PTR_ERR(fp));
++		return;
++	}
++
++	struct list_head uid_list;
++	INIT_LIST_HEAD(&uid_list);
++
++	char chr = 0;
++	loff_t pos = 0;
++	loff_t line_start = 0;
++	char buf[KSU_MAX_PACKAGE_NAME];
++	for (;;) {
++		ssize_t count =
++			ksu_kernel_read_compat(fp, &chr, sizeof(chr), &pos);
++		if (count != sizeof(chr))
++			break;
++		if (chr != '\n')
++			continue;
++
++		count = ksu_kernel_read_compat(fp, buf, sizeof(buf),
++					       &line_start);
++
++		struct uid_data *data =
++			kzalloc(sizeof(struct uid_data), GFP_ATOMIC);
++		if (!data) {
++			filp_close(fp, 0);
++			goto out;
++		}
++
++		char *tmp = buf;
++		const char *delim = " ";
++		char *package = strsep(&tmp, delim);
++		char *uid = strsep(&tmp, delim);
++		if (!uid || !package) {
++			pr_err("update_uid: package or uid is NULL!\n");
++			break;
++		}
++
++		u32 res;
++		if (kstrtou32(uid, 10, &res)) {
++			pr_err("update_uid: uid parse err\n");
++			break;
++		}
++		data->uid = res;
++		strncpy(data->package, package, KSU_MAX_PACKAGE_NAME);
++		list_add_tail(&data->list, &uid_list);
++		// reset line start
++		line_start = pos;
++	}
++	filp_close(fp, 0);
++
++	// now update uid list
++	struct uid_data *np;
++	struct uid_data *n;
++
++	// first, check if manager_uid exist!
++	bool manager_exist = false;
++	list_for_each_entry (np, &uid_list, list) {
++		// if manager is installed in work profile, the uid in packages.list is still equals main profile
++		// don't delete it in this case!
++		int manager_uid = ksu_get_manager_uid() % 100000;
++		if (np->uid == manager_uid) {
++			manager_exist = true;
++			break;
++		}
++	}
++
++	if (!manager_exist) {
++		if (ksu_is_manager_uid_valid()) {
++			pr_info("manager is uninstalled, invalidate it!\n");
++			ksu_invalidate_manager_uid();
++		}
++		pr_info("Searching manager...\n");
++		search_manager("/data/app", 2, &uid_list);
++		pr_info("Search manager finished\n");
++	}
++
++	// then prune the allowlist
++	ksu_prune_allowlist(is_uid_exist, &uid_list);
++out:
++	// free uid_list
++	list_for_each_entry_safe (np, n, &uid_list, list) {
++		list_del(&np->list);
++		kfree(np);
++	}
++}
++
++void ksu_throne_tracker_init()
++{
++	// nothing to do
++}
++
++void ksu_throne_tracker_exit()
++{
++	// nothing to do
++}
+diff --git a/drivers/ksu/throne_tracker.h b/drivers/ksu/throne_tracker.h
+new file mode 100644
+index 000000000000..5d7f477003ac
+--- /dev/null
++++ b/drivers/ksu/throne_tracker.h
+@@ -0,0 +1,10 @@
++#ifndef __KSU_H_UID_OBSERVER
++#define __KSU_H_UID_OBSERVER
++
++void ksu_throne_tracker_init();
++
++void ksu_throne_tracker_exit();
++
++void track_throne();
++
++#endif
+diff --git a/drivers/ksu/uid_observer.c b/drivers/ksu/uid_observer.c
+deleted file mode 100644
+index b12eff11c450..000000000000
+--- a/drivers/ksu/uid_observer.c
++++ /dev/null
+@@ -1,140 +0,0 @@
+-#include "linux/err.h"
+-#include "linux/fs.h"
+-#include "linux/list.h"
+-#include "linux/slab.h"
+-#include "linux/string.h"
+-#include "linux/types.h"
+-#include "linux/version.h"
+-#include "linux/workqueue.h"
+-
+-#include "allowlist.h"
+-#include "klog.h" // IWYU pragma: keep
+-#include "ksu.h"
+-#include "manager.h"
+-#include "uid_observer.h"
+-#include "kernel_compat.h"
+-
+-#define SYSTEM_PACKAGES_LIST_PATH "/data/system/packages.list"
+-static struct work_struct ksu_update_uid_work;
+-
+-struct uid_data {
+-	struct list_head list;
+-	u32 uid;
+-};
+-
+-static bool is_uid_exist(uid_t uid, void *data)
+-{
+-	struct list_head *list = (struct list_head *)data;
+-	struct uid_data *np;
+-
+-	bool exist = false;
+-	list_for_each_entry (np, list, list) {
+-		if (np->uid == uid % 100000) {
+-			exist = true;
+-			break;
+-		}
+-	}
+-	return exist;
+-}
+-
+-static void do_update_uid(struct work_struct *work)
+-{
+-	struct file *fp = ksu_filp_open_compat(SYSTEM_PACKAGES_LIST_PATH, O_RDONLY, 0);
+-	if (IS_ERR(fp)) {
+-		pr_err("do_update_uid, open " SYSTEM_PACKAGES_LIST_PATH
+-		       " failed: %d\n",
+-		       PTR_ERR(fp));
+-		return;
+-	}
+-
+-	struct list_head uid_list;
+-	INIT_LIST_HEAD(&uid_list);
+-
+-	char chr = 0;
+-	loff_t pos = 0;
+-	loff_t line_start = 0;
+-	char buf[128];
+-	for (;;) {
+-		ssize_t count =
+-			ksu_kernel_read_compat(fp, &chr, sizeof(chr), &pos);
+-		if (count != sizeof(chr))
+-			break;
+-		if (chr != '\n')
+-			continue;
+-
+-		count = ksu_kernel_read_compat(fp, buf, sizeof(buf),
+-					       &line_start);
+-
+-		struct uid_data *data =
+-			kmalloc(sizeof(struct uid_data), GFP_ATOMIC);
+-		if (!data) {
+-			goto out;
+-		}
+-
+-		char *tmp = buf;
+-		const char *delim = " ";
+-		strsep(&tmp, delim); // skip package
+-		char *uid = strsep(&tmp, delim);
+-		if (!uid) {
+-			pr_err("update_uid: uid is NULL!\n");
+-			continue;
+-		}
+-
+-		u32 res;
+-		if (kstrtou32(uid, 10, &res)) {
+-			pr_err("update_uid: uid parse err\n");
+-			continue;
+-		}
+-		data->uid = res;
+-		list_add_tail(&data->list, &uid_list);
+-		// reset line start
+-		line_start = pos;
+-	}
+-
+-	// now update uid list
+-	struct uid_data *np;
+-	struct uid_data *n;
+-
+-	// first, check if manager_uid exist!
+-	bool manager_exist = false;
+-	list_for_each_entry (np, &uid_list, list) {
+-		// if manager is installed in work profile, the uid in packages.list is still equals main profile
+-		// don't delete it in this case!
+-		int manager_uid = ksu_get_manager_uid() % 100000;
+-		if (np->uid == manager_uid) {
+-			manager_exist = true;
+-			break;
+-		}
+-	}
+-
+-	if (!manager_exist && ksu_is_manager_uid_valid()) {
+-		pr_info("manager is uninstalled, invalidate it!\n");
+-		ksu_invalidate_manager_uid();
+-	}
+-
+-	// then prune the allowlist
+-	ksu_prune_allowlist(is_uid_exist, &uid_list);
+-out:
+-	// free uid_list
+-	list_for_each_entry_safe (np, n, &uid_list, list) {
+-		list_del(&np->list);
+-		kfree(np);
+-	}
+-	filp_close(fp, 0);
+-}
+-
+-void update_uid()
+-{
+-	ksu_queue_work(&ksu_update_uid_work);
+-}
+-
+-int ksu_uid_observer_init()
+-{
+-	INIT_WORK(&ksu_update_uid_work, do_update_uid);
+-	return 0;
+-}
+-
+-int ksu_uid_observer_exit()
+-{
+-	return 0;
+-}
+diff --git a/drivers/ksu/uid_observer.h b/drivers/ksu/uid_observer.h
+deleted file mode 100644
+index 6d06fd6ce192..000000000000
+--- a/drivers/ksu/uid_observer.h
++++ /dev/null
+@@ -1,10 +0,0 @@
+-#ifndef __KSU_H_UID_OBSERVER
+-#define __KSU_H_UID_OBSERVER
+-
+-int ksu_uid_observer_init();
+-
+-int ksu_uid_observer_exit();
+-
+-void update_uid();
+-
+-#endif
+-- 
+2.47.1
+

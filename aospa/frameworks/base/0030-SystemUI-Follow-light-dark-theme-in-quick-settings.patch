@@ -1,0 +1,162 @@
+From 181fb05ed1719b754e10edd64f3d411f39e5c888 Mon Sep 17 00:00:00 2001
+From: Danny Lin <danny@kdrag0n.dev>
+Date: Mon, 11 Oct 2021 19:24:58 -0700
+Subject: [PATCH 030/103] SystemUI: Follow light/dark theme in quick settings
+
+neobuddy89: Complete rewrite for material dynamic colors.
+
+Change-Id: I3d45b72f0f119e100505409d178ab8f698993881
+Co-authored-by: Pranav Vashi <neobuddy89@gmail.com>
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ packages/SystemUI/res/values-night/styles.xml | 30 ++++++++++++++++++-
+ packages/SystemUI/res/values/colors.xml       |  2 +-
+ packages/SystemUI/res/values/styles.xml       | 19 ++++++------
+ .../statusbar/phone/ScrimController.java      |  2 +-
+ .../systemui/statusbar/phone/ScrimState.java  |  4 +--
+ 5 files changed, 42 insertions(+), 15 deletions(-)
+
+diff --git a/packages/SystemUI/res/values-night/styles.xml b/packages/SystemUI/res/values-night/styles.xml
+index e9dd039f38c2..70226ccfbe3e 100644
+--- a/packages/SystemUI/res/values-night/styles.xml
++++ b/packages/SystemUI/res/values-night/styles.xml
+@@ -14,7 +14,8 @@
+      limitations under the License.
+ -->
+ 
+-<resources xmlns:android="http://schemas.android.com/apk/res/android">
++<resources xmlns:android="http://schemas.android.com/apk/res/android"
++           xmlns:androidprv="http://schemas.android.com/apk/prv/res/android">
+ 
+     <style name="Theme.SystemUI.DayNightDialog" parent="@android:style/Theme.DeviceDefault.Dialog"/>
+ 
+@@ -24,6 +25,33 @@
+         <item name="android:windowIsFloating">true</item>
+     </style>
+ 
++    <style name="Theme.SystemUI.QuickSettings" parent="@*android:style/Theme.DeviceDefault.SystemUI">
++        <item name="isQsTheme">true</item>
++        <item name="lightIconTheme">@style/QSIconTheme</item>
++        <item name="darkIconTheme">@style/QSIconTheme</item>
++        <item name="android:colorError">@*android:color/error_color_material_dark</item>
++        <item name="android:windowIsFloating">true</item>
++        <item name="android:homeAsUpIndicator">@drawable/ic_arrow_back</item>
++
++        <item name="surfaceBright">?androidprv:attr/materialColorSurfaceBright</item>
++        <item name="android:colorBackground">?attr/surfaceBright</item>
++        <item name="scHigh">?androidprv:attr/materialColorSurfaceContainerHigh</item>
++        <item name="primary">?androidprv:attr/materialColorPrimary</item>
++        <item name="tertiary">?androidprv:attr/materialColorTertiary</item>
++        <item name="onSurface">?androidprv:attr/materialColorOnSurface</item>
++        <item name="onSurfaceVariant">?androidprv:attr/materialColorOnSurfaceVariant</item>
++        <item name="outline">?androidprv:attr/materialColorOutline</item>
++        <item name="shadeActive">@color/material_dynamic_primary90</item>
++        <item name="onShadeActive">@color/material_dynamic_primary10</item>
++        <item name="onShadeActiveVariant">@color/material_dynamic_primary30</item>
++        <item name="shadeInactive">@color/material_dynamic_neutral20</item>
++        <item name="onShadeInactive">@color/material_dynamic_neutral90</item>
++        <item name="onShadeInactiveVariant">@color/material_dynamic_neutral_variant80</item>
++        <item name="shadeDisabled">@color/shade_disabled</item>
++        <item name="underSurface">@color/material_dynamic_neutral0</item>
++        <item name="android:itemTextAppearance">@style/Control.MenuItem</item>
++    </style>
++
+     <!-- Screenshots -->
+     <style name="LongScreenshotActivity" parent="@android:style/Theme.DeviceDefault.DayNight">
+         <item name="android:windowNoTitle">true</item>
+diff --git a/packages/SystemUI/res/values/colors.xml b/packages/SystemUI/res/values/colors.xml
+index 5c62cce94c11..040f7872b127 100644
+--- a/packages/SystemUI/res/values/colors.xml
++++ b/packages/SystemUI/res/values/colors.xml
+@@ -30,7 +30,7 @@
+     <color name="status_bar_icons_hover_color_dark">#38000000</color> <!-- 22% black -->
+ 
+     <!-- The dark background color behind the shade -->
+-    <color name="shade_scrim_background_dark">@*android:color/black</color>
++    <color name="shade_scrim_background_dark">@android:color/transparent</color>
+ 
+     <!-- The color of the background in the separated list of the Global Actions menu -->
+     <color name="global_actions_separated_background">#F5F5F5</color>
+diff --git a/packages/SystemUI/res/values/styles.xml b/packages/SystemUI/res/values/styles.xml
+index fe95feb2f302..e0584a8afedc 100644
+--- a/packages/SystemUI/res/values/styles.xml
++++ b/packages/SystemUI/res/values/styles.xml
+@@ -500,7 +500,7 @@
+         <item name="isQsTheme">true</item>
+         <item name="lightIconTheme">@style/QSIconTheme</item>
+         <item name="darkIconTheme">@style/QSIconTheme</item>
+-        <item name="android:colorError">@*android:color/error_color_material_dark</item>
++        <item name="android:colorError">@*android:color/error_color_material_light</item>
+         <item name="android:windowIsFloating">true</item>
+         <item name="android:homeAsUpIndicator">@drawable/ic_arrow_back</item>
+ 
+@@ -512,15 +512,14 @@
+         <item name="onSurface">?androidprv:attr/materialColorOnSurface</item>
+         <item name="onSurfaceVariant">?androidprv:attr/materialColorOnSurfaceVariant</item>
+         <item name="outline">?androidprv:attr/materialColorOutline</item>
+-
+-        <item name="shadeActive">@color/material_dynamic_primary90</item>
+-        <item name="onShadeActive">@color/material_dynamic_primary10</item>
+-        <item name="onShadeActiveVariant">@color/material_dynamic_primary30</item>
+-        <item name="shadeInactive">@color/material_dynamic_neutral20</item>
+-        <item name="onShadeInactive">@color/material_dynamic_neutral90</item>
+-        <item name="onShadeInactiveVariant">@color/material_dynamic_neutral_variant80</item>
++        <item name="shadeActive">@color/material_dynamic_primary30</item>
++        <item name="onShadeActive">@color/material_dynamic_primary100</item>
++        <item name="onShadeActiveVariant">@color/material_dynamic_primary80</item>
++        <item name="shadeInactive">@color/material_dynamic_neutral80</item>
++        <item name="onShadeInactive">@color/material_dynamic_neutral20</item>
++        <item name="onShadeInactiveVariant">@color/material_dynamic_neutral_variant30</item>
+         <item name="shadeDisabled">@color/shade_disabled</item>
+-        <item name="underSurface">@color/material_dynamic_neutral0</item>
++        <item name="underSurface">@color/material_dynamic_neutral90</item>
+         <item name="android:itemTextAppearance">@style/Control.MenuItem</item>
+     </style>
+ 
+@@ -790,7 +789,7 @@
+ 
+     <style name="QSCustomizeToolbar" parent="@*android:style/Widget.DeviceDefault.Toolbar">
+         <item name="android:textColor">?attr/onSurface</item>
+-        <item name="android:elevation">10dp</item>
++        <item name="android:elevation">0dp</item>
+     </style>
+ 
+     <!-- Media controls always have light background -->
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
+index 9cece762c7e5..2508f47504da 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
+@@ -1055,7 +1055,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
+                 mNotificationsAlpha = behindAlpha;
+                 mNotificationsTint = behindTint;
+                 mBehindAlpha = 1;
+-                mBehindTint = Color.BLACK;
++                mBehindTint = Color.TRANSPARENT;
+             } else {
+                 mBehindAlpha = behindAlpha;
+                 if (mState == ScrimState.KEYGUARD && mTransitionToFullShadeProgress > 0.0f) {
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java
+index fbba3dc107f1..dd3c7e3f42d7 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java
+@@ -127,7 +127,7 @@ public enum ScrimState {
+         @Override
+         public void prepare(ScrimState previousState) {
+             mBehindAlpha = mClipQsScrim ? 1 : mDefaultScrimAlpha;
+-            mBehindTint = mClipQsScrim ? mBackgroundColor : mSurfaceColor;
++            mBehindTint = mSurfaceColor;
+             mNotifAlpha = mClipQsScrim ? mDefaultScrimAlpha : 0;
+             mNotifTint = Color.TRANSPARENT;
+             mFrontAlpha = 0f;
+@@ -159,7 +159,7 @@ public enum ScrimState {
+             mBehindAlpha = mClipQsScrim ? 1 : mDefaultScrimAlpha;
+             mNotifAlpha = 1f;
+             mFrontAlpha = 0f;
+-            mBehindTint = mClipQsScrim ? Color.TRANSPARENT : mBackgroundColor;
++            mBehindTint = Color.TRANSPARENT;
+ 
+             if (mClipQsScrim) {
+                 updateScrimColor(mScrimBehind, 1f /* alpha */, mBackgroundColor);
+-- 
+2.47.1
+

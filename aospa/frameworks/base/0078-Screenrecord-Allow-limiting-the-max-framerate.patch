@@ -1,0 +1,66 @@
+From c5a058d9e1e8b52e8a1aba0ab35e3581aa262ed7 Mon Sep 17 00:00:00 2001
+From: Kuba Wojciechowski <nullbytepl@gmail.com>
+Date: Sat, 6 Feb 2021 21:54:25 +0300
+Subject: [PATCH 078/103] Screenrecord: Allow limiting the max framerate
+
+Some devices seem to have problems when running the screen recorder at
+native resolution @ max fps (I'm looking at you surya). The symptoms may
+include severe lagging in the recording or stuff like crashes when
+stopping in a landscape orientation. Allow limiting the recorder fps to
+fix these issues.
+
+Test: record screen on surya with config_screenRecorderMaxFramerate==90
+while screen is running @ 120Hz, observe a smooth video. Stop the
+recording while in full screen landscape youtube video, observe no crash
+
+Change-Id: I361c7ae4bf74f2dd67b86e960f8d2d6ef63f5b8f
+---
+ packages/SystemUI/res/values/aospa_config.xml                 | 4 ++++
+ .../android/systemui/screenrecord/ScreenMediaRecorder.java    | 4 ++++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/packages/SystemUI/res/values/aospa_config.xml b/packages/SystemUI/res/values/aospa_config.xml
+index 68949bcb75be..ff7b6d658b96 100644
+--- a/packages/SystemUI/res/values/aospa_config.xml
++++ b/packages/SystemUI/res/values/aospa_config.xml
+@@ -15,4 +15,8 @@
+ 
+     <!-- Color of the UDFPS pressed view -->
+     <color name="config_udfpsColor">#ffffffff</color>
++
++    <!-- If not zero, limits the internal screen recorder's framerate to the set value. -->
++    <integer name="config_screenRecorderMaxFramerate">0</integer>
++
+ </resources>
+diff --git a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java
+index 715b9d2f2436..1c73806dbede 100644
+--- a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java
++++ b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java
+@@ -92,6 +92,7 @@ public class ScreenMediaRecorder extends MediaProjection.Callback {
+     private ScreenRecordingAudioSource mAudioSource;
+     private final MediaProjectionCaptureTarget mCaptureRegion;
+     private final Handler mHandler;
++    private int mMaxRefreshRate;
+ 
+     private Context mContext;
+     ScreenMediaRecorderListener mListener;
+@@ -106,6 +107,8 @@ public class ScreenMediaRecorder extends MediaProjection.Callback {
+         mCaptureRegion = captureRegion;
+         mListener = listener;
+         mAudioSource = audioSource;
++        mMaxRefreshRate = mContext.getResources().getInteger(
++                com.android.systemui.res.R.integer.config_screenRecorderMaxFramerate);
+     }
+ 
+     private void prepare() throws IOException, RemoteException, RuntimeException {
+@@ -145,6 +148,7 @@ public class ScreenMediaRecorder extends MediaProjection.Callback {
+         WindowManager wm = (WindowManager) mContext.getSystemService(Context.WINDOW_SERVICE);
+         wm.getDefaultDisplay().getRealMetrics(metrics);
+         int refreshRate = (int) wm.getDefaultDisplay().getRefreshRate();
++        if (mMaxRefreshRate != 0 && refreshRate > mMaxRefreshRate) refreshRate = mMaxRefreshRate;
+         int[] dimens = getSupportedSize(metrics.widthPixels, metrics.heightPixels, refreshRate);
+         int width = dimens[0];
+         int height = dimens[1];
+-- 
+2.47.1
+

@@ -1,0 +1,27 @@
+From 662899159d49c37817e22be02aae16149c1d55f6 Mon Sep 17 00:00:00 2001
+From: Pranav Vashi <neobuddy89@gmail.com>
+Date: Sat, 26 Oct 2024 18:42:22 +0530
+Subject: [PATCH 021/103] FaceUnlock: Remove background behind indicator on
+ lockscreen
+
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ packages/SystemUI/res/layout/keyguard_bottom_area.xml | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/packages/SystemUI/res/layout/keyguard_bottom_area.xml b/packages/SystemUI/res/layout/keyguard_bottom_area.xml
+index b644a785e5dc..df91ab960483 100755
+--- a/packages/SystemUI/res/layout/keyguard_bottom_area.xml
++++ b/packages/SystemUI/res/layout/keyguard_bottom_area.xml
+@@ -38,8 +38,6 @@
+             android:layout_gravity="center"
+             android:scaleType="fitCenter"
+             android:tint="@android:color/white"
+-            android:background="@drawable/keyguard_bottom_affordance_bg"
+-            android:foreground="@drawable/keyguard_bottom_affordance_selected_border"
+             android:visibility="gone" />
+ 
+     </LinearLayout>
+-- 
+2.47.1
+

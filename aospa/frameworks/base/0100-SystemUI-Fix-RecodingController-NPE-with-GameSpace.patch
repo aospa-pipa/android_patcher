@@ -1,0 +1,56 @@
+From a5d77619c38eff7f3b31b0eeab70315e89595062 Mon Sep 17 00:00:00 2001
+From: Pranav Vashi <neobuddy89@gmail.com>
+Date: Thu, 11 Apr 2024 10:08:27 +0530
+Subject: [PATCH 100/103] SystemUI: Fix RecodingController NPE with GameSpace
+
+Log:
+
+time: 1712799419431
+msg: java.lang.NullPointerException: Attempt to invoke virtual method 'boolean com.android.systemui.flags.FeatureFlagsClassicRelease.isEnabled(com.android.systemui.flags.ReleasedFlag)' on a null object reference
+stacktrace: java.lang.RuntimeException: Unable to start service com.android.systemui.screenrecord.RecordingService@1949018 with Intent { act=com.android.systemui.screenrecord.SHOW_DIALOG cmp=com.android.systemui/.screenrecord.RecordingService }: java.lang.NullPointerException: Attempt to invoke virtual method 'boolean com.android.systemui.flags.FeatureFlagsClassicRelease.isEnabled(com.android.systemui.flags.ReleasedFlag)' on a null object reference
+	at android.app.ActivityThread.handleServiceArgs(ActivityThread.java:5053)
+	at android.app.ActivityThread.-$$Nest$mhandleServiceArgs(Unknown Source:0)
+	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2390)
+	at android.os.Handler.dispatchMessage(Handler.java:107)
+	at android.os.Looper.loopOnce(Looper.java:232)
+	at android.os.Looper.loop(Looper.java:317)
+	at android.app.ActivityThread.main(ActivityThread.java:8496)
+	at java.lang.reflect.Method.invoke(Native Method)
+	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:552)
+	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:878)
+Caused by: java.lang.NullPointerException: Attempt to invoke virtual method 'boolean com.android.systemui.flags.FeatureFlagsClassicRelease.isEnabled(com.android.systemui.flags.ReleasedFlag)' on a null object reference
+	at com.android.systemui.screenrecord.RecordingController.createScreenRecordDialog(go/retraceme 916e735af3dfaeb2f1b32ac19de7e50c1052eb057959395bd436578eacdee75a:77)
+	at com.android.systemui.screenrecord.RecordingService.onStartCommand(go/retraceme 916e735af3dfaeb2f1b32ac19de7e50c1052eb057959395bd436578eacdee75a:176)
+	at android.app.ActivityThread.handleServiceArgs(ActivityThread.java:5035)
+	... 9 more
+
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ .../android/systemui/screenrecord/RecordingController.java    | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingController.java b/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingController.java
+index 3dc207063060..015b9fa0e5fe 100644
+--- a/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingController.java
++++ b/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingController.java
+@@ -161,7 +161,7 @@ public class RecordingController
+                                            DialogTransitionAnimator dialogTransitionAnimator,
+                                            ActivityStarter activityStarter,
+                                            @Nullable Runnable onStartRecordingClicked) {
+-        if (mFlags.isEnabled(Flags.WM_ENABLE_PARTIAL_SCREEN_SHARING_ENTERPRISE_POLICIES)
++        if (mFlags != null && mFlags.isEnabled(Flags.WM_ENABLE_PARTIAL_SCREEN_SHARING_ENTERPRISE_POLICIES)
+                 && mDevicePolicyResolver.get()
+                         .isScreenCaptureCompletelyDisabled(getHostUserHandle())) {
+             return mScreenCaptureDisabledDialogDelegate.createSysUIDialog();
+@@ -170,7 +170,7 @@ public class RecordingController
+         mMediaProjectionMetricsLogger.notifyProjectionInitiated(
+                 getHostUid(), SessionCreationSource.SYSTEM_UI_SCREEN_RECORDER);
+ 
+-        return (flags.isEnabled(Flags.WM_ENABLE_PARTIAL_SCREEN_SHARING)
++        return (flags != null && flags.isEnabled(Flags.WM_ENABLE_PARTIAL_SCREEN_SHARING)
+                 ? mScreenRecordPermissionDialogDelegateFactory
+                     .create(this, getHostUserHandle(), getHostUid(), onStartRecordingClicked)
+                 : mScreenRecordDialogFactory
+-- 
+2.47.1
+

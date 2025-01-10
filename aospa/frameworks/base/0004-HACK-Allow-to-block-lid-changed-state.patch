@@ -1,0 +1,64 @@
+From 6e0b2c84955bc5ca4f9958fdfd81418563a15e10 Mon Sep 17 00:00:00 2001
+From: Yuan Si <do4suki@gmail.com>
+Date: Sun, 17 Dec 2023 16:21:31 +0800
+Subject: [PATCH 004/103] HACK: Allow to block lid changed state
+
+This is useful when using unofficial smart cover.
+
+Change-Id: I72a4a45a53543c14cd60cae311eb0fead47228df
+Signed-off-by: Yuan Si <do4suki@gmail.com>
+---
+ .../com/android/server/policy/PhoneWindowManager.java |  7 +++++++
+ .../java/com/android/server/power/PowerGroup.java     | 11 +++++++++++
+ 2 files changed, 18 insertions(+)
+
+diff --git a/services/core/java/com/android/server/policy/PhoneWindowManager.java b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+index 41c85d1a6956..d137bcfd5d7b 100644
+--- a/services/core/java/com/android/server/policy/PhoneWindowManager.java
++++ b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+@@ -4601,6 +4601,13 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+     /** {@inheritDoc} */
+     @Override
+     public void notifyLidSwitchChanged(long whenNanos, boolean lidOpen) {
++        boolean disableLidState =
++                SystemProperties.getBoolean("persist.debug.disable_lid_state", false);
++        if (disableLidState) {
++            Slog.i(TAG, "Ignored lid changed state: lidOpen=" + lidOpen);
++            lidOpen = false;
++        }
++
+         // lid changed state
+         final int newLidState = lidOpen ? LID_OPEN : LID_CLOSED;
+         if (newLidState == mDefaultDisplayPolicy.getLidState()) {
+diff --git a/services/core/java/com/android/server/power/PowerGroup.java b/services/core/java/com/android/server/power/PowerGroup.java
+index 77bdc45761c5..8e09b4bf31ef 100644
+--- a/services/core/java/com/android/server/power/PowerGroup.java
++++ b/services/core/java/com/android/server/power/PowerGroup.java
+@@ -36,6 +36,7 @@ import android.hardware.display.DisplayManagerInternal.DisplayPowerRequest;
+ import android.os.PowerManager;
+ import android.os.PowerManagerInternal;
+ import android.os.PowerSaveState;
++import android.os.SystemProperties;
+ import android.os.Trace;
+ import android.util.Slog;
+ import android.view.Display;
+@@ -276,6 +277,16 @@ public class PowerGroup {
+     }
+ 
+     boolean sleepLocked(long eventTime, int uid, @PowerManager.GoToSleepReason int reason) {
++        if (reason == PowerManager.GO_TO_SLEEP_REASON_LID_SWITCH) {
++            boolean disableLidState =
++                    SystemProperties.getBoolean("persist.debug.disable_lid_state", false);
++            if (disableLidState) {
++                Slog.i(TAG,
++                        "Ignored power group (groupId=" + getGroupId() + ", uid=" + uid + ", reason="
++                                + PowerManager.sleepReasonToString(reason) + ")...");
++                return false;
++            }
++        }
+         if (eventTime < mLastWakeTime || getWakefulnessLocked() == WAKEFULNESS_ASLEEP) {
+             return false;
+         }
+-- 
+2.47.1
+

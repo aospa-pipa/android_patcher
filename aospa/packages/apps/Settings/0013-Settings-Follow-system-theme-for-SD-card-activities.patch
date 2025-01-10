@@ -1,0 +1,53 @@
+From 4db73a4dcf0eb68259f778968bd9e63f3f7974d6 Mon Sep 17 00:00:00 2001
+From: Michael W <baddaemon87@gmail.com>
+Date: Mon, 5 Sep 2022 14:09:11 +0200
+Subject: [PATCH 13/16] Settings: Follow system theme for SD card activities
+
+* Setting up a new SD card is currently using light theme, no matter
+  the system setting
+* Convert to DayNight to have it follow system theme
+
+Change-Id: Iaf41c95a03859f40f9895b713c26ee76ff01fed6
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ AndroidManifest.xml | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/AndroidManifest.xml b/AndroidManifest.xml
+index 1a850d0..5e877f5 100644
+--- a/AndroidManifest.xml
++++ b/AndroidManifest.xml
+@@ -3042,24 +3042,24 @@ SPDX-License-Identifier: BSD-3-Clause-Clear -->
+ 
+         <!-- Exported for SystemUI to launch into -->
+         <activity android:name=".deviceinfo.StorageWizardInit"
+-                android:theme="@style/GlifTheme.Light"
++                android:theme="@style/GlifTheme.DayNight"
+                 android:exported="true"
+                 android:permission="android.permission.MOUNT_UNMOUNT_FILESYSTEMS" />
+         <activity android:name=".deviceinfo.StorageWizardFormatProgress"
+-                android:theme="@style/GlifTheme.Light"
++                android:theme="@style/GlifTheme.DayNight"
+                 android:exported="false"/>
+         <activity android:name=".deviceinfo.StorageWizardFormatSlow"
+-                android:theme="@style/GlifTheme.Light"
++                android:theme="@style/GlifTheme.DayNight"
+                 android:exported="false"/>
+         <activity android:name=".deviceinfo.StorageWizardMigrateConfirm"
+-                android:theme="@style/GlifTheme.Light"
++                android:theme="@style/GlifTheme.DayNight"
+                 android:exported="false"/>
+         <activity android:name=".deviceinfo.StorageWizardMigrateProgress"
+-                android:theme="@style/GlifTheme.Light"
++                android:theme="@style/GlifTheme.DayNight"
+                 android:exported="true"
+                 android:permission="android.permission.MOUNT_UNMOUNT_FILESYSTEMS" />
+         <activity android:name=".deviceinfo.StorageWizardReady"
+-                android:theme="@style/GlifTheme.Light"
++                android:theme="@style/GlifTheme.DayNight"
+                 android:exported="true"
+                 android:permission="android.permission.MOUNT_UNMOUNT_FILESYSTEMS" />
+ 
+-- 
+2.47.1
+

@@ -1,0 +1,29 @@
+From 9d3b75b3641fb01c32b3659f693d66af4adfb036 Mon Sep 17 00:00:00 2001
+From: minaripenguin <minaripenguin@users.noreply.github.com>
+Date: Wed, 3 Jul 2024 19:09:34 +0800
+Subject: [PATCH 037/103] SystemUI: Disable new carrier group mobile icons
+
+* breaks a974472654d050fc634a25c417eb82ca647d3116 and carrier light theme text color upon ui mode change
+
+Signed-off-by: minaripenguin <minaripenguin@users.noreply.github.com>
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ packages/SystemUI/src/com/android/systemui/flags/Flags.kt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/flags/Flags.kt b/packages/SystemUI/src/com/android/systemui/flags/Flags.kt
+index 3d3584e29def..0f6f9f757f77 100644
+--- a/packages/SystemUI/src/com/android/systemui/flags/Flags.kt
++++ b/packages/SystemUI/src/com/android/systemui/flags/Flags.kt
+@@ -240,7 +240,7 @@ object Flags {
+ 
+     // TODO(b/290676905): Tracking Bug
+     val NEW_SHADE_CARRIER_GROUP_MOBILE_ICONS =
+-        releasedFlag("new_shade_carrier_group_mobile_icons")
++        unreleasedFlag("new_shade_carrier_group_mobile_icons")
+ 
+     // 800 - general visual/theme
+     @JvmField val MONET = resourceBooleanFlag(R.bool.flag_monet, "monet")
+-- 
+2.47.1
+

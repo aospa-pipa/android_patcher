@@ -1,0 +1,426 @@
+From 97d4b4be604f275a4b013ff047ae8acda27406b1 Mon Sep 17 00:00:00 2001
+From: Ido Ben-Hur <idoybh2@gmail.com>
+Date: Thu, 13 May 2021 18:48:20 +0300
+Subject: [PATCH 084/103] Screenrecord: Add an option to record for longer
+
+Unlimited time-wise. Only limit file size to 15GiB
+
+Change-Id: Ia16045dde478f65d1bee4a5167684c403f018906
+---
+ packages/SystemUI/res/drawable/ic_storage.xml | 26 ++++++++++
+ .../res/layout/screen_record_dialog.xml       | 43 +++++++++++++++++
+ .../res/layout/screen_record_options.xml      | 47 +++++++++++++++++++
+ packages/SystemUI/res/values/cm_strings.xml   |  2 +
+ .../screenrecord/RecordingService.java        | 15 +++++-
+ .../screenrecord/ScreenMediaRecorder.java     | 10 +++-
+ .../ScreenRecordDialogDelegate.java           |  8 +++-
+ .../ScreenRecordPermissionDialogDelegate.kt   |  7 ++-
+ .../screenrecord/RecordingServiceTest.java    |  6 +--
+ 9 files changed, 155 insertions(+), 9 deletions(-)
+ create mode 100644 packages/SystemUI/res/drawable/ic_storage.xml
+
+diff --git a/packages/SystemUI/res/drawable/ic_storage.xml b/packages/SystemUI/res/drawable/ic_storage.xml
+new file mode 100644
+index 000000000000..3f7df69ddf0b
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_storage.xml
+@@ -0,0 +1,26 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++    Copyright (C) 2014 The Android Open Source Project
++
++    Licensed under the Apache License, Version 2.0 (the "License");
++    you may not use this file except in compliance with the License.
++    You may obtain a copy of the License at
++
++         http://www.apache.org/licenses/LICENSE-2.0
++
++    Unless required by applicable law or agreed to in writing, software
++    distributed under the License is distributed on an "AS IS" BASIS,
++    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++    See the License for the specific language governing permissions and
++    limitations under the License.
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24"
++    android:tint="?attr/colorControlNormal">
++    <path
++        android:fillColor="#FF000000"
++        android:pathData="M2,20h20v-4L2,16v4zM4,17h2v2L4,19v-2zM2,4v4h20L22,4L2,4zM6,7L4,7L4,5h2v2zM2,14h20v-4L2,10v4zM4,11h2v2L4,13v-2z"/>
++</vector>
+diff --git a/packages/SystemUI/res/layout/screen_record_dialog.xml b/packages/SystemUI/res/layout/screen_record_dialog.xml
+index e1bd949de1c9..f602399c8006 100644
+--- a/packages/SystemUI/res/layout/screen_record_dialog.xml
++++ b/packages/SystemUI/res/layout/screen_record_dialog.xml
+@@ -215,6 +215,49 @@
+                         android:contentDescription="@string/screenrecord_lowquality_label"
+                         style="@style/ScreenRecord.Switch"/>
+                 </LinearLayout>
++
++                <LinearLayout
++                    android:layout_width="match_parent"
++                    android:layout_height="wrap_content"
++                    android:orientation="horizontal"
++                    android:layout_marginTop="@dimen/screenrecord_option_padding">
++                    <ImageView
++                        android:layout_width="@dimen/screenrecord_option_icon_size"
++                        android:layout_height="@dimen/screenrecord_option_icon_size"
++                        android:layout_weight="0"
++                        android:src="@drawable/ic_storage"
++                        android:tint="?android:attr/textColorSecondary"
++                        android:layout_gravity="center"
++                        android:layout_marginRight="@dimen/screenrecord_option_padding"/>
++                    <LinearLayout
++                        android:layout_width="0dp"
++                        android:layout_weight="1"
++                        android:layout_height="wrap_content"
++                        android:orientation="vertical">
++                        <TextView
++                            android:layout_width="match_parent"
++                            android:layout_height="wrap_content"
++                            android:importantForAccessibility="no"
++                            android:text="@string/screenrecord_longer_timeout_switch_label"
++                            android:textAppearance="?android:attr/textAppearanceMedium"
++                            android:textColor="?android:attr/textColorPrimary" />
++                        <TextView
++                            android:layout_width="match_parent"
++                            android:layout_height="wrap_content"
++                            android:importantForAccessibility="no"
++                            android:text="@string/screenrecord_longer_timeout_switch_summary"
++                            android:textAppearance="?android:attr/textAppearanceSmall"
++                            android:textColor="?android:textColorSecondary" />
++                    </LinearLayout>
++                    <Switch
++                        android:layout_width="wrap_content"
++                        android:minWidth="48dp"
++                        android:layout_height="48dp"
++                        android:layout_weight="0"
++                        android:id="@+id/screenrecord_longer_timeout_switch"
++                        android:contentDescription="@string/screenrecord_longer_timeout_switch_label"
++                        style="@style/ScreenRecord.Switch"/>
++                </LinearLayout>
+             </LinearLayout>
+ 
+             <!-- Buttons -->
+diff --git a/packages/SystemUI/res/layout/screen_record_options.xml b/packages/SystemUI/res/layout/screen_record_options.xml
+index 525faa220908..fce270fc541a 100644
+--- a/packages/SystemUI/res/layout/screen_record_options.xml
++++ b/packages/SystemUI/res/layout/screen_record_options.xml
+@@ -179,4 +179,51 @@
+             style="@style/ScreenRecord.Switch"
+             android:importantForAccessibility="yes" />
+     </LinearLayout>
++    <LinearLayout
++        android:id="@+id/show_longer_timeout"
++        android:layout_width="match_parent"
++        android:layout_height="wrap_content"
++        android:orientation="horizontal"
++        android:gravity="center_vertical"
++        android:layout_marginTop="@dimen/screenrecord_option_padding">
++        <ImageView
++            android:layout_width="@dimen/screenrecord_option_icon_size"
++            android:layout_height="@dimen/screenrecord_option_icon_size"
++            android:src="@drawable/ic_storage"
++            android:tint="?android:attr/textColorSecondary"
++            android:layout_marginRight="@dimen/screenrecord_option_padding"
++            android:importantForAccessibility="no"/>
++        <LinearLayout
++            android:layout_width="0dp"
++            android:layout_height="match_parent"
++            android:minHeight="48dp"
++            android:layout_weight="1"
++            android:orientation="vertical">
++            <TextView
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:fontFamily="@*android:string/config_bodyFontFamily"
++                android:text="@string/screenrecord_longer_timeout_switch_label"
++                android:textAppearance="?android:attr/textAppearanceMedium"
++                android:textColor="?android:attr/textColorPrimary"
++                android:contentDescription="@string/screenrecord_longer_timeout_switch_label"/>
++            <TextView
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:importantForAccessibility="no"
++                android:fontFamily="@*android:string/config_bodyFontFamily"
++                android:text="@string/screenrecord_longer_timeout_switch_summary"
++                android:textAppearance="?android:attr/textAppearanceSmall"
++                android:textColor="?android:textColorSecondary"/>
++        </LinearLayout>
++
++        <Switch
++            android:layout_width="wrap_content"
++            android:minWidth="48dp"
++            android:layout_height="48dp"
++            android:id="@+id/screenrecord_longer_timeout_switch"
++            android:contentDescription="@string/screenrecord_longer_timeout_switch_label"
++            style="@style/ScreenRecord.Switch"
++            android:importantForAccessibility="yes" />
++    </LinearLayout>
+ </LinearLayout>
+\ No newline at end of file
+diff --git a/packages/SystemUI/res/values/cm_strings.xml b/packages/SystemUI/res/values/cm_strings.xml
+index 0d54c186cb61..ae6048be8977 100644
+--- a/packages/SystemUI/res/values/cm_strings.xml
++++ b/packages/SystemUI/res/values/cm_strings.xml
+@@ -126,4 +126,6 @@
+     <string name="screenrecord_stopdot_summary">Long press to move it</string>
+     <string name="screenrecord_lowquality_label">Lower quality</string>
+     <string name="screenrecord_lowquality_summary">For smaller file size</string>
++    <string name="screenrecord_longer_timeout_switch_label">Larger file size limit</string>
++    <string name="screenrecord_longer_timeout_switch_summary">Limit recording size to 15 GB</string>
+ </resources>
+diff --git a/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingService.java b/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingService.java
+index 6b2aab6c305f..715e054458d5 100644
+--- a/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingService.java
++++ b/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingService.java
+@@ -81,6 +81,7 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+     private static final String EXTRA_CAPTURE_TARGET = "extra_captureTarget";
+     private static final String EXTRA_SHOW_STOP_DOT = "extra_showStopDot";
+     private static final String EXTRA_LOW_QUALITY = "extra_lowQuality";
++    private static final String EXTRA_LONGER_DURATION = "extra_longerDuration";
+ 
+     protected static final String ACTION_START = "com.android.systemui.screenrecord.START";
+     protected static final String ACTION_SHOW_START_NOTIF =
+@@ -107,6 +108,7 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+     private RecordingServiceStrings mStrings;
+ 
+     private boolean mLowQuality;
++    private boolean mLongerDuration;
+     private boolean mShowStopDot;
+     private boolean mIsDotAtRight;
+     private boolean mDotShowing;
+@@ -144,7 +146,7 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+     public static Intent getStartIntent(Context context, int resultCode,
+             int audioSource, boolean showTaps,
+             @Nullable MediaProjectionCaptureTarget captureTarget,
+-            boolean showStopDot, boolean lowQuality) {
++            boolean showStopDot, boolean lowQuality, boolean longerDuration) {
+         return new Intent(context, RecordingService.class)
+                 .setAction(ACTION_START)
+                 .putExtra(EXTRA_RESULT_CODE, resultCode)
+@@ -152,7 +154,8 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+                 .putExtra(EXTRA_SHOW_TAPS, showTaps)
+                 .putExtra(EXTRA_CAPTURE_TARGET, captureTarget)
+                 .putExtra(EXTRA_SHOW_STOP_DOT, showStopDot)
+-                .putExtra(EXTRA_LOW_QUALITY, lowQuality);
++                .putExtra(EXTRA_LOW_QUALITY, lowQuality)
++                .putExtra(EXTRA_LONGER_DURATION, longerDuration);
+     }
+ 
+     @Override
+@@ -183,6 +186,7 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+                 mShowTaps = intent.getBooleanExtra(EXTRA_SHOW_TAPS, false);
+                 mShowStopDot = intent.getBooleanExtra(EXTRA_SHOW_STOP_DOT, false);
+                 mLowQuality = intent.getBooleanExtra(EXTRA_LOW_QUALITY, false);
++                mLongerDuration = intent.getBooleanExtra(EXTRA_LONGER_DURATION, false);
+ 
+                 MediaProjectionCaptureTarget captureTarget =
+                         intent.getParcelableExtra(EXTRA_CAPTURE_TARGET,
+@@ -204,6 +208,7 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+                         this
+                 );
+                 setLowQuality(mLowQuality);
++                setLongerDuration(mLongerDuration);
+ 
+                 if (startRecording()) {
+                     updateState(true);
+@@ -528,6 +533,12 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+         }
+     }
+ 
++    private void setLongerDuration(boolean longer) {
++        if (getRecorder() != null) {
++            getRecorder().setLongerDuration(longer);
++        }
++    }
++
+     private void setStopDotVisible(boolean turnOn) {
+         if (turnOn) {
+             showDot();
+diff --git a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java
+index 843ececcc2a9..8ccbdbe78768 100644
+--- a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java
++++ b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java
+@@ -79,6 +79,7 @@ public class ScreenMediaRecorder extends MediaProjection.Callback {
+     private static final int AUDIO_SAMPLE_RATE = 44100;
+     private static final int MAX_DURATION_MS = 60 * 60 * 1000;
+     private static final long MAX_FILESIZE_BYTES = 5000000000L;
++    private static final long MAX_FILESIZE_BYTES_LONGER = 16106100000L; // 15 GiB
+     private static final String TAG = "ScreenMediaRecorder";
+ 
+ 
+@@ -98,6 +99,7 @@ public class ScreenMediaRecorder extends MediaProjection.Callback {
+     private String mAvcProfileLevel;
+ 
+     private boolean mLowQuality;
++    private boolean mLongerDuration;
+ 
+     private Context mContext;
+     ScreenMediaRecorderListener mListener;
+@@ -122,6 +124,10 @@ public class ScreenMediaRecorder extends MediaProjection.Callback {
+         mLowQuality = low;
+     }
+ 
++    public void setLongerDuration(boolean longer) {
++        mLongerDuration = longer;
++    }
++
+     private void prepare() throws IOException, RemoteException, RuntimeException {
+         //Setup media projection
+         IBinder b = ServiceManager.getService(MEDIA_PROJECTION_SERVICE);
+@@ -177,8 +183,8 @@ public class ScreenMediaRecorder extends MediaProjection.Callback {
+         mMediaRecorder.setVideoSize(width, height);
+         mMediaRecorder.setVideoFrameRate(refreshRate);
+         mMediaRecorder.setVideoEncodingBitRate(vidBitRate);
+-        mMediaRecorder.setMaxDuration(MAX_DURATION_MS);
+-        mMediaRecorder.setMaxFileSize(MAX_FILESIZE_BYTES);
++        mMediaRecorder.setMaxDuration(mLongerDuration ? 0 : MAX_DURATION_MS);
++        mMediaRecorder.setMaxFileSize(maxFilesize);
+ 
+         // Set up audio
+         if (mAudioSource == MIC) {
+diff --git a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordDialogDelegate.java b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordDialogDelegate.java
+index 260e67820b60..a5539d2bd3e7 100644
+--- a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordDialogDelegate.java
++++ b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordDialogDelegate.java
+@@ -70,6 +70,7 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+     private static final String PREF_TAPS = "show_taps";
+     private static final String PREF_DOT = "show_dot";
+     private static final String PREF_LOW = "use_low_quality";
++    private static final String PREF_LONGER = "use_longer_timeout";
+     private static final String PREF_AUDIO = "use_audio";
+     private static final String PREF_AUDIO_SOURCE = "audio_source";
+ 
+@@ -80,6 +81,7 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+     private Switch mTapsSwitch;
+     private Switch mStopDotSwitch;
+     private Switch mLowQualitySwitch;
++    private Switch mLongerSwitch;
+     private Switch mAudioSwitch;
+     private Spinner mOptions;
+ 
+@@ -138,6 +140,7 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+         mTapsSwitch = dialog.findViewById(R.id.screenrecord_taps_switch);
+         mStopDotSwitch = dialog.findViewById(R.id.screenrecord_stopdot_switch);
+         mLowQualitySwitch = dialog.findViewById(R.id.screenrecord_lowquality_switch);
++        mLongerSwitch = dialog.findViewById(R.id.screenrecord_longer_timeout_switch);
+         mOptions = dialog.findViewById(R.id.screen_recording_options);
+         ArrayAdapter a = new ScreenRecordingAdapter(dialog.getContext().getApplicationContext(),
+                 android.R.layout.simple_spinner_dropdown_item,
+@@ -173,6 +176,7 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+         boolean showTaps = mTapsSwitch.isChecked();
+         boolean showStopDot = mStopDotSwitch.isChecked();
+         boolean lowQuality = mLowQualitySwitch.isChecked();
++        boolean longerDuration = mLongerSwitch.isChecked();
+         ScreenRecordingAudioSource audioMode = mAudioSwitch.isChecked()
+                 ? (ScreenRecordingAudioSource) mOptions.getSelectedItem()
+                 : NONE;
+@@ -181,7 +185,7 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+                 RecordingService.getStartIntent(
+                         userContext, Activity.RESULT_OK,
+                         audioMode.ordinal(), showTaps, captureTarget,
+-                        showStopDot, lowQuality),
++                        showStopDot, lowQuality, longerDuration),
+                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+         PendingIntent stopIntent = PendingIntent.getService(userContext,
+                 RecordingService.REQUEST_CODE,
+@@ -213,6 +217,7 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+         Prefs.putInt(userContext, PREFS + PREF_TAPS, mTapsSwitch.isChecked() ? 1 : 0);
+         Prefs.putInt(userContext, PREFS + PREF_DOT, mStopDotSwitch.isChecked() ? 1 : 0);
+         Prefs.putInt(userContext, PREFS + PREF_LOW, mLowQualitySwitch.isChecked() ? 1 : 0);
++        Prefs.putInt(userContext, PREFS + PREF_LONGER, mLongerSwitch.isChecked() ? 1 : 0);
+         Prefs.putInt(userContext, PREFS + PREF_AUDIO, mAudioSwitch.isChecked() ? 1 : 0);
+         Prefs.putInt(userContext, PREFS + PREF_AUDIO_SOURCE, mOptions.getSelectedItemPosition());
+     }
+@@ -222,6 +227,7 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+         mTapsSwitch.setChecked(Prefs.getInt(userContext, PREFS + PREF_TAPS, 0) == 1);
+         mStopDotSwitch.setChecked(Prefs.getInt(userContext, PREFS + PREF_DOT, 0) == 1);
+         mLowQualitySwitch.setChecked(Prefs.getInt(userContext, PREFS + PREF_LOW, 0) == 1);
++        mLongerSwitch.setChecked(Prefs.getInt(userContext, PREFS + PREF_LONGER, 0) == 1);
+         mAudioSwitch.setChecked(Prefs.getInt(userContext, PREFS + PREF_AUDIO, 0) == 1);
+         mOptions.setSelection(Prefs.getInt(userContext, PREFS + PREF_AUDIO_SOURCE, 0));
+     }
+diff --git a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordPermissionDialogDelegate.kt b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordPermissionDialogDelegate.kt
+index c22abb224520..8abad987b368 100644
+--- a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordPermissionDialogDelegate.kt
++++ b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordPermissionDialogDelegate.kt
+@@ -117,6 +117,7 @@ class ScreenRecordPermissionDialogDelegate(
+     private lateinit var audioSwitch: Switch
+     private lateinit var stopDotSwitch: Switch
+     private lateinit var lowQualitySwitch: Switch
++    private lateinit var longerDurationSwitch: Switch
+     private lateinit var options: Spinner
+ 
+     override fun createDialog(): SystemUIDialog {
+@@ -165,6 +166,7 @@ class ScreenRecordPermissionDialogDelegate(
+         tapsSwitch = dialog.requireViewById(R.id.screenrecord_taps_switch)
+         stopDotSwitch = dialog.requireViewById(R.id.screenrecord_stopdot_switch)
+         lowQualitySwitch = dialog.requireViewById(R.id.screenrecord_lowquality_switch)
++        longerDurationSwitch = dialog.requireViewById(R.id.screenrecord_longer_timeout_switch)
+ 
+         // Add these listeners so that the switch only responds to movement
+         // within its target region, to meet accessibility requirements
+@@ -172,6 +174,7 @@ class ScreenRecordPermissionDialogDelegate(
+         tapsSwitch.setOnTouchListener { _, event -> event.action == ACTION_MOVE }
+         stopDotSwitch.setOnTouchListener { _, event -> event.action == ACTION_MOVE }
+         lowQualitySwitch.setOnTouchListener { _, event -> event.action == ACTION_MOVE }
++        longerDurationSwitch.setOnTouchListener { _, event -> event.action == ACTION_MOVE }
+ 
+         tapsView = dialog.requireViewById(R.id.show_taps)
+         updateTapsViewVisibility()
+@@ -226,6 +229,7 @@ class ScreenRecordPermissionDialogDelegate(
+             else ScreenRecordingAudioSource.NONE
+         val showStopDot = stopDotSwitch.isChecked
+         val lowQuality = lowQualitySwitch.isChecked
++        val longerDuration = longerDurationSwitch.isChecked
+         val startIntent =
+             PendingIntent.getForegroundService(
+                 userContext,
+@@ -237,7 +241,8 @@ class ScreenRecordPermissionDialogDelegate(
+                     showTaps,
+                     captureTarget,
+                     showStopDot,
+-                    lowQuality
++                    lowQuality,
++                    longerDuration
+                 ),
+                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+             )
+diff --git a/packages/SystemUI/tests/src/com/android/systemui/screenrecord/RecordingServiceTest.java b/packages/SystemUI/tests/src/com/android/systemui/screenrecord/RecordingServiceTest.java
+index 407205127dc7..906beab41b0d 100644
+--- a/packages/SystemUI/tests/src/com/android/systemui/screenrecord/RecordingServiceTest.java
++++ b/packages/SystemUI/tests/src/com/android/systemui/screenrecord/RecordingServiceTest.java
+@@ -139,7 +139,7 @@ public class RecordingServiceTest extends SysuiTestCase {
+     @Test
+     public void testLogStartFullScreenRecording() {
+         Intent startIntent = RecordingService.getStartIntent(mContext, 0, 0, false, null, false,
+-                false);
++                false, false);
+         mRecordingService.onStartCommand(startIntent, 0, 0);
+ 
+         verify(mUiEventLogger, times(1)).log(Events.ScreenRecordEvent.SCREEN_RECORD_START);
+@@ -150,7 +150,7 @@ public class RecordingServiceTest extends SysuiTestCase {
+         MediaProjectionCaptureTarget target =
+                 new MediaProjectionCaptureTarget(new LaunchCookie(), 12345);
+         Intent startIntent = RecordingService.getStartIntent(mContext, 0, 0, false, target, false,
+-                false);
++                false, false);
+         mRecordingService.onStartCommand(startIntent, 0, 0);
+ 
+         verify(mUiEventLogger, times(1)).log(Events.ScreenRecordEvent.SCREEN_RECORD_START);
+@@ -184,7 +184,7 @@ public class RecordingServiceTest extends SysuiTestCase {
+         doThrow(new RuntimeException("fail")).when(mScreenMediaRecorder).start();
+ 
+         Intent startIntent = RecordingService.getStartIntent(mContext, 0, 0, false, null, false,
+-                false);
++                false, false);
+         mRecordingService.onStartCommand(startIntent, 0, 0);
+ 
+         assertUpdateState(false);
+-- 
+2.47.1
+

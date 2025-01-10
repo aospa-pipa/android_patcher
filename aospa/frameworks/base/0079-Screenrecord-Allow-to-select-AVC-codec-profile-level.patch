@@ -1,0 +1,109 @@
+From 1b9ffe4e85ac731ab81a25b88a8d78b4283c5289 Mon Sep 17 00:00:00 2001
+From: iusmac <iusico.maxim@libero.it>
+Date: Tue, 9 Aug 2022 07:58:47 +0200
+Subject: [PATCH 079/103] Screenrecord: Allow to select AVC codec profile level
+
+Nevertheless we have an option to limit the recording by frame rate, but
+we still can't limit it by resolution. It's not particularly needed for
+the devices of today which are enough powerful and can encode/play any
+profile level, but there are still many old devices for which the
+profile level can make a big difference.
+
+Traditionally the device declares the high quality multimedia profiles
+for video encoding (editing, recording video via camera ecc.), but these
+profiles are also used for screen recording. And here comes the pitfall
+for weak devices: screen recording is a video encoding process +
+highload user tasks on foreground and background, all in total is too
+much for an old device. The recorded video is "laggy", because the
+frames are simply skipped to the detriment of system smoothness. That's
+why some devices will need to limit AVC codec profile level for screen
+recorder only, as it doesn't make sense to do it globally, because it
+will also affect camera and video editing.
+
+Test: record the screen using the closest profile level to the display
+capabilities (resolution@frame rate). Check if video max. resolution and
+frame rate match the selected profile level constraints [1]. In case the
+profile level is the right one, the quality and fluidity of the video
+won't be in any way different from what you normally see on your display
+and will be playable anywhere, including the device that recorded it.
+
+[1] https://en.wikipedia.org/wiki/Advanced_Video_Coding#Levels
+
+[neobuddy89: Added default config to 4.2 and simplified]
+Change-Id: I918ee8f95124a34bda80feb57494b49ed449bf7b
+
+Change-Id: I9ff78a7b8ba50aaf3c79a5ec11fa4932c4be9290
+---
+ packages/SystemUI/res/values/aospa_config.xml |  5 +++++
+ .../screenrecord/ScreenMediaRecorder.java     | 20 ++++++++++++++++++-
+ 2 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/packages/SystemUI/res/values/aospa_config.xml b/packages/SystemUI/res/values/aospa_config.xml
+index ff7b6d658b96..094da39af4ba 100644
+--- a/packages/SystemUI/res/values/aospa_config.xml
++++ b/packages/SystemUI/res/values/aospa_config.xml
+@@ -19,4 +19,9 @@
+     <!-- If not zero, limits the internal screen recorder's framerate to the set value. -->
+     <integer name="config_screenRecorderMaxFramerate">0</integer>
+ 
++    <!-- If not empty, sets the AVC codec profile level used for the internal screen recorder.
++         Possible values: 3, 3.1, 3.2, 4, 4.1, 4.2
++    -->
++    <string name="config_screenRecorderAVCProfileLevel" translatable="false">4.2</string>
++
+ </resources>
+diff --git a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java
+index 1c73806dbede..b16ebb26030f 100644
+--- a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java
++++ b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java
+@@ -93,6 +93,7 @@ public class ScreenMediaRecorder extends MediaProjection.Callback {
+     private final MediaProjectionCaptureTarget mCaptureRegion;
+     private final Handler mHandler;
+     private int mMaxRefreshRate;
++    private String mAvcProfileLevel;
+ 
+     private Context mContext;
+     ScreenMediaRecorderListener mListener;
+@@ -109,6 +110,8 @@ public class ScreenMediaRecorder extends MediaProjection.Callback {
+         mAudioSource = audioSource;
+         mMaxRefreshRate = mContext.getResources().getInteger(
+                 com.android.systemui.res.R.integer.config_screenRecorderMaxFramerate);
++        mAvcProfileLevel = mContext.getResources().getString(
++                com.android.systemui.res.R.string.config_screenRecorderAVCProfileLevel);
+     }
+ 
+     private void prepare() throws IOException, RemoteException, RuntimeException {
+@@ -158,7 +161,7 @@ public class ScreenMediaRecorder extends MediaProjection.Callback {
+         mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+         mMediaRecorder.setVideoEncodingProfileLevel(
+                 MediaCodecInfo.CodecProfileLevel.AVCProfileMain,
+-                MediaCodecInfo.CodecProfileLevel.AVCLevel3);
++                getAvcProfileLevelCodeByName(mAvcProfileLevel));
+         mMediaRecorder.setVideoSize(width, height);
+         mMediaRecorder.setVideoFrameRate(refreshRate);
+         mMediaRecorder.setVideoEncodingBitRate(vidBitRate);
+@@ -203,6 +206,21 @@ public class ScreenMediaRecorder extends MediaProjection.Callback {
+ 
+     }
+ 
++    /**
++     * Match human-readable AVC level name to its constant value.
++     */
++    private int getAvcProfileLevelCodeByName(final String levelName) {
++        switch (levelName) {
++            case "3": return MediaCodecInfo.CodecProfileLevel.AVCLevel3;
++            case "3.1": return MediaCodecInfo.CodecProfileLevel.AVCLevel31;
++            case "3.2": return MediaCodecInfo.CodecProfileLevel.AVCLevel32;
++            case "4": return MediaCodecInfo.CodecProfileLevel.AVCLevel4;
++            case "4.1": return MediaCodecInfo.CodecProfileLevel.AVCLevel41;
++            default:
++            case "4.2": return MediaCodecInfo.CodecProfileLevel.AVCLevel42;
++        }
++    }
++
+     /**
+      * Find the highest supported screen resolution and refresh rate for the given dimensions on
+      * this device, up to actual size and given rate.
+-- 
+2.47.1
+

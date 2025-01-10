@@ -1,0 +1,145 @@
+From 6c1c1291000a37fc0b2159b3171976961adb2083 Mon Sep 17 00:00:00 2001
+From: Pranav Vashi <neobuddy89@gmail.com>
+Date: Sun, 31 Mar 2024 16:53:04 +0530
+Subject: [PATCH 1/2] FaceUnlock: Update for A14 QPR2
+
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ src/co/aospa/sense/SenseService.kt                   | 12 ++++++------
+ src/co/aospa/sense/activities/EnrollActivity.kt      |  4 ++--
+ src/co/aospa/sense/activities/TryAgainActivity.kt    |  4 ++--
+ src/co/aospa/sense/camera/CameraUtil.kt              |  4 ++--
+ .../aospa/sense/controller/FaceEnrollController.kt   |  4 ++--
+ 5 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/co/aospa/sense/SenseService.kt b/src/co/aospa/sense/SenseService.kt
+index 7be193b..1ce335e 100644
+--- a/src/co/aospa/sense/SenseService.kt
++++ b/src/co/aospa/sense/SenseService.kt
+@@ -261,12 +261,12 @@ class SenseService : Service() {
+             applicationContext, 0, Intent(
+                 ALARM_TIMEOUT_FREEZED
+             ), PendingIntent.FLAG_IMMUTABLE
+-        )
++        )!!
+         mLockoutTimeoutIntent = PendingIntent.getBroadcast(
+             applicationContext, 0, Intent(
+                 ALARM_FAIL_TIMEOUT_LOCKOUT
+             ), PendingIntent.FLAG_IMMUTABLE
+-        )
++        )!!
+         val intentFilter = IntentFilter()
+         intentFilter.addAction(ALARM_TIMEOUT_FREEZED)
+         intentFilter.addAction(ALARM_FAIL_TIMEOUT_LOCKOUT)
+@@ -341,24 +341,24 @@ class SenseService : Service() {
+     private fun startIdleTimer() {
+         mOnIdleTimer = true
+         mAlarmManager!![AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + DEFAULT_IDLE_TIMEOUT_MS] =
+-            mIdleTimeoutIntent
++            mIdleTimeoutIntent!!
+     }
+ 
+     private fun cancelIdleTimer() {
+         mOnIdleTimer = false
+-        mAlarmManager!!.cancel(mIdleTimeoutIntent)
++        mAlarmManager!!.cancel(mIdleTimeoutIntent!!)
+     }
+ 
+     private fun startLockoutTimer() {
+         val elapsedRealtime = SystemClock.elapsedRealtime() + FAIL_LOCKOUT_TIMEOUT_MS
+         mOnLockoutTimer = true
+         mAlarmManager!![AlarmManager.ELAPSED_REALTIME, elapsedRealtime] =
+-            mLockoutTimeoutIntent
++            mLockoutTimeoutIntent!!
+     }
+ 
+     private fun cancelLockoutTimer() {
+         if (mOnLockoutTimer) {
+-            mAlarmManager!!.cancel(mLockoutTimeoutIntent)
++            mAlarmManager!!.cancel(mLockoutTimeoutIntent!!)
+             mOnLockoutTimer = false
+         }
+     }
+diff --git a/src/co/aospa/sense/activities/EnrollActivity.kt b/src/co/aospa/sense/activities/EnrollActivity.kt
+index 526e153..54f4f03 100644
+--- a/src/co/aospa/sense/activities/EnrollActivity.kt
++++ b/src/co/aospa/sense/activities/EnrollActivity.kt
+@@ -230,7 +230,7 @@ open class EnrollActivity : FaceBaseActivity() {
+     }
+ 
+     override fun getLayout(): GlifLayout {
+-        return findViewById(R.id.face_enroll)
++        return findViewById(R.id.face_enroll)!!
+     }
+ 
+     override fun onDestroy() {
+@@ -334,4 +334,4 @@ open class EnrollActivity : FaceBaseActivity() {
+             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+             .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION).build()
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/src/co/aospa/sense/activities/TryAgainActivity.kt b/src/co/aospa/sense/activities/TryAgainActivity.kt
+index 306e1cd..3718739 100644
+--- a/src/co/aospa/sense/activities/TryAgainActivity.kt
++++ b/src/co/aospa/sense/activities/TryAgainActivity.kt
+@@ -40,7 +40,7 @@ class TryAgainActivity : FaceBaseActivity() {
+     }
+ 
+     override fun getLayout(): GlifLayout {
+-        return findViewById(R.id.face_enroll_try_again)
++        return findViewById(R.id.face_enroll_try_again)!!
+     }
+ 
+     public override fun onPause() {
+@@ -56,4 +56,4 @@ class TryAgainActivity : FaceBaseActivity() {
+         finish()
+     }
+ 
+-}
+\ No newline at end of file
++}
+diff --git a/src/co/aospa/sense/camera/CameraUtil.kt b/src/co/aospa/sense/camera/CameraUtil.kt
+index 5c8f201..c2a20f2 100644
+--- a/src/co/aospa/sense/camera/CameraUtil.kt
++++ b/src/co/aospa/sense/camera/CameraUtil.kt
+@@ -36,7 +36,7 @@ object CameraUtil {
+         try {
+             val cameraManager = context!!.getSystemService(
+                 CameraManager::class.java
+-            )
++            )!!
+             var cameraId: String
+             var orientation: Int
+             var characteristics: CameraCharacteristics
+@@ -53,4 +53,4 @@ object CameraUtil {
+         }
+         return -1
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/src/co/aospa/sense/controller/FaceEnrollController.kt b/src/co/aospa/sense/controller/FaceEnrollController.kt
+index cca70fb..76380fd 100644
+--- a/src/co/aospa/sense/controller/FaceEnrollController.kt
++++ b/src/co/aospa/sense/controller/FaceEnrollController.kt
+@@ -259,7 +259,7 @@ open class FaceEnrollController private constructor(private val mContext: Contex
+             val cameraInfo = Camera.CameraInfo()
+             Camera.getCameraInfo(mCameraId, cameraInfo)
+             val rotation =
+-                mContext!!.getSystemService(WindowManager::class.java).defaultDisplay.rotation
++                mContext!!.getSystemService(WindowManager::class.java)!!.defaultDisplay.rotation
+             var orientation = 0
+             if (rotation != 0) {
+                 when (rotation) {
+@@ -388,4 +388,4 @@ open class FaceEnrollController private constructor(private val mContext: Contex
+     init {
+         initWorkHandler()
+     }
+-}
+\ No newline at end of file
++}
+-- 
+2.47.1
+

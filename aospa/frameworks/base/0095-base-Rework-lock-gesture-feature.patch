@@ -1,0 +1,220 @@
+From a4e01b39e3a8cd31fdaf1ef50ef6612c7b3d79ac Mon Sep 17 00:00:00 2001
+From: cjh1249131356 <cjh1249131356@gmail.com>
+Date: Fri, 3 Jun 2022 01:13:40 +0800
+Subject: [PATCH 095/103] base: Rework lock gesture feature
+
+Match OEM behavior:
+- Lock swipe gestures from bottom, left & right side
+- Require double swipe to unlock gestures
+- Auto relock gestures after intervals
+- Avoid showing NavigationBar / TaskBar when swiping from status bar / left & right side
+
+Change-Id: I58b5362e19aef6f134b14ef8427bbf35d3dbbd57
+Signed-off-by: cjh1249131356 <cjh1249131356@gmail.com>
+[YumeMichi: Port to 14]
+Signed-off-by: Yuan Si <do4suki@gmail.com>
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ core/java/android/provider/Settings.java      |  6 +++
+ .../GestureNavigationSettingsObserver.java    |  5 ++
+ core/res/res/values/aospa_strings.xml         |  3 ++
+ core/res/res/values/aospa_symbols.xml         |  3 ++
+ .../com/android/server/wm/DisplayPolicy.java  | 12 ++++-
+ .../com/android/server/wm/InsetsPolicy.java   | 51 +++++++++++++++++++
+ 6 files changed, 79 insertions(+), 1 deletion(-)
+
+diff --git a/core/java/android/provider/Settings.java b/core/java/android/provider/Settings.java
+index 8948439ca5f5..91613ce311ad 100644
+--- a/core/java/android/provider/Settings.java
++++ b/core/java/android/provider/Settings.java
+@@ -6454,6 +6454,12 @@ public final class Settings {
+         @Readable
+         public static final String GAMESPACE_SUPPRESS_FULLSCREEN_INTENT = "gamespace_suppress_fullscreen_intent";
+ 
++        /**
++         * Current status of whether gestures are locked
++         * @hide
++         */
++        public static final String LOCK_GESTURE_STATUS = "lock_gesture_status";
++
+         /**
+          * Keys we no longer back up under the current schema, but want to continue to
+          * process when restoring historical backup datasets.
+diff --git a/core/java/com/android/internal/policy/GestureNavigationSettingsObserver.java b/core/java/com/android/internal/policy/GestureNavigationSettingsObserver.java
+index b7e68bacd143..45b414e6972c 100644
+--- a/core/java/com/android/internal/policy/GestureNavigationSettingsObserver.java
++++ b/core/java/com/android/internal/policy/GestureNavigationSettingsObserver.java
+@@ -77,7 +77,12 @@ public class GestureNavigationSettingsObserver extends ContentObserver {
+                     DeviceConfig.NAMESPACE_SYSTEMUI,
+                     runnable -> mMainHandler.post(runnable),
+                     mOnPropertiesChangedListener);
++
++            r.registerContentObserver(
++                    Settings.System.getUriFor(Settings.System.LOCK_GESTURE_STATUS),
++                    false, this, UserHandle.USER_ALL);
+         });
++
+     }
+ 
+     /**
+diff --git a/core/res/res/values/aospa_strings.xml b/core/res/res/values/aospa_strings.xml
+index 38d9059be416..49b1b60fd3ed 100644
+--- a/core/res/res/values/aospa_strings.xml
++++ b/core/res/res/values/aospa_strings.xml
+@@ -35,4 +35,7 @@
+     <string name="screenrecord_lowquality_label">Lower quality</string>
+     <string name="screenrecord_lowquality_summary">For smaller file size</string>
+ 
++    <!-- Lock gesture -->
++    <string name="gesture_locked_warning">Swipe again to unlock gestures</string>
++
+ </resources>
+diff --git a/core/res/res/values/aospa_symbols.xml b/core/res/res/values/aospa_symbols.xml
+index d23db704031b..4a8d8e1027da 100644
+--- a/core/res/res/values/aospa_symbols.xml
++++ b/core/res/res/values/aospa_symbols.xml
+@@ -92,4 +92,7 @@
+     <java-symbol type="array" name="global_device_configs_override" />
+     <java-symbol type="array" name="device_configs_override" />
+ 
++    <!-- Lock gesture -->
++    <java-symbol type="string" name="gesture_locked_warning" />
++
+ </resources>
+diff --git a/services/core/java/com/android/server/wm/DisplayPolicy.java b/services/core/java/com/android/server/wm/DisplayPolicy.java
+index 3a80aca91a5e..ab308d96daf9 100644
+--- a/services/core/java/com/android/server/wm/DisplayPolicy.java
++++ b/services/core/java/com/android/server/wm/DisplayPolicy.java
+@@ -1948,6 +1948,12 @@ public class DisplayPolicy {
+      */
+     public void onConfigurationChanged() {
+         final Resources res = getCurrentUserResources();
++
++        final InsetsPolicy policy = mDisplayContent.getInsetsPolicy();
++        if (policy != null) {
++            policy.updateLockedStatus();
++        }
++
+         mNavBarOpacityMode = res.getInteger(R.integer.config_navBarOpacityMode);
+         mLeftGestureInset = mGestureNavigationSettingsObserver.getLeftSensitivity(res);
+         mRightGestureInset = mGestureNavigationSettingsObserver.getRightSensitivity(res);
+@@ -2440,7 +2446,7 @@ public class DisplayPolicy {
+         if (controlTarget.canShowTransient()) {
+             // Show transient bars if they are hidden; restore position if they are visible.
+             mDisplayContent.getInsetsPolicy().showTransient(SHOW_TYPES_FOR_SWIPE,
+-                    isGestureOnSystemBar);
++                    isGestureOnSystemBar, swipeTarget == mStatusBar);
+             controlTarget.showInsets(restorePositionTypes, false /* fromIme */,
+                     null /* statsToken */);
+         } else {
+@@ -3226,4 +3232,8 @@ public class DisplayPolicy {
+     boolean shouldAttachNavBarToAppDuringTransition() {
+         return mShouldAttachNavBarToAppDuringTransition && mNavigationBar != null;
+     }
++
++    public Context getUiContext() {
++        return mUiContext;
++    }
+ }
+diff --git a/services/core/java/com/android/server/wm/InsetsPolicy.java b/services/core/java/com/android/server/wm/InsetsPolicy.java
+index 6288a429af81..22801b240cb3 100644
+--- a/services/core/java/com/android/server/wm/InsetsPolicy.java
++++ b/services/core/java/com/android/server/wm/InsetsPolicy.java
+@@ -34,6 +34,8 @@ import android.content.ComponentName;
+ import android.content.res.Resources;
+ import android.os.Handler;
+ import android.os.IBinder;
++import android.os.SystemClock;
++import android.provider.Settings;
+ import android.util.SparseArray;
+ import android.view.InsetsController;
+ import android.view.InsetsFrameProvider;
+@@ -48,6 +50,7 @@ import android.view.WindowInsetsAnimation;
+ import android.view.WindowInsetsAnimation.Bounds;
+ import android.view.WindowManager;
+ import android.view.inputmethod.InputMethodManager;
++import android.widget.Toast;
+ 
+ import com.android.internal.R;
+ import com.android.internal.annotations.VisibleForTesting;
+@@ -95,6 +98,10 @@ class InsetsPolicy {
+ 
+     private final boolean mHideNavBarForKeyboard;
+ 
++    private long mLastSwipeTime;
++    private long mLastUnlockedTime;
++    private boolean mLockedGesture = false;
++
+     InsetsPolicy(InsetsStateController stateController, DisplayContent displayContent) {
+         mStateController = stateController;
+         mDisplayContent = displayContent;
+@@ -149,8 +156,13 @@ class InsetsPolicy {
+     }
+ 
+     void showTransient(@InsetsType int types, boolean isGestureOnSystemBar) {
++        showTransient(types, isGestureOnSystemBar, false);
++    }
++
++    void showTransient(@InsetsType int types, boolean isGestureOnSystemBar, boolean swipeOnStatusBar) {
+         @InsetsType int showingTransientTypes = mShowingTransientTypes;
+         final InsetsState rawState = mStateController.getRawInsetsState();
++        final boolean isGestureLocked = isGestureLocked(!swipeOnStatusBar);
+         for (int i = rawState.sourceSize() - 1; i >= 0; i--) {
+             final InsetsSource source = rawState.sourceAt(i);
+             if (source.isVisible()) {
+@@ -160,8 +172,17 @@ class InsetsPolicy {
+             if ((source.getType() & types) == 0) {
+                 continue;
+             }
++            if (isGestureLocked && (
++                    ((type & Type.statusBars()) != 0 && !swipeOnStatusBar) ||
++                    ((type & Type.navigationBars()) != 0)
++                    )) {
++                continue;
++            }
+             showingTransientTypes |= type;
+         }
++        if (isGestureLocked && !swipeOnStatusBar) {
++            warnGestureLocked();
++        }
+         if (mShowingTransientTypes != showingTransientTypes) {
+             mShowingTransientTypes = showingTransientTypes;
+             StatusBarManagerInternal statusBarManagerInternal =
+@@ -864,4 +885,34 @@ class InsetsPolicy {
+             mInsetsAnimationRunning = running;
+         }
+     }
++
++    void updateLockedStatus() {
++        mLastSwipeTime = 0L;
++        mLastUnlockedTime = 0L;
++        mLockedGesture = Settings.System.getInt(mPolicy.getContext().getContentResolver(),
++                Settings.System.LOCK_GESTURE_STATUS, 0) == 1;
++    }
++
++    void warnGestureLocked() {
++        Toast.makeText(mPolicy.getUiContext(), R.string.gesture_locked_warning, Toast.LENGTH_SHORT).show();
++    }
++
++    boolean isGestureLocked(boolean updateSwipeTime) {
++        if (!mLockedGesture) {
++            return false;
++        }
++        final long now = SystemClock.uptimeMillis();
++        if (now - mLastUnlockedTime <= 3500) {
++            mLastUnlockedTime = now;
++            return false;
++        }
++        if (now - mLastSwipeTime > 2500) {
++            if (updateSwipeTime) {
++                mLastSwipeTime = now;
++            }
++            return true;
++        }
++        mLastUnlockedTime = now;
++        return false;
++    }
+ }
+-- 
+2.47.1
+

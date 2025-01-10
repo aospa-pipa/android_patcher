@@ -1,0 +1,119 @@
+From 31a5490ce8d73490b2cf287d2a89df4aa4d774e2 Mon Sep 17 00:00:00 2001
+From: Pranav Vashi <neobuddy89@gmail.com>
+Date: Sun, 8 Dec 2024 03:04:49 +0530
+Subject: [PATCH 065/103] PixelPropsUtils: Move certified props to vendor
+
+* Ref and credits:
+https://github.com/AOSPA/android_frameworks_base/blob/uvite/core/java/com/android/internal/util/PropImitationHooks.java
+
+Change-Id: Idb320515721d9d0a6464452fa85a55d09a004388
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ .../util/crdroid/PixelPropsUtils.java         | 30 +++++++++----------
+ core/res/res/values/aospa_config.xml          | 14 +++++++++
+ core/res/res/values/aospa_symbols.xml         |  3 ++
+ 3 files changed, 32 insertions(+), 15 deletions(-)
+
+diff --git a/core/java/com/android/internal/util/crdroid/PixelPropsUtils.java b/core/java/com/android/internal/util/crdroid/PixelPropsUtils.java
+index d1035140573c..8557a84654fe 100644
+--- a/core/java/com/android/internal/util/crdroid/PixelPropsUtils.java
++++ b/core/java/com/android/internal/util/crdroid/PixelPropsUtils.java
+@@ -24,6 +24,8 @@ import android.os.Build;
+ import android.os.SystemProperties;
+ import android.util.Log;
+ 
++import com.android.internal.R;
++
+ import java.lang.reflect.Field;
+ import java.util.ArrayList;
+ import java.util.Arrays;
+@@ -157,6 +159,7 @@ public final class PixelPropsUtils {
+     };
+ 
+     private static volatile boolean sIsFinsky = false;
++    private static volatile String[] sCertifiedProps;
+ 
+     static {
+         propsToChangeGeneric = new HashMap<>();
+@@ -249,7 +252,7 @@ public final class PixelPropsUtils {
+             } else if (packageName.equals("com.google.android.gms")) {
+                 final String processName = Application.getProcessName().toLowerCase();
+                 if (processName.contains("unstable")) {
+-                    spoofBuildGms();
++                    spoofBuildGms(context);
+                     return;
+                 }
+                 return;
+@@ -380,23 +383,20 @@ public final class PixelPropsUtils {
+         }
+     }
+ 
+-    private static void spoofBuildGms() {
++    private static void spoofBuildGms(Context context) {
+         if (!SystemProperties.getBoolean(SPOOF_PIXEL_PI, true))
+             return;
+         // Alter build parameters to avoid hardware attestation enforcement
+-        setPropValue("MANUFACTURER", "Google");
+-        setPropValue("MODEL", "Pixel 9 Pro XL");
+-        setPropValue("FINGERPRINT", "google/komodo_beta/komodo:15/AP41.240925.009/12534705:user/release-keys");
+-        setPropValue("BRAND", "google");
+-        setPropValue("PRODUCT", "komodo_beta");
+-        setPropValue("DEVICE", "komodo");
+-        setPropValue("VERSION.RELEASE", "15");
+-        setPropValue("ID", "AP41.240925.009");
+-        setPropValue("VERSION.INCREMENTAL", "12534705");
+-        setPropValue("TYPE", "user");
+-        setPropValue("TAGS", "release-keys");
+-        setPropValue("VERSION.SECURITY_PATCH", "2024-10-05");
+-        setPropValue("VERSION.DEVICE_INITIAL_SDK_INT", "32");
++        sCertifiedProps = context.getResources().getStringArray(R.array.config_certifiedBuildProperties);
++        for (String entry : sCertifiedProps) {
++            // Each entry must be of the format FIELD:value
++            final String[] fieldAndProp = entry.split(":", 2);
++            if (fieldAndProp.length != 2) {
++                Log.e(TAG, "Invalid entry in certified props: " + entry);
++                continue;
++            }
++            setPropValue(fieldAndProp[0], fieldAndProp[1]);
++        }
+     }
+ 
+     private static boolean isCallerSafetyNet() {
+diff --git a/core/res/res/values/aospa_config.xml b/core/res/res/values/aospa_config.xml
+index 3fc389d4219b..6c35bdf85f6c 100644
+--- a/core/res/res/values/aospa_config.xml
++++ b/core/res/res/values/aospa_config.xml
+@@ -126,4 +126,18 @@
+     <!-- KeaHandler to intercept inputs on screen off. -->
+     <bool name="config_enableKeyHandler">false</bool>
+ 
++    <!-- Build properties from a GMS certified device against current platform SPL level -->
++    <string-array name="config_certifiedBuildProperties" translatable="false">
++      <!--
++        Each entry must be of the format
++            FIELD:value
++        with the field belonging to android.os.Build or android.os.Build.VERSION class.
++        Example:
++        <item>BRAND:foo</item>
++        <item>DEVICE:bar</item>
++        <item>FINGERPRINT:foo/bar/bar:1.0/lorem/ipsum:dolor/sit-amet</item>
++        <item>VERSION.RELEASE:1.0</item>
++      -->
++    </string-array>
++
+ </resources>
+diff --git a/core/res/res/values/aospa_symbols.xml b/core/res/res/values/aospa_symbols.xml
+index 88a6dd83e822..f34079b30745 100644
+--- a/core/res/res/values/aospa_symbols.xml
++++ b/core/res/res/values/aospa_symbols.xml
+@@ -88,4 +88,7 @@
+     <!-- Whether to to intercept inputs on screen off. -->
+     <java-symbol type="bool" name="config_enableKeyHandler" />
+ 
++    <!-- Build properties from a GMS certified device against current platform SPL level -->
++    <java-symbol type="array" name="config_certifiedBuildProperties" />
++
+ </resources>
+-- 
+2.47.1
+

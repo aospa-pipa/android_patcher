@@ -1,0 +1,415 @@
+From e8695f90dea5aa71b6bc719b29fdadd7356ad3e1 Mon Sep 17 00:00:00 2001
+From: Ido Ben-Hur <idoybh2@gmail.com>
+Date: Fri, 7 Oct 2022 02:11:14 +0300
+Subject: [PATCH 086/103] Screenrecord: Add an option to use HEVC
+
+Chose the profiles that best fit the ones we have in H.264 by spec
+
+Change-Id: I153858bee5b3cce1e4cac4f86f44586a272de6ab
+---
+ packages/SystemUI/res/drawable/ic_hevc.xml    | 10 ++++
+ .../res/layout/screen_record_dialog.xml       | 43 +++++++++++++++++
+ .../res/layout/screen_record_options.xml      | 47 +++++++++++++++++++
+ packages/SystemUI/res/values/cm_strings.xml   |  2 +
+ .../screenrecord/RecordingService.java        | 15 +++++-
+ .../screenrecord/ScreenMediaRecorder.java     | 23 +++++++--
+ .../ScreenRecordDialogDelegate.java           |  8 +++-
+ .../ScreenRecordPermissionDialogDelegate.kt   |  7 ++-
+ .../screenrecord/RecordingServiceTest.java    |  6 +--
+ 9 files changed, 149 insertions(+), 12 deletions(-)
+ create mode 100644 packages/SystemUI/res/drawable/ic_hevc.xml
+
+diff --git a/packages/SystemUI/res/drawable/ic_hevc.xml b/packages/SystemUI/res/drawable/ic_hevc.xml
+new file mode 100644
+index 000000000000..ff38c63c6964
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_hevc.xml
+@@ -0,0 +1,10 @@
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24"
++    android:tint="?attr/colorControlNormal">
++  <path
++      android:fillColor="@android:color/white"
++      android:pathData="M3,15V9H4.5V11H5.5V9H7V15H5.5V12.5H4.5V15ZM8,15V9H11.5V10.5H9.5V11H11.5V12.5H9.5V13.5H11.5V15ZM13,15 L12,9H13.5L14.25,13.5L15,9H16.5L15.5,15ZM18,15Q17.575,15 17.288,14.712Q17,14.425 17,14V10Q17,9.575 17.288,9.287Q17.575,9 18,9H20Q20.425,9 20.712,9.287Q21,9.575 21,10V11H19.5V10.5H18.5V13.5H19.5V13H21V14Q21,14.425 20.712,14.712Q20.425,15 20,15Z"/>
++</vector>
+diff --git a/packages/SystemUI/res/layout/screen_record_dialog.xml b/packages/SystemUI/res/layout/screen_record_dialog.xml
+index 9065632a1f9d..5a316d5c9e3c 100644
+--- a/packages/SystemUI/res/layout/screen_record_dialog.xml
++++ b/packages/SystemUI/res/layout/screen_record_dialog.xml
+@@ -301,6 +301,49 @@
+                         android:contentDescription="@string/screenrecord_skip_time_label"
+                         style="@style/ScreenRecord.Switch"/>
+                 </LinearLayout>
++
++                <LinearLayout
++                    android:layout_width="match_parent"
++                    android:layout_height="wrap_content"
++                    android:orientation="horizontal"
++                    android:layout_marginTop="@dimen/screenrecord_option_padding">
++                    <ImageView
++                        android:layout_width="@dimen/screenrecord_option_icon_size"
++                        android:layout_height="@dimen/screenrecord_option_icon_size"
++                        android:layout_weight="0"
++                        android:src="@drawable/ic_hevc"
++                        android:tint="?android:attr/textColorSecondary"
++                        android:layout_gravity="center"
++                        android:layout_marginRight="@dimen/screenrecord_option_padding"/>
++                    <LinearLayout
++                        android:layout_width="0dp"
++                        android:layout_weight="1"
++                        android:layout_height="wrap_content"
++                        android:orientation="vertical">
++                        <TextView
++                            android:layout_width="match_parent"
++                            android:layout_height="wrap_content"
++                            android:importantForAccessibility="no"
++                            android:text="@string/screenrecord_hevc_switch_label"
++                            android:textAppearance="?android:attr/textAppearanceMedium"
++                            android:textColor="?android:attr/textColorPrimary" />
++                        <TextView
++                            android:layout_width="match_parent"
++                            android:layout_height="wrap_content"
++                            android:importantForAccessibility="no"
++                            android:text="@string/screenrecord_hevc_switch_summary"
++                            android:textAppearance="?android:attr/textAppearanceSmall"
++                            android:textColor="?android:textColorSecondary" />
++                    </LinearLayout>
++                    <Switch
++                        android:layout_width="wrap_content"
++                        android:minWidth="48dp"
++                        android:layout_height="48dp"
++                        android:layout_weight="0"
++                        android:id="@+id/screenrecord_hevc_switch"
++                        android:contentDescription="@string/screenrecord_hevc_switch_label"
++                        style="@style/ScreenRecord.Switch"/>
++                </LinearLayout>
+             </LinearLayout>
+ 
+             <!-- Buttons -->
+diff --git a/packages/SystemUI/res/layout/screen_record_options.xml b/packages/SystemUI/res/layout/screen_record_options.xml
+index 30f284855217..80af5ed1d8b1 100644
+--- a/packages/SystemUI/res/layout/screen_record_options.xml
++++ b/packages/SystemUI/res/layout/screen_record_options.xml
+@@ -273,4 +273,51 @@
+             style="@style/ScreenRecord.Switch"
+             android:importantForAccessibility="yes" />
+     </LinearLayout>
++    <LinearLayout
++        android:id="@+id/show_hevc"
++        android:layout_width="match_parent"
++        android:layout_height="wrap_content"
++        android:orientation="horizontal"
++        android:gravity="center_vertical"
++        android:layout_marginTop="@dimen/screenrecord_option_padding">
++        <ImageView
++            android:layout_width="@dimen/screenrecord_option_icon_size"
++            android:layout_height="@dimen/screenrecord_option_icon_size"
++            android:src="@drawable/ic_hevc"
++            android:tint="?android:attr/textColorSecondary"
++            android:layout_marginRight="@dimen/screenrecord_option_padding"
++            android:importantForAccessibility="no"/>
++        <LinearLayout
++            android:layout_width="0dp"
++            android:layout_height="match_parent"
++            android:minHeight="48dp"
++            android:layout_weight="1"
++            android:orientation="vertical">
++            <TextView
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:fontFamily="@*android:string/config_bodyFontFamily"
++                android:text="@string/screenrecord_hevc_switch_label"
++                android:textAppearance="?android:attr/textAppearanceMedium"
++                android:textColor="?android:attr/textColorPrimary"
++                android:contentDescription="@string/screenrecord_hevc_switch_label"/>
++            <TextView
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:importantForAccessibility="no"
++                android:fontFamily="@*android:string/config_bodyFontFamily"
++                android:text="@string/screenrecord_hevc_switch_summary"
++                android:textAppearance="?android:attr/textAppearanceSmall"
++                android:textColor="?android:textColorSecondary"/>
++        </LinearLayout>
++
++        <Switch
++            android:layout_width="wrap_content"
++            android:minWidth="48dp"
++            android:layout_height="48dp"
++            android:id="@+id/screenrecord_hevc_switch"
++            android:contentDescription="@string/screenrecord_hevc_switch_label"
++            style="@style/ScreenRecord.Switch"
++            android:importantForAccessibility="yes" />
++    </LinearLayout>
+ </LinearLayout>
+\ No newline at end of file
+diff --git a/packages/SystemUI/res/values/cm_strings.xml b/packages/SystemUI/res/values/cm_strings.xml
+index f11edbb0e621..379df116d530 100644
+--- a/packages/SystemUI/res/values/cm_strings.xml
++++ b/packages/SystemUI/res/values/cm_strings.xml
+@@ -130,4 +130,6 @@
+     <string name="screenrecord_longer_timeout_switch_summary">Limit recording size to 15 GB</string>
+     <string name="screenrecord_skip_time_label">Skip timer</string>
+     <string name="screenrecord_skip_time_summary">Remove the 3 second wait</string>
++    <string name="screenrecord_hevc_switch_label">HEVC encoding</string>
++    <string name="screenrecord_hevc_switch_summary">Use the more efficient HEVC encoder</string>
+ </resources>
+diff --git a/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingService.java b/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingService.java
+index 715e054458d5..ab579ada8b51 100644
+--- a/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingService.java
++++ b/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingService.java
+@@ -82,6 +82,7 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+     private static final String EXTRA_SHOW_STOP_DOT = "extra_showStopDot";
+     private static final String EXTRA_LOW_QUALITY = "extra_lowQuality";
+     private static final String EXTRA_LONGER_DURATION = "extra_longerDuration";
++    private final static String EXTRA_HEVC = "extra_HEVC";
+ 
+     protected static final String ACTION_START = "com.android.systemui.screenrecord.START";
+     protected static final String ACTION_SHOW_START_NOTIF =
+@@ -109,6 +110,7 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+ 
+     private boolean mLowQuality;
+     private boolean mLongerDuration;
++    private boolean mHEVC;
+     private boolean mShowStopDot;
+     private boolean mIsDotAtRight;
+     private boolean mDotShowing;
+@@ -146,7 +148,7 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+     public static Intent getStartIntent(Context context, int resultCode,
+             int audioSource, boolean showTaps,
+             @Nullable MediaProjectionCaptureTarget captureTarget,
+-            boolean showStopDot, boolean lowQuality, boolean longerDuration) {
++            boolean showStopDot, boolean lowQuality, boolean longerDuration, boolean hevc) {
+         return new Intent(context, RecordingService.class)
+                 .setAction(ACTION_START)
+                 .putExtra(EXTRA_RESULT_CODE, resultCode)
+@@ -155,7 +157,8 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+                 .putExtra(EXTRA_CAPTURE_TARGET, captureTarget)
+                 .putExtra(EXTRA_SHOW_STOP_DOT, showStopDot)
+                 .putExtra(EXTRA_LOW_QUALITY, lowQuality)
+-                .putExtra(EXTRA_LONGER_DURATION, longerDuration);
++                .putExtra(EXTRA_LONGER_DURATION, longerDuration)
++                .putExtra(EXTRA_HEVC, hevc);
+     }
+ 
+     @Override
+@@ -187,6 +190,7 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+                 mShowStopDot = intent.getBooleanExtra(EXTRA_SHOW_STOP_DOT, false);
+                 mLowQuality = intent.getBooleanExtra(EXTRA_LOW_QUALITY, false);
+                 mLongerDuration = intent.getBooleanExtra(EXTRA_LONGER_DURATION, false);
++                mHEVC = intent.getBooleanExtra(EXTRA_HEVC, true);
+ 
+                 MediaProjectionCaptureTarget captureTarget =
+                         intent.getParcelableExtra(EXTRA_CAPTURE_TARGET,
+@@ -209,6 +213,7 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+                 );
+                 setLowQuality(mLowQuality);
+                 setLongerDuration(mLongerDuration);
++                setHEVC(mHEVC);
+ 
+                 if (startRecording()) {
+                     updateState(true);
+@@ -539,6 +544,12 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+         }
+     }
+ 
++    private void setHEVC(boolean hevc) {
++        if (getRecorder() != null) {
++            getRecorder().setHEVC(hevc);
++        }
++    }
++
+     private void setStopDotVisible(boolean turnOn) {
+         if (turnOn) {
+             showDot();
+diff --git a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java
+index 8ccbdbe78768..1fb3b53020b6 100644
+--- a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java
++++ b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java
+@@ -100,6 +100,7 @@ public class ScreenMediaRecorder extends MediaProjection.Callback {
+ 
+     private boolean mLowQuality;
+     private boolean mLongerDuration;
++    private boolean mHEVC;
+ 
+     private Context mContext;
+     ScreenMediaRecorderListener mListener;
+@@ -128,6 +129,10 @@ public class ScreenMediaRecorder extends MediaProjection.Callback {
+         mLongerDuration = longer;
+     }
+ 
++    public void setHEVC(boolean hevc) {
++        mHEVC = hevc;
++    }
++
+     private void prepare() throws IOException, RemoteException, RuntimeException {
+         //Setup media projection
+         IBinder b = ServiceManager.getService(MEDIA_PROJECTION_SERVICE);
+@@ -175,11 +180,19 @@ public class ScreenMediaRecorder extends MediaProjection.Callback {
+                 : VIDEO_FRAME_RATE_TO_RESOLUTION_RATIO;
+         int vidBitRate = width * height * refreshRate / VIDEO_FRAME_RATE * resRatio;
+         long maxFilesize = mLongerDuration ? MAX_FILESIZE_BYTES_LONGER : MAX_FILESIZE_BYTES;
+-        mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+-        mMediaRecorder.setVideoEncodingProfileLevel(
+-                MediaCodecInfo.CodecProfileLevel.AVCProfileMain,
+-                mLowQuality ? MediaCodecInfo.CodecProfileLevel.AVCLevel32
+-                : getAvcProfileLevelCodeByName(mAvcProfileLevel));
++        if (!mHEVC) {
++            mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
++            mMediaRecorder.setVideoEncodingProfileLevel(
++                    MediaCodecInfo.CodecProfileLevel.AVCProfileMain,
++                    mLowQuality ? MediaCodecInfo.CodecProfileLevel.AVCLevel32
++                    : getAvcProfileLevelCodeByName(mAvcProfileLevel));
++        } else {
++            mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.HEVC);
++            mMediaRecorder.setVideoEncodingProfileLevel(
++                    MediaCodecInfo.CodecProfileLevel.HEVCProfileMain,
++                    mLowQuality ? MediaCodecInfo.CodecProfileLevel.HEVCHighTierLevel31
++                    : MediaCodecInfo.CodecProfileLevel.HEVCHighTierLevel41);
++        }
+         mMediaRecorder.setVideoSize(width, height);
+         mMediaRecorder.setVideoFrameRate(refreshRate);
+         mMediaRecorder.setVideoEncodingBitRate(vidBitRate);
+diff --git a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordDialogDelegate.java b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordDialogDelegate.java
+index 73974c99f307..873236941134 100644
+--- a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordDialogDelegate.java
++++ b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordDialogDelegate.java
+@@ -72,6 +72,7 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+     private static final String PREF_DOT = "show_dot";
+     private static final String PREF_LOW = "use_low_quality";
+     private static final String PREF_LONGER = "use_longer_timeout";
++    private static final String PREF_HEVC = "use_hevc";
+     private static final String PREF_AUDIO = "use_audio";
+     private static final String PREF_AUDIO_SOURCE = "audio_source";
+     private static final String PREF_SKIP = "skip_timer";
+@@ -84,6 +85,7 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+     private Switch mStopDotSwitch;
+     private Switch mLowQualitySwitch;
+     private Switch mLongerSwitch;
++    private Switch mHEVCSwitch;
+     private Switch mAudioSwitch;
+     private Switch mSkipSwitch;
+     private Spinner mOptions;
+@@ -145,6 +147,7 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+         mStopDotSwitch = dialog.findViewById(R.id.screenrecord_stopdot_switch);
+         mLowQualitySwitch = dialog.findViewById(R.id.screenrecord_lowquality_switch);
+         mLongerSwitch = dialog.findViewById(R.id.screenrecord_longer_timeout_switch);
++        mHEVCSwitch = dialog.findViewById(R.id.screenrecord_hevc_switch);
+         mOptions = dialog.findViewById(R.id.screen_recording_options);
+         ArrayAdapter a = new ScreenRecordingAdapter(dialog.getContext().getApplicationContext(),
+                 android.R.layout.simple_spinner_dropdown_item,
+@@ -182,6 +185,7 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+         boolean lowQuality = mLowQualitySwitch.isChecked();
+         boolean longerDuration = mLongerSwitch.isChecked();
+         boolean skipTime = mSkipSwitch.isChecked();
++        boolean hevc = mHEVCSwitch.isChecked();
+         ScreenRecordingAudioSource audioMode = mAudioSwitch.isChecked()
+                 ? (ScreenRecordingAudioSource) mOptions.getSelectedItem()
+                 : NONE;
+@@ -190,7 +194,7 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+                 RecordingService.getStartIntent(
+                         userContext, Activity.RESULT_OK,
+                         audioMode.ordinal(), showTaps, captureTarget,
+-                        showStopDot, lowQuality, longerDuration),
++                        showStopDot, lowQuality, longerDuration, hevc),
+                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+         PendingIntent stopIntent = PendingIntent.getService(userContext,
+                 RecordingService.REQUEST_CODE,
+@@ -227,6 +231,7 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+         Prefs.putInt(userContext, PREFS + PREF_AUDIO, mAudioSwitch.isChecked() ? 1 : 0);
+         Prefs.putInt(userContext, PREFS + PREF_AUDIO_SOURCE, mOptions.getSelectedItemPosition());
+         Prefs.putInt(userContext, PREFS + PREF_SKIP, mSkipSwitch.isChecked() ? 1 : 0);
++        Prefs.putInt(userContext, PREFS + PREF_HEVC, mHEVCSwitch.isChecked() ? 1 : 0);
+     }
+ 
+     private void loadPrefs() {
+@@ -238,5 +243,6 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+         mAudioSwitch.setChecked(Prefs.getInt(userContext, PREFS + PREF_AUDIO, 0) == 1);
+         mOptions.setSelection(Prefs.getInt(userContext, PREFS + PREF_AUDIO_SOURCE, 0));
+         mSkipSwitch.setChecked(Prefs.getInt(userContext, PREFS + PREF_SKIP, 0) == 1);
++        mHEVCSwitch.setChecked(Prefs.getInt(userContext, PREFS + PREF_HEVC, 1) == 1);
+     }
+ }
+diff --git a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordPermissionDialogDelegate.kt b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordPermissionDialogDelegate.kt
+index 19acff64da49..d2d7c2d26fcc 100644
+--- a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordPermissionDialogDelegate.kt
++++ b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordPermissionDialogDelegate.kt
+@@ -119,6 +119,7 @@ class ScreenRecordPermissionDialogDelegate(
+     private lateinit var lowQualitySwitch: Switch
+     private lateinit var longerDurationSwitch: Switch
+     private lateinit var skipTimeSwitch: Switch
++    private lateinit var hevcSwitch: Switch
+     private lateinit var options: Spinner
+ 
+     override fun createDialog(): SystemUIDialog {
+@@ -169,6 +170,7 @@ class ScreenRecordPermissionDialogDelegate(
+         lowQualitySwitch = dialog.requireViewById(R.id.screenrecord_lowquality_switch)
+         longerDurationSwitch = dialog.requireViewById(R.id.screenrecord_longer_timeout_switch)
+         skipTimeSwitch = dialog.requireViewById(R.id.screenrecord_skip_time_switch)
++        hevcSwitch = dialog.requireViewById(R.id.screenrecord_hevc_switch)
+ 
+         // Add these listeners so that the switch only responds to movement
+         // within its target region, to meet accessibility requirements
+@@ -178,6 +180,7 @@ class ScreenRecordPermissionDialogDelegate(
+         lowQualitySwitch.setOnTouchListener { _, event -> event.action == ACTION_MOVE }
+         longerDurationSwitch.setOnTouchListener { _, event -> event.action == ACTION_MOVE }
+         skipTimeSwitch.setOnTouchListener { _, event -> event.action == ACTION_MOVE }
++        hevcSwitch.setOnTouchListener { _, event -> event.action == ACTION_MOVE }
+ 
+         tapsView = dialog.requireViewById(R.id.show_taps)
+         updateTapsViewVisibility()
+@@ -233,6 +236,7 @@ class ScreenRecordPermissionDialogDelegate(
+         val showStopDot = stopDotSwitch.isChecked
+         val lowQuality = lowQualitySwitch.isChecked
+         val longerDuration = longerDurationSwitch.isChecked
++        val hevc = hevcSwitch.isChecked
+         val startIntent =
+             PendingIntent.getForegroundService(
+                 userContext,
+@@ -245,7 +249,8 @@ class ScreenRecordPermissionDialogDelegate(
+                     captureTarget,
+                     showStopDot,
+                     lowQuality,
+-                    longerDuration
++                    longerDuration,
++                    hevc
+                 ),
+                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+             )
+diff --git a/packages/SystemUI/tests/src/com/android/systemui/screenrecord/RecordingServiceTest.java b/packages/SystemUI/tests/src/com/android/systemui/screenrecord/RecordingServiceTest.java
+index 906beab41b0d..340c76242193 100644
+--- a/packages/SystemUI/tests/src/com/android/systemui/screenrecord/RecordingServiceTest.java
++++ b/packages/SystemUI/tests/src/com/android/systemui/screenrecord/RecordingServiceTest.java
+@@ -139,7 +139,7 @@ public class RecordingServiceTest extends SysuiTestCase {
+     @Test
+     public void testLogStartFullScreenRecording() {
+         Intent startIntent = RecordingService.getStartIntent(mContext, 0, 0, false, null, false,
+-                false, false);
++                false, false, false);
+         mRecordingService.onStartCommand(startIntent, 0, 0);
+ 
+         verify(mUiEventLogger, times(1)).log(Events.ScreenRecordEvent.SCREEN_RECORD_START);
+@@ -150,7 +150,7 @@ public class RecordingServiceTest extends SysuiTestCase {
+         MediaProjectionCaptureTarget target =
+                 new MediaProjectionCaptureTarget(new LaunchCookie(), 12345);
+         Intent startIntent = RecordingService.getStartIntent(mContext, 0, 0, false, target, false,
+-                false, false);
++                false, false, false);
+         mRecordingService.onStartCommand(startIntent, 0, 0);
+ 
+         verify(mUiEventLogger, times(1)).log(Events.ScreenRecordEvent.SCREEN_RECORD_START);
+@@ -184,7 +184,7 @@ public class RecordingServiceTest extends SysuiTestCase {
+         doThrow(new RuntimeException("fail")).when(mScreenMediaRecorder).start();
+ 
+         Intent startIntent = RecordingService.getStartIntent(mContext, 0, 0, false, null, false,
+-                false, false);
++                false, false, false);
+         mRecordingService.onStartCommand(startIntent, 0, 0);
+ 
+         assertUpdateState(false);
+-- 
+2.47.1
+

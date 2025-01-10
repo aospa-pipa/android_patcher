@@ -1,0 +1,55 @@
+From 798565d4ffab994d3c1845185e5a16d934d6a9ec Mon Sep 17 00:00:00 2001
+From: Adithya R <gh0strider.2k18.reborn@gmail.com>
+Date: Mon, 2 Sep 2024 06:57:35 +0530
+Subject: [PATCH 060/103] wm: Skip freeform displays from forcing desktop mode
+
+Since our floating window is created as a separate display, don't force
+them into desktop mode too when the developer setting is enabled.
+
+Change-Id: I341a4929294d0919499e8be115f76de722d6d00d
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ .../core/java/com/android/server/wm/DisplayContent.java     | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/services/core/java/com/android/server/wm/DisplayContent.java b/services/core/java/com/android/server/wm/DisplayContent.java
+index ad711cb2af31..7fde058bbec9 100644
+--- a/services/core/java/com/android/server/wm/DisplayContent.java
++++ b/services/core/java/com/android/server/wm/DisplayContent.java
+@@ -100,6 +100,7 @@ import static com.android.internal.protolog.ProtoLogGroup.WM_DEBUG_SCREEN_ON;
+ import static com.android.internal.protolog.ProtoLogGroup.WM_DEBUG_WALLPAPER;
+ import static com.android.internal.protolog.ProtoLogGroup.WM_SHOW_TRANSACTIONS;
+ import static com.android.internal.util.LatencyTracker.ACTION_ROTATE_SCREEN;
++import static com.android.server.display.LMOFreeformDisplayAdapter.UNIQUE_ID_PREFIX;
+ import static com.android.server.policy.WindowManagerPolicy.FINISH_LAYOUT_REDO_ANIM;
+ import static com.android.server.policy.WindowManagerPolicy.FINISH_LAYOUT_REDO_CONFIG;
+ import static com.android.server.policy.WindowManagerPolicy.FINISH_LAYOUT_REDO_LAYOUT;
+@@ -555,6 +556,8 @@ class DisplayContent extends RootDisplayArea implements WindowManagerPolicy.Disp
+     // TODO(multi-display): remove some of the usages.
+     boolean isDefaultDisplay;
+ 
++    private boolean isFreeformDisplay;
++
+     /** Save allocating when calculating rects */
+     private final Rect mTmpRect = new Rect();
+     private final Rect mTmpRect2 = new Rect();
+@@ -1157,6 +1160,7 @@ class DisplayContent extends RootDisplayArea implements WindowManagerPolicy.Disp
+         mSystemGestureExclusionLimit = mWmService.mConstants.mSystemGestureExclusionLimitDp
+                 * mDisplayMetrics.densityDpi / DENSITY_DEFAULT;
+         isDefaultDisplay = mDisplayId == DEFAULT_DISPLAY;
++        isFreeformDisplay = mDisplayInfo.uniqueId.startsWith(UNIQUE_ID_PREFIX);
+         mInsetsStateController = new InsetsStateController(this);
+         initializeDisplayBaseInfo();
+         mDisplayFrames = new DisplayFrames(mInsetsStateController.getRawInsetsState(),
+@@ -4267,7 +4271,7 @@ class DisplayContent extends RootDisplayArea implements WindowManagerPolicy.Disp
+     }
+ 
+     boolean forceDesktopMode() {
+-        return mWmService.mForceDesktopModeOnExternalDisplays && !isDefaultDisplay && !isPrivate();
++        return mWmService.mForceDesktopModeOnExternalDisplays && !isDefaultDisplay && !isPrivate() && !isFreeformDisplay;
+     }
+ 
+     /** @see WindowManagerInternal#onToggleImeRequested */
+-- 
+2.47.1
+

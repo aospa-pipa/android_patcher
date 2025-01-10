@@ -1,0 +1,25 @@
+From 743df2270ae03d25c18c98fab4a6f19a87629a45 Mon Sep 17 00:00:00 2001
+From: Lostark13 <tushar9915@gmail.com>
+Date: Wed, 29 Mar 2023 09:14:58 +0000
+Subject: [PATCH 088/103] Screenrecord: Dismiss notification on stop
+
+Change-Id: Ia5932a4029ba2d285603ab5d2e1db75b7ed0afbe
+---
+ .../src/com/android/systemui/screenrecord/RecordingService.java  | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingService.java b/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingService.java
+index ab579ada8b51..8e3474295b4b 100644
+--- a/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingService.java
++++ b/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingService.java
+@@ -243,6 +243,7 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+                 // we want to post the notifications for that user, which is NOT current user
+                 int userId = intent.getIntExtra(Intent.EXTRA_USER_HANDLE, USER_ID_NOT_SPECIFIED);
+                 stopService(userId);
++                stopForeground(STOP_FOREGROUND_DETACH);
+                 break;
+ 
+             case ACTION_SHARE:
+-- 
+2.47.1
+

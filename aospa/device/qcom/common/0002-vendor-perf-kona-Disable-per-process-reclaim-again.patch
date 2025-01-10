@@ -1,0 +1,26 @@
+From 16ba659756f1f5c16e0c2e0d3abea43c77eeae86 Mon Sep 17 00:00:00 2001
+From: Yuan Si <do4suki@gmail.com>
+Date: Mon, 10 Jun 2024 01:11:06 +0800
+Subject: [PATCH 2/7] vendor: perf: kona: Disable per-process reclaim again
+
+Change-Id: If5890ab9e2b9feb1f99f352f54f655d2c8e926fd
+Signed-off-by: Yuan Si <do4suki@gmail.com>
+---
+ vendor/perf/configs/kona/perf/targetresourceconfigs.xml | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/vendor/perf/configs/kona/perf/targetresourceconfigs.xml b/vendor/perf/configs/kona/perf/targetresourceconfigs.xml
+index d6b75e148..090f9676a 100644
+--- a/vendor/perf/configs/kona/perf/targetresourceconfigs.xml
++++ b/vendor/perf/configs/kona/perf/targetresourceconfigs.xml
+@@ -60,6 +60,7 @@ as anyway perflock calls of these resources would fail. -->
+         <Config MajorValue="0x6" MinorValue="0x9" Node="/sys/class/devfreq/soc:qcom,cpu-cpu-llcc-bw/bw_hwmon/idle_mbps" />
+ 
+         <Config MajorValue="0xB" MinorValue="0x2" Node="/sys/devices/system/cpu/cpu_boost/input_boost_freq"/>
++        <Config MajorValue="0xB" MinorValue="0x6" Supported="no" /><!-- disable_ppr -->
+ 
+         <!-- llcbw L3 and DDR major end -->
+         <Config MajorValue="0xC" MinorValue="0x0" Node="/sys/class/devfreq/soc:qcom,cpu-llcc-ddr-bw/min_freq" />
+-- 
+2.47.1
+

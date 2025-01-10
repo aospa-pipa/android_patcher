@@ -1,0 +1,128 @@
+From cc705ca9ceab113a7b5cd21641309f64f3d89dbb Mon Sep 17 00:00:00 2001
+From: Adithya R <gh0strider.2k18.reborn@gmail.com>
+Date: Sat, 31 Aug 2024 06:18:29 +0530
+Subject: [PATCH 062/103] wm: Add API to listen for secure content in display
+
+Required by LMOFreeform.
+
+Change-Id: I97143a8b35af1432b9b12319bab5c1dfec9f9b34
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ .../com/android/server/wm/DisplayContent.java |  9 +++++++
+ .../server/wm/WindowManagerInternal.java      | 16 ++++++++++++
+ .../server/wm/WindowManagerService.java       | 26 +++++++++++++++++++
+ 3 files changed, 51 insertions(+)
+
+diff --git a/services/core/java/com/android/server/wm/DisplayContent.java b/services/core/java/com/android/server/wm/DisplayContent.java
+index 7fde058bbec9..e03756fab8f8 100644
+--- a/services/core/java/com/android/server/wm/DisplayContent.java
++++ b/services/core/java/com/android/server/wm/DisplayContent.java
+@@ -808,6 +808,8 @@ class DisplayContent extends RootDisplayArea implements WindowManagerPolicy.Disp
+     /** Last window to hold the screen locked. */
+     private WindowState mLastWakeLockHoldingWindow;
+ 
++    private boolean mHasSecureContent;
++
+     /**
+      * The helper of policy controller.
+      *
+@@ -5162,6 +5164,13 @@ class DisplayContent extends RootDisplayArea implements WindowManagerPolicy.Disp
+         if (updateInputWindows) {
+             mInputMonitor.updateInputWindowsLw(false /*force*/);
+         }
++
++        // Notify if display added or removed a secure window
++        final boolean hasSecureContent = hasSecureWindowOnScreen();
++        if (hasSecureContent != mHasSecureContent) {
++            mHasSecureContent = hasSecureContent;
++            mWmService.notifyDisplaySecureContentChange(mDisplayId, hasSecureContent);
++        }
+     }
+ 
+     /**
+diff --git a/services/core/java/com/android/server/wm/WindowManagerInternal.java b/services/core/java/com/android/server/wm/WindowManagerInternal.java
+index a42cb09f5500..9ee6dac5e576 100644
+--- a/services/core/java/com/android/server/wm/WindowManagerInternal.java
++++ b/services/core/java/com/android/server/wm/WindowManagerInternal.java
+@@ -409,6 +409,14 @@ public abstract class WindowManagerInternal {
+         default void dragRecipientExited(IWindow window) {}
+     }
+ 
++    /**
++     * Listener interface for secure content showing up on the display.
++     */
++    public interface DisplaySecureContentListener {
++        public void onDisplayHasSecureWindowOnScreenChanged(
++                int displayId, boolean hasSecureWindowOnScreen);
++    }
++
+     /**
+      * Request the interface to access features implemented by AccessibilityController.
+      */
+@@ -1133,4 +1141,12 @@ public abstract class WindowManagerInternal {
+      */
+     public abstract ScreenshotHardwareBuffer takeAssistScreenshot(
+             Set<Integer> windowTypesToExclude);
++
++    /**
++     * Register/unregister callbacks for secure content showing up on the display.
++     */
++    public abstract void registerDisplaySecureContentListener(
++            DisplaySecureContentListener listener);
++    public abstract void unregisterDisplaySecureContentListener(
++            DisplaySecureContentListener listener);
+ }
+diff --git a/services/core/java/com/android/server/wm/WindowManagerService.java b/services/core/java/com/android/server/wm/WindowManagerService.java
+index 3bb4a98c5499..8b1dd0e89e38 100644
+--- a/services/core/java/com/android/server/wm/WindowManagerService.java
++++ b/services/core/java/com/android/server/wm/WindowManagerService.java
+@@ -790,6 +790,9 @@ public class WindowManagerService extends IWindowManager.Stub
+     WindowManagerInternal.OnImeRequestedChangedListener mOnImeRequestedChangedListener;
+     @Nullable ImeTargetChangeListener mImeTargetChangeListener;
+ 
++    private ArraySet<WindowManagerInternal.DisplaySecureContentListener>
++            mDisplaySecureContentListeners = new ArraySet<>();
++
+     SettingsObserver mSettingsObserver;
+     final EmbeddedWindowController mEmbeddedWindowController;
+     final AnrController mAnrController;
+@@ -5443,6 +5446,15 @@ public class WindowManagerService extends IWindowManager.Stub
+         }
+     }
+ 
++    void notifyDisplaySecureContentChange(int displayId, boolean hasSecureWindowOnScreen) {
++        synchronized (mGlobalLock) {
++            mDisplaySecureContentListeners.forEach((listener) -> {
++                listener.onDisplayHasSecureWindowOnScreenChanged(
++                        displayId, hasSecureWindowOnScreen);
++            });
++        }
++    }
++
+     // -------------------------------------------------------------
+     // Input Events and Focus Management
+     // -------------------------------------------------------------
+@@ -8849,6 +8861,20 @@ public class WindowManagerService extends IWindowManager.Stub
+             // WMS.takeAssistScreenshot takes care of the locking.
+             return WindowManagerService.this.takeAssistScreenshot(windowTypesToExclude);
+         }
++
++        @Override
++        public void registerDisplaySecureContentListener(DisplaySecureContentListener listener) {
++            synchronized (mGlobalLock) {
++                mDisplaySecureContentListeners.add(listener);
++            }
++        }
++
++        @Override
++        public void unregisterDisplaySecureContentListener(DisplaySecureContentListener listener) {
++            synchronized (mGlobalLock) {
++                mDisplaySecureContentListeners.remove(listener);
++            }
++        }
+     }
+ 
+     private final class ImeTargetVisibilityPolicyImpl extends ImeTargetVisibilityPolicy {
+-- 
+2.47.1
+

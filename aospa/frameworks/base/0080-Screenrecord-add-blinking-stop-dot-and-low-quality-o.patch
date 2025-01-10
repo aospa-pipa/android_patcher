@@ -1,0 +1,933 @@
+From bc0489423fe53a3a4139a6ec0c488215111b1ad0 Mon Sep 17 00:00:00 2001
+From: ezio84 <brabus84@gmail.com>
+Date: Sat, 14 Nov 2020 22:23:23 +0100
+Subject: [PATCH 080/103] Screenrecord: add blinking stop dot and low quality
+ options
+
+We could want to stop the recording without expanding the notification
+panel and show sensitive info.
+Long pressing on the red dot moves it to the opposite side,
+in case the user wants not to cover specific elements on the screen.
+
+Add also a low quality option that still gives a good recording
+reducing a lot the final file size (useful when sharing the screenrecord
+on data connections).
+
+old commits ref:
+https://github.com/ezio84/abc_frameworks_base/commit/6092d9ca8b0949d64c1b87d6cd53d66daf002e14
+https://github.com/ezio84/abc_frameworks_base/commit/b50c7caf8b46c731093b11f5647028a23346f937
+https://github.com/ezio84/abc_frameworks_base/commit/91c00e8fb70cb17b8658678bf476452f96cd44d1
+
+Change-Id: If413241c3fa533650690cf3b7df5c05fb2f8c8ed
+---
+ core/res/res/values/aospa_dimens.xml          |  22 +++
+ core/res/res/values/aospa_strings.xml         |   6 +
+ .../SystemUI/res/drawable/ic_sr_quality.xml   |  31 +++++
+ .../SystemUI/res/drawable/ic_sr_stopdot.xml   |  25 ++++
+ .../res/drawable/screenrecord_dot.xml         |  25 ++++
+ .../res/layout/screen_record_dialog.xml       |  86 ++++++++++++
+ .../res/layout/screen_record_options.xml      |  94 +++++++++++++
+ .../SystemUI/res/layout/screenrecord_dot.xml  |  16 +++
+ packages/SystemUI/res/values/cm_strings.xml   | 129 ++++++++++++++++++
+ .../screenrecord/RecordingService.java        | 118 +++++++++++++++-
+ .../screenrecord/ScreenMediaRecorder.java     |  17 ++-
+ .../ScreenRecordDialogDelegate.java           |   9 +-
+ .../ScreenRecordPermissionDialogDelegate.kt   |  12 +-
+ .../screenrecord/RecordingServiceTest.java    |   9 +-
+ 14 files changed, 589 insertions(+), 10 deletions(-)
+ create mode 100644 core/res/res/values/aospa_dimens.xml
+ create mode 100644 packages/SystemUI/res/drawable/ic_sr_quality.xml
+ create mode 100644 packages/SystemUI/res/drawable/ic_sr_stopdot.xml
+ create mode 100644 packages/SystemUI/res/drawable/screenrecord_dot.xml
+ create mode 100644 packages/SystemUI/res/layout/screenrecord_dot.xml
+ create mode 100644 packages/SystemUI/res/values/cm_strings.xml
+
+diff --git a/core/res/res/values/aospa_dimens.xml b/core/res/res/values/aospa_dimens.xml
+new file mode 100644
+index 000000000000..a937ef0c5ea5
+--- /dev/null
++++ b/core/res/res/values/aospa_dimens.xml
+@@ -0,0 +1,22 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++     Copyright (C) 2021 Paranoid Android
++
++     Licensed under the Apache License, Version 2.0 (the "License");
++     you may not use this file except in compliance with the License.
++     You may obtain a copy of the License at
++
++          http://www.apache.org/licenses/LICENSE-2.0
++
++     Unless required by applicable law or agreed to in writing, software
++     distributed under the License is distributed on an "AS IS" BASIS,
++     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++     See the License for the specific language governing permissions and
++     limitations under the License.
++-->
++<resources>
++
++    <!-- Screen Record -->
++    <dimen name="screenrecord_dot_size">48dp</dimen>
++
++</resources>
+diff --git a/core/res/res/values/aospa_strings.xml b/core/res/res/values/aospa_strings.xml
+index 1027c4d10f07..38d9059be416 100644
+--- a/core/res/res/values/aospa_strings.xml
++++ b/core/res/res/values/aospa_strings.xml
+@@ -29,4 +29,10 @@
+     <string name="charging_control_notification_content_target">Battery will be fully charged at %1$s</string>
+     <string name="charging_control_notification_content_target_reached">Battery is charged</string>
+ 
++    <!-- Screen record -->
++    <string name="screenrecord_stopdot_label">Show stop dot</string>
++    <string name="screenrecord_stopdot_summary">Long press to move it</string>
++    <string name="screenrecord_lowquality_label">Lower quality</string>
++    <string name="screenrecord_lowquality_summary">For smaller file size</string>
++
+ </resources>
+diff --git a/packages/SystemUI/res/drawable/ic_sr_quality.xml b/packages/SystemUI/res/drawable/ic_sr_quality.xml
+new file mode 100644
+index 000000000000..ea13d4e72de4
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_sr_quality.xml
+@@ -0,0 +1,31 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++    Copyright (C) 2020 The Android Open Source Project
++
++    Licensed under the Apache License, Version 2.0 (the "License");
++    you may not use this file except in compliance with the License.
++    You may obtain a copy of the License at
++
++         http://www.apache.org/licenses/LICENSE-2.0
++
++    Unless required by applicable law or agreed to in writing, software
++    distributed under the License is distributed on an "AS IS" BASIS,
++    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++    See the License for the specific language governing permissions and
++    limitations under the License.
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path
++        android:fillColor="#FF000000"
++        android:pathData="M7,15h3c0.55,0 1,-0.45 1,-1v-1.5c0,-0.55 -0.45,-1 -1,-1H7.5v-1h2V11H11v-1c0,-0.55 -0.45,-1 -1,-1H7c-0.55,0 -1,0.45 -1,1v1.5c0,0.55 0.45,1 1,1h2.5v1h-2V13H6v1C6,14.55 6.45,15 7,15z"/>
++    <path
++        android:fillColor="#FF000000"
++        android:pathData="M18,14v-4c0,-0.55 -0.45,-1 -1,-1h-4v6h4C17.55,15 18,14.55 18,14zM16.5,13.5h-2v-3h2V13.5z"/>
++    <path
++        android:fillColor="#FF000000"
++        android:pathData="M20,4H4C2.89,4 2,4.9 2,6v12c0,1.1 0.89,2 2,2h16c1.1,0 2,-0.9 2,-2V6C22,4.9 21.1,4 20,4zM20,18H4V6h16V18z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/ic_sr_stopdot.xml b/packages/SystemUI/res/drawable/ic_sr_stopdot.xml
+new file mode 100644
+index 000000000000..60aa73b316ca
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/ic_sr_stopdot.xml
+@@ -0,0 +1,25 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++    Copyright (C) 2020 The Android Open Source Project
++
++    Licensed under the Apache License, Version 2.0 (the "License");
++    you may not use this file except in compliance with the License.
++    You may obtain a copy of the License at
++
++         http://www.apache.org/licenses/LICENSE-2.0
++
++    Unless required by applicable law or agreed to in writing, software
++    distributed under the License is distributed on an "AS IS" BASIS,
++    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++    See the License for the specific language governing permissions and
++    limitations under the License.
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24.0"
++    android:viewportHeight="24.0">
++    <path
++        android:fillColor="#FF000000"
++        android:pathData="m 8,16 h 8 V 8 H 8 Z M 12,2 C 6.48,2 2,6.48 2,12 2,17.52 6.48,22 12,22 17.52,22 22,17.52 22,12 22,6.48 17.52,2 12,2 Z"/>
++</vector>
+diff --git a/packages/SystemUI/res/drawable/screenrecord_dot.xml b/packages/SystemUI/res/drawable/screenrecord_dot.xml
+new file mode 100644
+index 000000000000..27571a865aa7
+--- /dev/null
++++ b/packages/SystemUI/res/drawable/screenrecord_dot.xml
+@@ -0,0 +1,25 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++    Copyright (C) 2017 ABC rom
++
++    Licensed under the Apache License, Version 2.0 (the "License");
++    you may not use this file except in compliance with the License.
++    You may obtain a copy of the License at
++
++         http://www.apache.org/licenses/LICENSE-2.0
++
++    Unless required by applicable law or agreed to in writing, software
++    distributed under the License is distributed on an "AS IS" BASIS,
++    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++    See the License for the specific language governing permissions and
++    limitations under the License.
++-->
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="48dp"
++    android:height="48dp"
++    android:viewportWidth="48.0"
++    android:viewportHeight="48.0">
++    <path
++        android:fillColor="#ffbf1818"
++        android:pathData="M 24 4.3476562 A 19.652719 19.652719 0 0 0 4.3476562 24 A 19.652719 19.652719 0 0 0 24 43.652344 A 19.652719 19.652719 0 0 0 43.652344 24 A 19.652719 19.652719 0 0 0 24 4.3476562 z "/>
++</vector>
+diff --git a/packages/SystemUI/res/layout/screen_record_dialog.xml b/packages/SystemUI/res/layout/screen_record_dialog.xml
+index dc560bf2fab7..e1bd949de1c9 100644
+--- a/packages/SystemUI/res/layout/screen_record_dialog.xml
++++ b/packages/SystemUI/res/layout/screen_record_dialog.xml
+@@ -129,6 +129,92 @@
+                         android:contentDescription="@string/screenrecord_taps_label"
+                         style="@style/ScreenRecord.Switch"/>
+                 </LinearLayout>
++
++                <LinearLayout
++                    android:layout_width="match_parent"
++                    android:layout_height="wrap_content"
++                    android:orientation="horizontal"
++                    android:layout_marginTop="@dimen/screenrecord_option_padding">
++                    <ImageView
++                        android:layout_width="@dimen/screenrecord_option_icon_size"
++                        android:layout_height="@dimen/screenrecord_option_icon_size"
++                        android:layout_weight="0"
++                        android:src="@drawable/ic_sr_stopdot"
++                        android:tint="?android:attr/textColorSecondary"
++                        android:layout_gravity="center"
++                        android:layout_marginRight="@dimen/screenrecord_option_padding"/>
++                    <LinearLayout
++                        android:layout_width="0dp"
++                        android:layout_weight="1"
++                        android:layout_height="wrap_content"
++                        android:orientation="vertical">
++                        <TextView
++                            android:layout_width="match_parent"
++                            android:layout_height="wrap_content"
++                            android:importantForAccessibility="no"
++                            android:text="@string/screenrecord_stopdot_label"
++                            android:textAppearance="?android:attr/textAppearanceMedium"
++                            android:textColor="?android:attr/textColorPrimary" />
++                        <TextView
++                            android:layout_width="match_parent"
++                            android:layout_height="wrap_content"
++                            android:importantForAccessibility="no"
++                            android:text="@string/screenrecord_stopdot_summary"
++                            android:textAppearance="?android:attr/textAppearanceSmall"
++                            android:textColor="?android:textColorSecondary" />
++                    </LinearLayout>
++                    <Switch
++                        android:layout_width="wrap_content"
++                        android:minWidth="48dp"
++                        android:layout_height="48dp"
++                        android:layout_weight="0"
++                        android:id="@+id/screenrecord_stopdot_switch"
++                        android:contentDescription="@string/screenrecord_stopdot_label"
++                        style="@style/ScreenRecord.Switch"/>
++                </LinearLayout>
++
++                <LinearLayout
++                    android:layout_width="match_parent"
++                    android:layout_height="wrap_content"
++                    android:orientation="horizontal"
++                    android:layout_marginTop="@dimen/screenrecord_option_padding">
++                    <ImageView
++                        android:layout_width="@dimen/screenrecord_option_icon_size"
++                        android:layout_height="@dimen/screenrecord_option_icon_size"
++                        android:layout_weight="0"
++                        android:src="@drawable/ic_sr_quality"
++                        android:tint="?android:attr/textColorSecondary"
++                        android:layout_gravity="center"
++                        android:layout_marginRight="@dimen/screenrecord_option_padding"/>
++                    <LinearLayout
++                        android:layout_width="0dp"
++                        android:layout_weight="1"
++                        android:layout_height="wrap_content"
++                        android:orientation="vertical">
++                        <TextView
++                            android:layout_width="match_parent"
++                            android:layout_height="wrap_content"
++                            android:importantForAccessibility="no"
++                            android:text="@string/screenrecord_lowquality_label"
++                            android:textAppearance="?android:attr/textAppearanceMedium"
++                            android:textColor="?android:attr/textColorPrimary" />
++                        <TextView
++                            android:layout_width="match_parent"
++                            android:layout_height="wrap_content"
++                            android:importantForAccessibility="no"
++                            android:text="@string/screenrecord_lowquality_summary"
++                            android:textAppearance="?android:attr/textAppearanceSmall"
++                            android:textColor="?android:textColorSecondary" />
++                    </LinearLayout>
++                    <Switch
++                        android:layout_width="wrap_content"
++                        android:minWidth="48dp"
++                        android:layout_height="48dp"
++                        android:layout_weight="0"
++                        android:id="@+id/screenrecord_lowquality_switch"
++                        android:contentDescription="@string/screenrecord_lowquality_label"
++                        style="@style/ScreenRecord.Switch"/>
++                </LinearLayout>
+             </LinearLayout>
+ 
+             <!-- Buttons -->
+diff --git a/packages/SystemUI/res/layout/screen_record_options.xml b/packages/SystemUI/res/layout/screen_record_options.xml
+index 4b5cdb5e708d..525faa220908 100644
+--- a/packages/SystemUI/res/layout/screen_record_options.xml
++++ b/packages/SystemUI/res/layout/screen_record_options.xml
+@@ -85,4 +85,98 @@
+             style="@style/ScreenRecord.Switch"
+             android:importantForAccessibility="yes" />
+     </LinearLayout>
++    <LinearLayout
++        android:id="@+id/show_stopdot"
++        android:layout_width="match_parent"
++        android:layout_height="wrap_content"
++        android:orientation="horizontal"
++        android:gravity="center_vertical"
++        android:layout_marginTop="@dimen/screenrecord_option_padding">
++        <ImageView
++            android:layout_width="@dimen/screenrecord_option_icon_size"
++            android:layout_height="@dimen/screenrecord_option_icon_size"
++            android:src="@drawable/ic_sr_stopdot"
++            android:tint="?android:attr/textColorSecondary"
++            android:layout_marginRight="@dimen/screenrecord_option_padding"
++            android:importantForAccessibility="no"/>
++        <LinearLayout
++            android:layout_width="0dp"
++            android:layout_height="match_parent"
++            android:minHeight="48dp"
++            android:layout_weight="1"
++            android:orientation="vertical">
++            <TextView
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:fontFamily="@*android:string/config_bodyFontFamily"
++                android:text="@string/screenrecord_stopdot_label"
++                android:textAppearance="?android:attr/textAppearanceMedium"
++                android:textColor="?android:attr/textColorPrimary"
++                android:contentDescription="@string/screenrecord_stopdot_label"/>
++            <TextView
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:importantForAccessibility="no"
++                android:fontFamily="@*android:string/config_bodyFontFamily"
++                android:text="@string/screenrecord_stopdot_summary"
++                android:textAppearance="?android:attr/textAppearanceSmall"
++                android:textColor="?android:textColorSecondary"/>
++        </LinearLayout>
++
++        <Switch
++            android:layout_width="wrap_content"
++            android:minWidth="48dp"
++            android:layout_height="48dp"
++            android:id="@+id/screenrecord_stopdot_switch"
++            android:contentDescription="@string/screenrecord_stopdot_label"
++            style="@style/ScreenRecord.Switch"
++            android:importantForAccessibility="yes" />
++    </LinearLayout>
++    <LinearLayout
++        android:id="@+id/show_lowquality"
++        android:layout_width="match_parent"
++        android:layout_height="wrap_content"
++        android:orientation="horizontal"
++        android:gravity="center_vertical"
++        android:layout_marginTop="@dimen/screenrecord_option_padding">
++        <ImageView
++            android:layout_width="@dimen/screenrecord_option_icon_size"
++            android:layout_height="@dimen/screenrecord_option_icon_size"
++            android:src="@drawable/ic_sr_quality"
++            android:tint="?android:attr/textColorSecondary"
++            android:layout_marginRight="@dimen/screenrecord_option_padding"
++            android:importantForAccessibility="no"/>
++        <LinearLayout
++            android:layout_width="0dp"
++            android:layout_height="match_parent"
++            android:minHeight="48dp"
++            android:layout_weight="1"
++            android:orientation="vertical">
++            <TextView
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:fontFamily="@*android:string/config_bodyFontFamily"
++                android:text="@string/screenrecord_lowquality_label"
++                android:textAppearance="?android:attr/textAppearanceMedium"
++                android:textColor="?android:attr/textColorPrimary"
++                android:contentDescription="@string/screenrecord_lowquality_label"/>
++            <TextView
++                android:layout_width="match_parent"
++                android:layout_height="wrap_content"
++                android:importantForAccessibility="no"
++                android:fontFamily="@*android:string/config_bodyFontFamily"
++                android:text="@string/screenrecord_lowquality_summary"
++                android:textAppearance="?android:attr/textAppearanceSmall"
++                android:textColor="?android:textColorSecondary"/>
++        </LinearLayout>
++
++        <Switch
++            android:layout_width="wrap_content"
++            android:minWidth="48dp"
++            android:layout_height="48dp"
++            android:id="@+id/screenrecord_lowquality_switch"
++            android:contentDescription="@string/screenrecord_lowquality_label"
++            style="@style/ScreenRecord.Switch"
++            android:importantForAccessibility="yes" />
++    </LinearLayout>
+ </LinearLayout>
+\ No newline at end of file
+diff --git a/packages/SystemUI/res/layout/screenrecord_dot.xml b/packages/SystemUI/res/layout/screenrecord_dot.xml
+new file mode 100644
+index 000000000000..1e6babb00c00
+--- /dev/null
++++ b/packages/SystemUI/res/layout/screenrecord_dot.xml
+@@ -0,0 +1,16 @@
++<?xml version="1.0" encoding="utf-8"?>
++<RelativeLayout
++        xmlns:android="http://schemas.android.com/apk/res/android"
++        android:layout_width="match_parent"
++        android:layout_height="match_parent" >
++
++    <ImageView
++        android:id="@+id/dot"
++        android:layout_width="wrap_content"
++        android:layout_height="wrap_content"
++        android:layout_alignParentTop="true"
++        android:layout_alignParentEnd="true"
++        android:padding="5dp"
++        android:src="@drawable/screenrecord_dot" />
++
++</RelativeLayout>
+diff --git a/packages/SystemUI/res/values/cm_strings.xml b/packages/SystemUI/res/values/cm_strings.xml
+new file mode 100644
+index 000000000000..0d54c186cb61
+--- /dev/null
++++ b/packages/SystemUI/res/values/cm_strings.xml
+@@ -0,0 +1,129 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++/**
++ * Copyright (c) 2015, The CyanogenMod Project
++ * Copyright (c) 2017-2021 The LineageOS Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++-->
++<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
++    <!-- Name of the clock in status bar [CHAR LIMIT=30] -->
++    <string name="clock">Clock</string>
++
++    <!-- Advanced restart menu -->
++    <!-- Button to indicate more options -->
++    <string name="global_action_restart_more">Restart\u2026</string>
++    <!-- Button to restart the device, within the Restart Options dialog -->
++    <string name="global_action_restart_system">System</string>
++    <!-- Button to restart the device into recovery mode, within the Restart Options dialog -->
++    <string name="global_action_restart_recovery">Recovery</string>
++    <!-- Button to restart the device into bootloader mode, within the Restart Options dialog -->
++    <string name="global_action_restart_bootloader">Bootloader</string>
++    <!-- Button to restart the device into download mode, within the Restart Options dialog -->
++    <string name="global_action_restart_download">Download</string>
++    <!-- Button to restart the device into fastboot mode, within the Restart Options dialog -->
++    <string name="global_action_restart_fastboot">Fastbootd</string>
++
++    <!-- Restart progress dialog. This is shown if the user chooses to restart the device. -->
++    <string name="global_action_restart_progress">Restarting\u2026</string>
++    <!-- Restart to recovery mode progress dialog. This is shown if the user chooses to restart the device. -->
++    <string name="global_action_restart_recovery_progress">Restarting to recovery mode\u2026</string>
++    <!-- Restart to bootloader mode progress dialog. This is shown if the user chooses to restart the device. -->
++    <string name="global_action_restart_bootloader_progress">Restarting to bootloader mode\u2026</string>
++    <!-- Restart to download mode progress dialog. This is shown if the user chooses to restart the device. -->
++    <string name="global_action_restart_download_progress">Restarting to download mode\u2026</string>
++    <!-- Restart to fastboot mode progress dialog. This is shown if the user chooses to restart the device. -->
++    <string name="global_action_restart_fastboot_progress">Restarting to fastbootd mode\u2026</string>
++
++    <!-- Label for current user in power menu options dialog -->
++    <string name="global_action_current_user">Current</string>
++    <string name="global_action_users">Users</string>
++
++    <!-- Status bar - icons -->
++    <string name="status_bar_icons_title">Status bar icons</string>
++
++    <!-- Label for area where tiles can be added to the qs panel -->
++    <string name="drag_or_tap_to_add_tiles">Hold &amp; drag or tap to add tiles</string>
++
++    <!-- Custom QS tiles -->
++    <!-- Ambient display QS tile -->
++    <string name="quick_settings_ambient_display_label">Ambient display</string>
++    <string name="accessibility_quick_settings_ambient_display_off">Ambient display off.</string>
++    <string name="accessibility_quick_settings_ambient_display_on">Ambient display on.</string>
++
++    <!-- AOD QS tile -->
++    <string name="quick_settings_aod_label">AOD</string>
++    <string name="quick_settings_aod_off_powersave_label">AOD off\nBattery saver</string>
++
++    <!-- Caffeine QS tile -->
++    <string name="quick_settings_caffeine_label">Caffeine</string>
++    <string name="accessibility_quick_settings_caffeine_off">Caffeine off.</string>
++    <string name="accessibility_quick_settings_caffeine_on">Caffeine on.</string>
++
++    <!-- Heads up QS tile -->
++    <string name="quick_settings_heads_up_label">Heads up</string>
++    <string name="accessibility_quick_settings_heads_up_off">Heads up off.</string>
++    <string name="accessibility_quick_settings_heads_up_on">Heads up on.</string>
++
++    <!-- PowerShare QS tile -->
++    <string name="quick_settings_powershare_label">Wireless PowerShare</string>
++    <string name="quick_settings_powershare_off_powersave_label">Wireless PowerShare off\nBattery saver</string>
++    <string name="quick_settings_powershare_off_low_battery_label">Wireless PowerShare off\nBattery too low</string>
++    <string name="quick_settings_powershare_enabled_label">Wireless PowerShare is enabled</string>
++
++    <!-- Reader mode QS tile -->
++    <string name="quick_settings_reading_mode">Reading mode</string>
++    <string name="accessibility_quick_settings_reading_mode_on">Reading mode on.</string>
++    <string name="accessibility_quick_settings_reading_mode_off">Reading mode off.</string>
++
++    <!-- Sync QS tile -->
++    <string name="quick_settings_sync_label">Sync</string>
++    <string name="accessibility_quick_settings_sync_off">Sync off.</string>
++    <string name="accessibility_quick_settings_sync_on">Sync on.</string>
++
++    <!-- System Profiles QS tile -->
++    <string name="quick_settings_profiles_label">System profiles</string>
++    <string name="accessibility_quick_settings_profiles_off">Profiles off.</string>
++    <string name="accessibility_quick_settings_profiles">Profile: <xliff:g id="profile" example="Default">%s</xliff:g>.</string>
++
++    <!-- USB tethering QS tile -->
++    <string name="quick_settings_usb_tether_label">USB tethering</string>
++
++    <!-- VPN QS tile -->
++    <string name="quick_settings_vpn_label">VPN</string>
++    <string name="quick_settings_vpn_connect_dialog_title">Connect to\u2026</string>
++    <string name="vpn_credentials_hint">Please enter your credentials for connecting to <xliff:g id="name">%s</xliff:g></string>
++    <string name="vpn_credentials_username">Username</string>
++    <string name="vpn_credentials_password">Password</string>
++    <string name="vpn_credentials_dialog_connect">Connect</string>
++
++    <!-- Navigation bar dpad -->
++    <string name="accessibility_dpad_left">Cursor left</string>
++    <string name="accessibility_dpad_right">Cursor right</string>
++
++    <!-- Name of the firewall status bar icon. -->
++    <string name="status_bar_firewall">Firewall</string>
++    <string name="status_bar_firewall_slot" translatable="false">firewall</string>
++
++    <!-- Label for UI element which allows deleting the screenshot [CHAR LIMIT=30] -->
++    <string name="screenshot_delete_label">Delete</string>
++    <!-- Content description indicating that tapping the element will allow deleting the screenshot [CHAR LIMIT=NONE] -->
++    <string name="screenshot_delete_description">Delete screenshot</string>
++
++    <!-- Screen record -->
++    <string name="screenrecord_stopdot_label">Show stop dot</string>
++    <string name="screenrecord_stopdot_summary">Long press to move it</string>
++    <string name="screenrecord_lowquality_label">Lower quality</string>
++    <string name="screenrecord_lowquality_summary">For smaller file size</string>
++</resources>
+diff --git a/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingService.java b/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingService.java
+index cbb61b37b7a4..6b46bec398d6 100644
+--- a/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingService.java
++++ b/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingService.java
+@@ -24,6 +24,7 @@ import android.app.PendingIntent;
+ import android.app.Service;
+ import android.content.Context;
+ import android.content.Intent;
++import android.graphics.PixelFormat;
+ import android.graphics.drawable.Icon;
+ import android.media.MediaRecorder;
+ import android.net.Uri;
+@@ -36,6 +37,14 @@ import android.os.SystemClock;
+ import android.os.UserHandle;
+ import android.provider.Settings;
+ import android.util.Log;
++import android.view.animation.AlphaAnimation;
++import android.view.animation.Animation;
++import android.view.Gravity;
++import android.view.LayoutInflater;
++import android.view.View;
++import android.view.WindowManager;
++import android.widget.FrameLayout;
++import android.widget.ImageView;
+ import android.widget.Toast;
+ 
+ import com.android.internal.annotations.VisibleForTesting;
+@@ -69,6 +78,8 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+     private static final String EXTRA_AUDIO_SOURCE = "extra_useAudio";
+     private static final String EXTRA_SHOW_TAPS = "extra_showTaps";
+     private static final String EXTRA_CAPTURE_TARGET = "extra_captureTarget";
++    private static final String EXTRA_SHOW_STOP_DOT = "extra_showStopDot";
++    private static final String EXTRA_LOW_QUALITY = "extra_lowQuality";
+ 
+     protected static final String ACTION_START = "com.android.systemui.screenrecord.START";
+     protected static final String ACTION_SHOW_START_NOTIF =
+@@ -93,6 +104,13 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+     protected int mNotificationId = NOTIF_BASE_ID;
+     private RecordingServiceStrings mStrings;
+ 
++    private boolean mLowQuality;
++    private boolean mShowStopDot;
++    private boolean mIsDotAtRight;
++    private boolean mDotShowing;
++    private FrameLayout mFrameLayout;
++    private WindowManager mWindowManager;
++
+     @Inject
+     public RecordingService(RecordingController controller, @LongRunning Executor executor,
+             @Main Handler handler, UiEventLogger uiEventLogger,
+@@ -104,6 +122,8 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+         mUiEventLogger = uiEventLogger;
+         mNotificationManager = notificationManager;
+         mUserContextTracker = userContextTracker;
++        mWindowManager = (WindowManager) userContextTracker.getUserContext()
++                .getSystemService(Context.WINDOW_SERVICE);
+         mKeyguardDismissUtil = keyguardDismissUtil;
+     }
+ 
+@@ -121,13 +141,16 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+      */
+     public static Intent getStartIntent(Context context, int resultCode,
+             int audioSource, boolean showTaps,
+-            @Nullable MediaProjectionCaptureTarget captureTarget) {
++            @Nullable MediaProjectionCaptureTarget captureTarget,
++            boolean showStopDot, boolean lowQuality) {
+         return new Intent(context, RecordingService.class)
+                 .setAction(ACTION_START)
+                 .putExtra(EXTRA_RESULT_CODE, resultCode)
+                 .putExtra(EXTRA_AUDIO_SOURCE, audioSource)
+                 .putExtra(EXTRA_SHOW_TAPS, showTaps)
+-                .putExtra(EXTRA_CAPTURE_TARGET, captureTarget);
++                .putExtra(EXTRA_CAPTURE_TARGET, captureTarget)
++                .putExtra(EXTRA_SHOW_STOP_DOT, showStopDot)
++                .putExtra(EXTRA_LOW_QUALITY, lowQuality);
+     }
+ 
+     @Override
+@@ -156,6 +179,9 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+                         .values()[intent.getIntExtra(EXTRA_AUDIO_SOURCE, 0)];
+                 Log.d(getTag(), "recording with audio source " + mAudioSource);
+                 mShowTaps = intent.getBooleanExtra(EXTRA_SHOW_TAPS, false);
++                mShowStopDot = intent.getBooleanExtra(EXTRA_SHOW_STOP_DOT, false);
++                mLowQuality = intent.getBooleanExtra(EXTRA_LOW_QUALITY, false);
++
+                 MediaProjectionCaptureTarget captureTarget =
+                         intent.getParcelableExtra(EXTRA_CAPTURE_TARGET,
+                                 MediaProjectionCaptureTarget.class);
+@@ -165,6 +191,7 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+                         Settings.System.SHOW_TOUCHES, 0) != 0;
+ 
+                 setTapsVisible(mShowTaps);
++                setStopDotVisible(mShowStopDot);
+ 
+                 mRecorder = new ScreenMediaRecorder(
+                         mUserContextTracker.getUserContext(),
+@@ -174,6 +201,7 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+                         captureTarget,
+                         this
+                 );
++                setLowQuality(mLowQuality);
+ 
+                 if (startRecording()) {
+                     updateState(true);
+@@ -416,6 +444,7 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+         }
+         Log.d(getTag(), "notifying for user " + userId);
+         setTapsVisible(mOriginalShowTaps);
++        setStopDotVisible(false);
+         try {
+             if (getRecorder() != null) {
+                 getRecorder().end();
+@@ -491,6 +520,91 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+         return new RecordingServiceStrings(getResources());
+     }
+ 
++    private void setLowQuality(boolean turnOn) {
++        if (getRecorder() != null) {
++            getRecorder().setLowQuality(turnOn);
++        }
++    }
++
++    private void setStopDotVisible(boolean turnOn) {
++        if (turnOn) {
++            showDot();
++        } else if (mDotShowing) {
++            stopDot();
++        }
++    }
++
++    private void showDot() {
++        mDotShowing = true;
++        mIsDotAtRight = true;
++        final int size = (int) (this.getResources()
++                .getDimensionPixelSize(R.dimen.screenrecord_dot_size));
++        WindowManager.LayoutParams params = new WindowManager.LayoutParams(
++                WindowManager.LayoutParams.WRAP_CONTENT,
++                WindowManager.LayoutParams.WRAP_CONTENT,
++                WindowManager.LayoutParams.TYPE_PHONE,
++                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE // don't get softkey inputs
++                | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL, // allow outside inputs
++                PixelFormat.TRANSLUCENT);
++        params.gravity = Gravity.TOP | Gravity.RIGHT;
++        params.width = size;
++        params.height = size;
++
++        mFrameLayout = new FrameLayout(this);
++
++        mWindowManager.addView(mFrameLayout, params);
++        final LayoutInflater inflater =
++                (LayoutInflater) mUserContextTracker.getUserContext()
++                .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
++        inflater.inflate(R.layout.screenrecord_dot, mFrameLayout);
++
++        final ImageView dot = (ImageView) mFrameLayout.findViewById(R.id.dot);
++        dot.setOnClickListener(new View.OnClickListener() {
++            public void onClick(View v) {
++                try {
++                    getStopPendingIntent().send();
++                } catch (PendingIntent.CanceledException e) {}
++            }
++        });
++
++        dot.setOnLongClickListener(new View.OnLongClickListener() {
++            public boolean onLongClick(View v) {
++                dot.setAnimation(null);
++                WindowManager.LayoutParams params =
++                        (WindowManager.LayoutParams) mFrameLayout.getLayoutParams();
++                params.gravity = Gravity.TOP | (mIsDotAtRight ? Gravity.LEFT : Gravity.RIGHT);
++                mIsDotAtRight = !mIsDotAtRight;
++                mWindowManager.updateViewLayout(mFrameLayout, params);
++                dot.startAnimation(getDotAnimation());
++                return true;
++            }
++        });
++
++        dot.startAnimation(getDotAnimation());
++    }
++
++    private PendingIntent getStopPendingIntent() {
++        return PendingIntent.getService(this, REQUEST_CODE, getStopIntent(this),
++                                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
++    }
++
++    private void stopDot() {
++        mDotShowing = false;
++        final ImageView dot = (ImageView) mFrameLayout.findViewById(R.id.dot);
++        if (dot != null) {
++            dot.setAnimation(null);
++            mWindowManager.removeView(mFrameLayout);
++        }
++    }
++
++    private Animation getDotAnimation() {
++        Animation anim = new AlphaAnimation(0.0f, 1.0f);
++        anim.setDuration(500);
++        anim.setStartOffset(100);
++        anim.setRepeatMode(Animation.REVERSE);
++        anim.setRepeatCount(Animation.INFINITE);
++        return anim;
++    }
+ 
+     /**
+      * Get an intent to stop the recording service.
+diff --git a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java
+index b16ebb26030f..a7a216050ee7 100644
+--- a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java
++++ b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java
+@@ -73,6 +73,8 @@ public class ScreenMediaRecorder extends MediaProjection.Callback {
+     private static final int TOTAL_NUM_TRACKS = 1;
+     private static final int VIDEO_FRAME_RATE = 30;
+     private static final int VIDEO_FRAME_RATE_TO_RESOLUTION_RATIO = 6;
++    private static final int LOW_VIDEO_FRAME_RATE = 25;
++    private static final int LOW_VIDEO_BIT_RATE = 1750000;
+     private static final int AUDIO_BIT_RATE = 196000;
+     private static final int AUDIO_SAMPLE_RATE = 44100;
+     private static final int MAX_DURATION_MS = 60 * 60 * 1000;
+@@ -95,6 +97,8 @@ public class ScreenMediaRecorder extends MediaProjection.Callback {
+     private int mMaxRefreshRate;
+     private String mAvcProfileLevel;
+ 
++    private boolean mLowQuality;
++
+     private Context mContext;
+     ScreenMediaRecorderListener mListener;
+ 
+@@ -114,6 +118,10 @@ public class ScreenMediaRecorder extends MediaProjection.Callback {
+                 com.android.systemui.res.R.string.config_screenRecorderAVCProfileLevel);
+     }
+ 
++    public void setLowQuality(boolean low) {
++        mLowQuality = low;
++    }
++
+     private void prepare() throws IOException, RemoteException, RuntimeException {
+         //Setup media projection
+         IBinder b = ServiceManager.getService(MEDIA_PROJECTION_SERVICE);
+@@ -150,18 +158,21 @@ public class ScreenMediaRecorder extends MediaProjection.Callback {
+         DisplayMetrics metrics = new DisplayMetrics();
+         WindowManager wm = (WindowManager) mContext.getSystemService(Context.WINDOW_SERVICE);
+         wm.getDefaultDisplay().getRealMetrics(metrics);
+-        int refreshRate = (int) wm.getDefaultDisplay().getRefreshRate();
++        int refreshRate = mLowQuality ? LOW_VIDEO_FRAME_RATE :
++                (int) wm.getDefaultDisplay().getRefreshRate();
+         if (mMaxRefreshRate != 0 && refreshRate > mMaxRefreshRate) refreshRate = mMaxRefreshRate;
+         int[] dimens = getSupportedSize(metrics.widthPixels, metrics.heightPixels, refreshRate);
+         int width = dimens[0];
+         int height = dimens[1];
+         refreshRate = dimens[2];
+-        int vidBitRate = width * height * refreshRate / VIDEO_FRAME_RATE
++        int vidBitRate = mLowQuality ? LOW_VIDEO_BIT_RATE :
++                width * height * refreshRate / VIDEO_FRAME_RATE
+                 * VIDEO_FRAME_RATE_TO_RESOLUTION_RATIO;
+         mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+         mMediaRecorder.setVideoEncodingProfileLevel(
+                 MediaCodecInfo.CodecProfileLevel.AVCProfileMain,
+-                getAvcProfileLevelCodeByName(mAvcProfileLevel));
++                mLowQuality ? MediaCodecInfo.CodecProfileLevel.AVCLevel32
++                : getAvcProfileLevelCodeByName(mAvcProfileLevel));
+         mMediaRecorder.setVideoSize(width, height);
+         mMediaRecorder.setVideoFrameRate(refreshRate);
+         mMediaRecorder.setVideoEncodingBitRate(vidBitRate);
+diff --git a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordDialogDelegate.java b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordDialogDelegate.java
+index 9f1447b1f509..ff6a01d6e033 100644
+--- a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordDialogDelegate.java
++++ b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordDialogDelegate.java
+@@ -70,6 +70,8 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+     private final RecordingController mController;
+     private final Runnable mOnStartRecordingClicked;
+     private Switch mTapsSwitch;
++    private Switch mStopDotSwitch;
++    private Switch mLowQualitySwitch;
+     private Switch mAudioSwitch;
+     private Spinner mOptions;
+ 
+@@ -126,6 +128,8 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+ 
+         mAudioSwitch = dialog.findViewById(R.id.screenrecord_audio_switch);
+         mTapsSwitch = dialog.findViewById(R.id.screenrecord_taps_switch);
++        mStopDotSwitch = dialog.findViewById(R.id.screenrecord_stopdot_switch);
++        mLowQualitySwitch = dialog.findViewById(R.id.screenrecord_lowquality_switch);
+         mOptions = dialog.findViewById(R.id.screen_recording_options);
+         ArrayAdapter a = new ScreenRecordingAdapter(dialog.getContext().getApplicationContext(),
+                 android.R.layout.simple_spinner_dropdown_item,
+@@ -156,6 +160,8 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+     private void requestScreenCapture(@Nullable MediaProjectionCaptureTarget captureTarget) {
+         Context userContext = mUserContextProvider.getUserContext();
+         boolean showTaps = mTapsSwitch.isChecked();
++        boolean showStopDot = mStopDotSwitch.isChecked();
++        boolean lowQuality = mLowQualitySwitch.isChecked();
+         ScreenRecordingAudioSource audioMode = mAudioSwitch.isChecked()
+                 ? (ScreenRecordingAudioSource) mOptions.getSelectedItem()
+                 : NONE;
+@@ -163,7 +169,8 @@ public class ScreenRecordDialogDelegate implements SystemUIDialog.Delegate {
+                 RecordingService.REQUEST_CODE,
+                 RecordingService.getStartIntent(
+                         userContext, Activity.RESULT_OK,
+-                        audioMode.ordinal(), showTaps, captureTarget),
++                        audioMode.ordinal(), showTaps, captureTarget,
++                        showStopDot, lowQuality),
+                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+         PendingIntent stopIntent = PendingIntent.getService(userContext,
+                 RecordingService.REQUEST_CODE,
+diff --git a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordPermissionDialogDelegate.kt b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordPermissionDialogDelegate.kt
+index ab6067c9ec0c..c22abb224520 100644
+--- a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordPermissionDialogDelegate.kt
++++ b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenRecordPermissionDialogDelegate.kt
+@@ -115,6 +115,8 @@ class ScreenRecordPermissionDialogDelegate(
+     private lateinit var tapsSwitch: Switch
+     private lateinit var tapsView: View
+     private lateinit var audioSwitch: Switch
++    private lateinit var stopDotSwitch: Switch
++    private lateinit var lowQualitySwitch: Switch
+     private lateinit var options: Spinner
+ 
+     override fun createDialog(): SystemUIDialog {
+@@ -161,11 +163,15 @@ class ScreenRecordPermissionDialogDelegate(
+     private fun initRecordOptionsView() {
+         audioSwitch = dialog.requireViewById(R.id.screenrecord_audio_switch)
+         tapsSwitch = dialog.requireViewById(R.id.screenrecord_taps_switch)
++        stopDotSwitch = dialog.requireViewById(R.id.screenrecord_stopdot_switch)
++        lowQualitySwitch = dialog.requireViewById(R.id.screenrecord_lowquality_switch)
+ 
+         // Add these listeners so that the switch only responds to movement
+         // within its target region, to meet accessibility requirements
+         audioSwitch.setOnTouchListener { _, event -> event.action == ACTION_MOVE }
+         tapsSwitch.setOnTouchListener { _, event -> event.action == ACTION_MOVE }
++        stopDotSwitch.setOnTouchListener { _, event -> event.action == ACTION_MOVE }
++        lowQualitySwitch.setOnTouchListener { _, event -> event.action == ACTION_MOVE }
+ 
+         tapsView = dialog.requireViewById(R.id.show_taps)
+         updateTapsViewVisibility()
+@@ -218,6 +224,8 @@ class ScreenRecordPermissionDialogDelegate(
+         val audioMode =
+             if (audioSwitch.isChecked) options.selectedItem as ScreenRecordingAudioSource
+             else ScreenRecordingAudioSource.NONE
++        val showStopDot = stopDotSwitch.isChecked
++        val lowQuality = lowQualitySwitch.isChecked
+         val startIntent =
+             PendingIntent.getForegroundService(
+                 userContext,
+@@ -227,7 +235,9 @@ class ScreenRecordPermissionDialogDelegate(
+                     Activity.RESULT_OK,
+                     audioMode.ordinal,
+                     showTaps,
+-                    captureTarget
++                    captureTarget,
++                    showStopDot,
++                    lowQuality
+                 ),
+                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+             )
+diff --git a/packages/SystemUI/tests/src/com/android/systemui/screenrecord/RecordingServiceTest.java b/packages/SystemUI/tests/src/com/android/systemui/screenrecord/RecordingServiceTest.java
+index 0d7a9e4d2430..407205127dc7 100644
+--- a/packages/SystemUI/tests/src/com/android/systemui/screenrecord/RecordingServiceTest.java
++++ b/packages/SystemUI/tests/src/com/android/systemui/screenrecord/RecordingServiceTest.java
+@@ -138,7 +138,8 @@ public class RecordingServiceTest extends SysuiTestCase {
+ 
+     @Test
+     public void testLogStartFullScreenRecording() {
+-        Intent startIntent = RecordingService.getStartIntent(mContext, 0, 0, false, null);
++        Intent startIntent = RecordingService.getStartIntent(mContext, 0, 0, false, null, false,
++                false);
+         mRecordingService.onStartCommand(startIntent, 0, 0);
+ 
+         verify(mUiEventLogger, times(1)).log(Events.ScreenRecordEvent.SCREEN_RECORD_START);
+@@ -148,7 +149,8 @@ public class RecordingServiceTest extends SysuiTestCase {
+     public void testLogStartPartialRecording() {
+         MediaProjectionCaptureTarget target =
+                 new MediaProjectionCaptureTarget(new LaunchCookie(), 12345);
+-        Intent startIntent = RecordingService.getStartIntent(mContext, 0, 0, false, target);
++        Intent startIntent = RecordingService.getStartIntent(mContext, 0, 0, false, target, false,
++                false);
+         mRecordingService.onStartCommand(startIntent, 0, 0);
+ 
+         verify(mUiEventLogger, times(1)).log(Events.ScreenRecordEvent.SCREEN_RECORD_START);
+@@ -181,7 +183,8 @@ public class RecordingServiceTest extends SysuiTestCase {
+         // When the screen recording does not start properly
+         doThrow(new RuntimeException("fail")).when(mScreenMediaRecorder).start();
+ 
+-        Intent startIntent = RecordingService.getStartIntent(mContext, 0, 0, false, null);
++        Intent startIntent = RecordingService.getStartIntent(mContext, 0, 0, false, null, false,
++                false);
+         mRecordingService.onStartCommand(startIntent, 0, 0);
+ 
+         assertUpdateState(false);
+-- 
+2.47.1
+

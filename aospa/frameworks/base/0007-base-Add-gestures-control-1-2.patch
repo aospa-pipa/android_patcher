@@ -1,0 +1,1906 @@
+From b89435d16d50340ba0b2252286132eced2322c15 Mon Sep 17 00:00:00 2001
+From: Carlo Savignano <carlosavignano@aospa.co>
+Date: Wed, 29 Mar 2017 15:09:00 +0100
+Subject: [PATCH 007/103] base: Add gestures control [1/2]
+
+* Database policy
+* KeyHandler for gestures inputs
+* Input policy integration
+* Supported ALL QCOM chipsets synaptic gestures
+
+Relies on our AOSPA PowerHAL
+
+Co-authored-by: Alexander Koskovich <zvnexus@outlook.com>
+Co-authored-by: 33bca <fabian.leutenegger@bluewin.ch>
+Co-authored-by: Willi Ye <williye97@gmail.com>
+Co-authored-by: TheStrix <parthbhatia98@gmail.com>
+Change-Id: I84aa3bcb6dc5f8b003423b5a5af3ec4e43578fde
+Signed-off-by: Omkar Chandorkar <gotenksIN@aospa.co>
+---
+ core/java/android/app/StatusBarManager.java   |   2 +
+ .../display/AmbientDisplayConfiguration.java  |   3 +
+ core/java/android/provider/Settings.java      | 118 ++-
+ core/res/res/values/aospa_config.xml          |  46 +
+ core/res/res/values/aospa_symbols.xml         |  36 +
+ core/res/res/values/config.xml                |   3 -
+ core/res/res/values/symbols.xml               |   1 -
+ .../SettingsProvider/res/values/defaults.xml  |   3 -
+ .../settings/backup/SecureSettings.java       |   1 -
+ .../validators/SecureSettingsValidators.java  |   1 -
+ .../settings/SettingsProtoDumpUtil.java       |   3 -
+ .../providers/settings/SettingsProvider.java  |   4 +-
+ .../android/systemui/doze/DozeTriggers.java   |   5 +-
+ .../CentralSurfacesCommandQueueCallbacks.java |   4 +-
+ .../com/android/server/policy/KeyHandler.java | 836 ++++++++++++++++++
+ .../server/policy/PhoneWindowManager.java     |  22 +-
+ .../server/power/PowerManagerService.java     | 382 +++++++-
+ services/core/jni/Android.bp                  |   1 +
+ ...droid_server_power_PowerManagerService.cpp |  32 +
+ 19 files changed, 1457 insertions(+), 46 deletions(-)
+ create mode 100644 services/core/java/com/android/server/policy/KeyHandler.java
+
+diff --git a/core/java/android/app/StatusBarManager.java b/core/java/android/app/StatusBarManager.java
+index 14195c473c6d..06dfc506720e 100644
+--- a/core/java/android/app/StatusBarManager.java
++++ b/core/java/android/app/StatusBarManager.java
+@@ -239,6 +239,8 @@ public class StatusBarManager {
+     public static final int CAMERA_LAUNCH_SOURCE_LIFT_TRIGGER = 2;
+     /** @hide */
+     public static final int CAMERA_LAUNCH_SOURCE_QUICK_AFFORDANCE = 3;
++    /** @hide */
++    public static final int CAMERA_LAUNCH_SOURCE_SCREEN_GESTURE = 4;
+ 
+     /**
+      * Broadcast action: sent to apps that hold the status bar permission when
+diff --git a/core/java/android/hardware/display/AmbientDisplayConfiguration.java b/core/java/android/hardware/display/AmbientDisplayConfiguration.java
+index 598d3f62ef8f..951e6d14ec41 100644
+--- a/core/java/android/hardware/display/AmbientDisplayConfiguration.java
++++ b/core/java/android/hardware/display/AmbientDisplayConfiguration.java
+@@ -46,6 +46,9 @@ public class AmbientDisplayConfiguration {
+     private final boolean mAlwaysOnByDefault;
+     private final boolean mPickupGestureEnabledByDefault;
+ 
++    /** {@hide} */
++    public static final String DOZE_NO_PROXIMITY_CHECK = "NoProximityCheck";
++
+     /** Copied from android.provider.Settings.Secure since these keys are hidden. */
+     private static final String[] DOZE_SETTINGS = {
+             Settings.Secure.DOZE_ENABLED,
+diff --git a/core/java/android/provider/Settings.java b/core/java/android/provider/Settings.java
+index cbe8f9aa277a..92c335176298 100644
+--- a/core/java/android/provider/Settings.java
++++ b/core/java/android/provider/Settings.java
+@@ -6337,6 +6337,102 @@ public final class Settings {
+          */
+         public static final String GESTURE_DOUBLE_TAP_SLEEP = "gesture_double_tap_sleep";
+ 
++        /**
++        * Controls whether gestures are enabled.
++        * @hide
++        */
++       public static final String GESTURES_ENABLED = "gestures_enabled";
++
++       /**
++        * Controls whether double tap to wake is enabled.
++        * @hide
++        */
++       public static final String GESTURE_DOUBLE_TAP = "gesture_double_tap";
++
++       /**
++        * Controls whether single tap to wake is enabled.
++        * @hide
++        */
++       public static final String GESTURE_SINGLE_TAP = "gesture_single_tap";
++
++       /**
++        * Controls whether draw V gesture is enabled.
++        * @hide
++        */
++       public static final String GESTURE_DRAW_V = "gesture_draw_v";
++
++       /**
++        * Controls whether draw inverse V gesture is enabled.
++        * @hide
++        */
++       public static final String GESTURE_DRAW_INVERSE_V = "gesture_draw_inverse_v";
++
++       /**
++        * Controls whether draw O gesture is enabled.
++        * @hide
++        */
++       public static final String GESTURE_DRAW_O = "gesture_draw_o";
++
++       /**
++        * Controls whether draw M gesture is enabled.
++        * @hide
++        */
++       public static final String GESTURE_DRAW_M = "gesture_draw_m";
++
++       /**
++        * Controls whether draw W gesture is enabled.
++        * @hide
++        */
++       public static final String GESTURE_DRAW_W = "gesture_draw_w";
++
++       /**
++        * Controls whether draw S gesture is enabled.
++        * @hide
++        */
++       public static final String GESTURE_DRAW_S = "gesture_draw_s";
++
++       /**
++        * Controls whether draw arrow left gesture is enabled.
++        * @hide
++        */
++       public static final String GESTURE_DRAW_ARROW_LEFT = "gesture_draw_arrow_left";
++
++       /**
++        * Controls whether draw arrow right gesture is enabled.
++        * @hide
++        */
++       public static final String GESTURE_DRAW_ARROW_RIGHT = "gesture_draw_arrow_right";
++
++       /**
++        * Controls whether one finger swipe up gesture is enabled.
++        * @hide
++        */
++       public static final String GESTURE_ONE_FINGER_SWIPE_UP = "gesture_one_finger_swipe_up";
++
++       /**
++        * Controls whether one finger swipe right gesture is enabled.
++        * @hide
++        */
++       public static final String GESTURE_ONE_FINGER_SWIPE_RIGHT = "gesture_one_finger_swipe_right";
++
++       /**
++        * Controls whether one finger swipe down gesture is enabled.
++        * @hide
++        */
++       public static final String GESTURE_ONE_FINGER_SWIPE_DOWN = "gesture_one_finger_swipe_down";
++
++       /**
++        * Controls whether one finger swipe left gesture is enabled.
++        * @hide
++        */
++       public static final String GESTURE_ONE_FINGER_SWIPE_LEFT = "gesture_one_finger_swipe_left";
++
++       /**
++        * Controls whether two finger swipe gesture is enabled.
++        * @hide
++        */
++       public static final String GESTURE_TWO_FINGER_SWIPE = "gesture_two_finger_swipe";
++
+         /**
+          * Keys we no longer back up under the current schema, but want to continue to
+          * process when restoring historical backup datasets.
+@@ -6472,6 +6568,21 @@ public final class Settings {
+             PRIVATE_SETTINGS.add(SCREEN_FLASH_NOTIFICATION_COLOR);
+             PRIVATE_SETTINGS.add(DEFAULT_DEVICE_FONT_SCALE);
+             PRIVATE_SETTINGS.add(CALL_CONNECTED_TONE_ENABLED);
++            PRIVATE_SETTINGS.add(GESTURES_ENABLED);
++            PRIVATE_SETTINGS.add(GESTURE_DOUBLE_TAP);
++            PRIVATE_SETTINGS.add(GESTURE_SINGLE_TAP);
++            PRIVATE_SETTINGS.add(GESTURE_DRAW_V);
++            PRIVATE_SETTINGS.add(GESTURE_DRAW_INVERSE_V);
++            PRIVATE_SETTINGS.add(GESTURE_DRAW_O);
++            PRIVATE_SETTINGS.add(GESTURE_DRAW_M);
++            PRIVATE_SETTINGS.add(GESTURE_DRAW_W);
++            PRIVATE_SETTINGS.add(GESTURE_DRAW_S);
++            PRIVATE_SETTINGS.add(GESTURE_DRAW_ARROW_LEFT);
++            PRIVATE_SETTINGS.add(GESTURE_DRAW_ARROW_RIGHT);
++            PRIVATE_SETTINGS.add(GESTURE_ONE_FINGER_SWIPE_UP);
++            PRIVATE_SETTINGS.add(GESTURE_ONE_FINGER_SWIPE_RIGHT);
++            PRIVATE_SETTINGS.add(GESTURE_ONE_FINGER_SWIPE_DOWN);
++            PRIVATE_SETTINGS.add(GESTURE_ONE_FINGER_SWIPE_LEFT);
+         }
+ 
+         /**
+@@ -10860,13 +10971,6 @@ public final class Settings {
+         @Readable
+         public static final String ATTENTIVE_TIMEOUT = "attentive_timeout";
+ 
+-        /**
+-         * Controls whether double tap to wake is enabled.
+-         * @hide
+-         */
+-        @Readable
+-        public static final String DOUBLE_TAP_TO_WAKE = "double_tap_to_wake";
+-
+         /**
+          * The current assistant component. It could be a voice interaction service,
+          * or an activity that handles ACTION_ASSIST, or empty which means using the default
+diff --git a/core/res/res/values/aospa_config.xml b/core/res/res/values/aospa_config.xml
+index b66eeb762d36..3fc389d4219b 100644
+--- a/core/res/res/values/aospa_config.xml
++++ b/core/res/res/values/aospa_config.xml
+@@ -80,4 +80,50 @@
+          will be charged between (limit - val) and limit. -->
+     <integer name="config_chargingControlBatteryRechargeMargin">10</integer>
+ 
++    <!-- Key codes of gestures. If the gesture is not supported set it to 0. -->
++    <integer name="config_doubleTapKeyCode">0</integer>
++    <integer name="config_singleTapKeyCode">0</integer>
++    <integer name="config_drawVKeyCode">0</integer>
++    <integer name="config_drawInverseVKeyCode">0</integer>
++    <integer name="config_drawOKeyCode">0</integer>
++    <integer name="config_drawMKeyCode">0</integer>
++    <integer name="config_drawWKeyCode">0</integer>
++    <integer name="config_drawSKeyCode">0</integer>
++    <integer name="config_drawArrowLeftKeyCode">0</integer>
++    <integer name="config_drawArrowRightKeyCode">0</integer>
++    <integer name="config_oneFingerSwipeUpKeyCode">0</integer>
++    <integer name="config_oneFingerSwipeRightKeyCode">0</integer>
++    <integer name="config_oneFingerSwipeDownKeyCode">0</integer>
++    <integer name="config_oneFingerSwipeLeftKeyCode">0</integer>
++    <integer name="config_twoFingerSwipeKeyCode">0</integer>
++
++    <!-- Default settings for gestures
++            0 - Disabled
++            1 - Wake device
++            2 - Toggle flashlight
++            3 - Toggle airplane mode
++            4 - Play/Pause music
++            5 - Next music
++            6 - Previous music
++            7 - Open camera
++            8 - Open dialer -->
++    <integer name="config_doubleTapDefault">0</integer>
++    <integer name="config_singleTapDefault">0</integer>
++    <integer name="config_drawVDefault">0</integer>
++    <integer name="config_drawInverseVDefault">0</integer>
++    <integer name="config_drawODefault">0</integer>
++    <integer name="config_drawMDefault">0</integer>
++    <integer name="config_drawWDefault">0</integer>
++    <integer name="config_drawSDefault">0</integer>
++    <integer name="config_drawArrowLeftDefault">0</integer>
++    <integer name="config_drawArrowRightDefault">0</integer>
++    <integer name="config_oneFingerSwipeUpDefault">0</integer>
++    <integer name="config_oneFingerSwipeRightDefault">0</integer>
++    <integer name="config_oneFingerSwipeDownDefault">0</integer>
++    <integer name="config_oneFingerSwipeLeftDefault">0</integer>
++    <integer name="config_twoFingerSwipeDefault">0</integer>
++
++    <!-- KeaHandler to intercept inputs on screen off. -->
++    <bool name="config_enableKeyHandler">false</bool>
++
+ </resources>
+diff --git a/core/res/res/values/aospa_symbols.xml b/core/res/res/values/aospa_symbols.xml
+index b953b72fadb3..88a6dd83e822 100644
+--- a/core/res/res/values/aospa_symbols.xml
++++ b/core/res/res/values/aospa_symbols.xml
+@@ -52,4 +52,40 @@
+     <java-symbol type="string" name="charging_control_notification_content_target" />
+     <java-symbol type="string" name="charging_control_notification_content_target_reached" />
+ 
++    <!-- Gestures Settings -->
++    <java-symbol type="integer" name="config_doubleTapKeyCode" />
++    <java-symbol type="integer" name="config_singleTapKeyCode" />
++    <java-symbol type="integer" name="config_drawVKeyCode" />
++    <java-symbol type="integer" name="config_drawInverseVKeyCode" />
++    <java-symbol type="integer" name="config_drawOKeyCode" />
++    <java-symbol type="integer" name="config_drawMKeyCode" />
++    <java-symbol type="integer" name="config_drawWKeyCode" />
++    <java-symbol type="integer" name="config_drawSKeyCode" />
++    <java-symbol type="integer" name="config_drawArrowLeftKeyCode" />
++    <java-symbol type="integer" name="config_drawArrowRightKeyCode" />
++    <java-symbol type="integer" name="config_oneFingerSwipeUpKeyCode" />
++    <java-symbol type="integer" name="config_oneFingerSwipeRightKeyCode" />
++    <java-symbol type="integer" name="config_oneFingerSwipeDownKeyCode" />
++    <java-symbol type="integer" name="config_oneFingerSwipeLeftKeyCode" />
++    <java-symbol type="integer" name="config_twoFingerSwipeKeyCode" />
++
++    <java-symbol type="integer" name="config_doubleTapDefault" />
++    <java-symbol type="integer" name="config_singleTapDefault" />
++    <java-symbol type="integer" name="config_drawVDefault" />
++    <java-symbol type="integer" name="config_drawInverseVDefault" />
++    <java-symbol type="integer" name="config_drawODefault" />
++    <java-symbol type="integer" name="config_drawMDefault" />
++    <java-symbol type="integer" name="config_drawWDefault" />
++    <java-symbol type="integer" name="config_drawSDefault" />
++    <java-symbol type="integer" name="config_drawArrowLeftDefault" />
++    <java-symbol type="integer" name="config_drawArrowRightDefault" />
++    <java-symbol type="integer" name="config_oneFingerSwipeUpDefault" />
++    <java-symbol type="integer" name="config_oneFingerSwipeRightDefault" />
++    <java-symbol type="integer" name="config_oneFingerSwipeDownDefault" />
++    <java-symbol type="integer" name="config_oneFingerSwipeLeftDefault" />
++    <java-symbol type="integer" name="config_twoFingerSwipeDefault" />
++
++    <!-- Whether to to intercept inputs on screen off. -->
++    <java-symbol type="bool" name="config_enableKeyHandler" />
++
+ </resources>
+diff --git a/core/res/res/values/config.xml b/core/res/res/values/config.xml
+index 4e16a9dae796..695692de063d 100644
+--- a/core/res/res/values/config.xml
++++ b/core/res/res/values/config.xml
+@@ -4031,9 +4031,6 @@
+     <!-- This config is ued to determine whether animations are allowed in low power mode. -->
+     <bool name="config_allowAnimationsInLowPowerMode">false</bool>
+ 
+-    <!-- Whether device supports double tap to wake -->
+-    <bool name="config_supportDoubleTapWake">false</bool>
+-
+     <!-- The RadioAccessFamilies supported by the device.
+          Empty is viewed as "all".  Only used on devices which
+          don't support RIL_REQUEST_GET_RADIO_CAPABILITY
+diff --git a/core/res/res/values/symbols.xml b/core/res/res/values/symbols.xml
+index 7bcaaaac9733..07f79327c38f 100644
+--- a/core/res/res/values/symbols.xml
++++ b/core/res/res/values/symbols.xml
+@@ -3091,7 +3091,6 @@
+   <java-symbol type="layout" name="chooser_profile_row" />
+   <java-symbol type="color" name="chooser_row_divider" />
+   <java-symbol type="layout" name="chooser_row_direct_share" />
+-  <java-symbol type="bool" name="config_supportDoubleTapWake" />
+   <java-symbol type="drawable" name="ic_perm_device_info" />
+   <java-symbol type="string" name="config_radio_access_family" />
+   <java-symbol type="string" name="notification_inbox_ellipsis" />
+diff --git a/packages/SettingsProvider/res/values/defaults.xml b/packages/SettingsProvider/res/values/defaults.xml
+index a0153c8a574b..d28b529bad84 100644
+--- a/packages/SettingsProvider/res/values/defaults.xml
++++ b/packages/SettingsProvider/res/values/defaults.xml
+@@ -186,9 +186,6 @@
+     <!-- Default for Settings.Secure.WAKE_GESTURE_ENABLED -->
+     <bool name="def_wake_gesture_enabled">true</bool>
+ 
+-    <!-- Default state of tap to wake -->
+-    <bool name="def_double_tap_to_wake">true</bool>
+-
+     <!-- Default for Settings.Secure.NFC_PAYMENT_DEFAULT_COMPONENT -->
+     <string name="def_nfc_payment_component"></string>
+ 
+diff --git a/packages/SettingsProvider/src/android/provider/settings/backup/SecureSettings.java b/packages/SettingsProvider/src/android/provider/settings/backup/SecureSettings.java
+index b64ed86a91eb..fba4473e2599 100644
+--- a/packages/SettingsProvider/src/android/provider/settings/backup/SecureSettings.java
++++ b/packages/SettingsProvider/src/android/provider/settings/backup/SecureSettings.java
+@@ -83,7 +83,6 @@ public class SecureSettings {
+         Settings.Secure.MOUNT_UMS_AUTOSTART,
+         Settings.Secure.MOUNT_UMS_PROMPT,
+         Settings.Secure.MOUNT_UMS_NOTIFY_ENABLED,
+-        Settings.Secure.DOUBLE_TAP_TO_WAKE,
+         Settings.Secure.WAKE_GESTURE_ENABLED,
+         Settings.Secure.LONG_PRESS_TIMEOUT,
+         Settings.Secure.KEY_REPEAT_TIMEOUT_MS,
+diff --git a/packages/SettingsProvider/src/android/provider/settings/validators/SecureSettingsValidators.java b/packages/SettingsProvider/src/android/provider/settings/validators/SecureSettingsValidators.java
+index 172ae376375f..9e37542281a9 100644
+--- a/packages/SettingsProvider/src/android/provider/settings/validators/SecureSettingsValidators.java
++++ b/packages/SettingsProvider/src/android/provider/settings/validators/SecureSettingsValidators.java
+@@ -130,7 +130,6 @@ public class SecureSettingsValidators {
+         VALIDATORS.put(Secure.MOUNT_UMS_AUTOSTART, BOOLEAN_VALIDATOR);
+         VALIDATORS.put(Secure.MOUNT_UMS_PROMPT, BOOLEAN_VALIDATOR);
+         VALIDATORS.put(Secure.MOUNT_UMS_NOTIFY_ENABLED, BOOLEAN_VALIDATOR);
+-        VALIDATORS.put(Secure.DOUBLE_TAP_TO_WAKE, BOOLEAN_VALIDATOR);
+         VALIDATORS.put(Secure.WAKE_GESTURE_ENABLED, BOOLEAN_VALIDATOR);
+         VALIDATORS.put(Secure.LONG_PRESS_TIMEOUT, NON_NEGATIVE_INTEGER_VALIDATOR);
+         VALIDATORS.put(Secure.KEY_REPEAT_TIMEOUT_MS, NON_NEGATIVE_INTEGER_VALIDATOR);
+diff --git a/packages/SettingsProvider/src/com/android/providers/settings/SettingsProtoDumpUtil.java b/packages/SettingsProvider/src/com/android/providers/settings/SettingsProtoDumpUtil.java
+index 6a44f618f00a..4b71c0c18c90 100644
+--- a/packages/SettingsProvider/src/com/android/providers/settings/SettingsProtoDumpUtil.java
++++ b/packages/SettingsProvider/src/com/android/providers/settings/SettingsProtoDumpUtil.java
+@@ -2114,9 +2114,6 @@ class SettingsProtoDumpUtil {
+         dumpSetting(s, p,
+                 Settings.Secure.DISPLAY_DENSITY_FORCED,
+                 SecureSettingsProto.DISPLAY_DENSITY_FORCED);
+-        dumpSetting(s, p,
+-                Settings.Secure.DOUBLE_TAP_TO_WAKE,
+-                SecureSettingsProto.DOUBLE_TAP_TO_WAKE);
+ 
+         final long displayToken = p.start(SecureSettingsProto.DISPLAY);
+         dumpSetting(s, p,
+diff --git a/packages/SettingsProvider/src/com/android/providers/settings/SettingsProvider.java b/packages/SettingsProvider/src/com/android/providers/settings/SettingsProvider.java
+index ea20168f1c43..7a8f3add753d 100644
+--- a/packages/SettingsProvider/src/com/android/providers/settings/SettingsProvider.java
++++ b/packages/SettingsProvider/src/com/android/providers/settings/SettingsProvider.java
+@@ -4016,12 +4016,12 @@ public class SettingsProvider extends ContentProvider {
+ 
+                 // v120: Add double tap to wake setting.
+                 if (currentVersion == 119) {
+-                    SettingsState secureSettings = getSecureSettingsLocked(userId);
++                    /* SettingsState secureSettings = getSecureSettingsLocked(userId);
+                     secureSettings.insertSettingOverrideableByRestoreLocked(
+                             Settings.Secure.DOUBLE_TAP_TO_WAKE,
+                             getContext().getResources().getBoolean(
+                                     R.bool.def_double_tap_to_wake) ? "1" : "0", null, true,
+-                            SettingsState.SYSTEM_PACKAGE_NAME);
++                            SettingsState.SYSTEM_PACKAGE_NAME); */
+ 
+                     currentVersion = 120;
+                 }
+diff --git a/packages/SystemUI/src/com/android/systemui/doze/DozeTriggers.java b/packages/SystemUI/src/com/android/systemui/doze/DozeTriggers.java
+index fd54a9e87965..7b3c746587c9 100644
+--- a/packages/SystemUI/src/com/android/systemui/doze/DozeTriggers.java
++++ b/packages/SystemUI/src/com/android/systemui/doze/DozeTriggers.java
+@@ -22,6 +22,8 @@ import static com.android.systemui.doze.DozeMachine.State.DOZE_SUSPEND_TRIGGERS;
+ import static com.android.systemui.doze.DozeMachine.State.FINISH;
+ import static com.android.systemui.doze.DozeMachine.State.UNINITIALIZED;
+ 
++import static android.hardware.display.AmbientDisplayConfiguration.DOZE_NO_PROXIMITY_CHECK;
++
+ import android.annotation.Nullable;
+ import android.content.BroadcastReceiver;
+ import android.content.Context;
+@@ -670,7 +672,8 @@ public class DozeTriggers implements DozeMachine.Part {
+         public void onReceive(Context context, Intent intent) {
+             if (PULSE_ACTION.equals(intent.getAction())) {
+                 if (DozeMachine.DEBUG) Log.d(TAG, "Received pulse intent");
+-                requestPulse(DozeLog.PULSE_REASON_INTENT, false, /* performedProxCheck */
++                final int noProxCheck = intent.getIntExtra(DOZE_NO_PROXIMITY_CHECK, 0);
++                requestPulse(DozeLog.PULSE_REASON_INTENT, noProxCheck == 1, /* performedProxCheck */
+                         null /* onPulseSuppressedListener */);
+             }
+         }
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/CentralSurfacesCommandQueueCallbacks.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/CentralSurfacesCommandQueueCallbacks.java
+index c8a445033b0d..4879ba3b0fa5 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/CentralSurfacesCommandQueueCallbacks.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/CentralSurfacesCommandQueueCallbacks.java
+@@ -355,7 +355,9 @@ public class CentralSurfacesCommandQueueCallbacks implements CommandQueue.Callba
+             mPowerManager.wakeUp(SystemClock.uptimeMillis(), PowerManager.WAKE_REASON_CAMERA_LAUNCH,
+                     "com.android.systemui:CAMERA_GESTURE");
+         }
+-        vibrateForCameraGesture();
++        if (source != StatusBarManager.CAMERA_LAUNCH_SOURCE_SCREEN_GESTURE) {
++            vibrateForCameraGesture();
++        }
+ 
+         if (source == StatusBarManager.CAMERA_LAUNCH_SOURCE_POWER_DOUBLE_TAP) {
+             Log.v(CentralSurfaces.TAG, "Camera launch");
+diff --git a/services/core/java/com/android/server/policy/KeyHandler.java b/services/core/java/com/android/server/policy/KeyHandler.java
+new file mode 100644
+index 000000000000..8ba379950601
+--- /dev/null
++++ b/services/core/java/com/android/server/policy/KeyHandler.java
+@@ -0,0 +1,836 @@
++/*
++ * Copyright (C) 2021, Paranoid Android
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.android.server.policy;
++
++import static android.hardware.display.AmbientDisplayConfiguration.DOZE_NO_PROXIMITY_CHECK;
++
++import android.app.KeyguardManager;
++import android.app.StatusBarManager;
++import android.content.ContentResolver;
++import android.content.Context;
++import android.content.Intent;
++import android.content.res.Resources;
++import android.database.ContentObserver;
++import android.hardware.camera2.CameraManager;
++import android.hardware.camera2.CameraManager.TorchCallback;
++import android.hardware.camera2.CameraAccessException;
++import android.hardware.camera2.CameraCharacteristics;
++import android.hardware.Sensor;
++import android.hardware.SensorEvent;
++import android.hardware.SensorEventListener;
++import android.hardware.SensorManager;
++import android.hardware.power.Boost;
++import android.media.AudioManager;
++import android.media.session.MediaSessionLegacyHelper;
++import android.os.Handler;
++import android.os.Looper;
++import android.os.HandlerThread;
++import android.os.Message;
++import android.os.PowerManager;
++import android.os.PowerManager.WakeLock;
++import android.os.PowerManagerInternal;
++import android.os.Process;
++import android.os.RemoteException;
++import android.os.SystemClock;
++import android.os.UserHandle;
++import android.os.Vibrator;
++import android.os.VibrationEffect;
++import android.provider.Settings;
++import android.telecom.TelecomManager;
++import android.text.TextUtils;
++import android.util.Log;
++import android.util.SparseIntArray;
++import android.view.KeyEvent;
++import android.view.ViewConfiguration;
++import android.view.WindowManagerGlobal;
++
++import com.android.server.LocalServices;
++import com.android.server.statusbar.StatusBarManagerInternal;
++
++import com.android.internal.R;
++
++import java.lang.IllegalArgumentException;
++
++/**
++ * Key handler for screen off gestures.
++ * @author Carlo Savignnao
++ */
++public class KeyHandler {
++
++    private static final String TAG = KeyHandler.class.getSimpleName();
++
++    private static final boolean DEBUG = Log.isLoggable(TAG, Log.DEBUG);
++
++    private static final int GESTURE_REQUEST = 1;
++    private static final int GESTURE_WAKE_LOCK_DURATION = 250; // ms
++
++    private static final int MAX_SUPPORTED_GESTURES = 15;
++
++    // Default value for gesture enabled state.
++    // 1 = enabled, 0 = disabled.
++    private static final int GESTURES_DEFAULT = 1; // 0 = disabled, 1 = enabled
++
++    private static final String DOZE_INTENT = "com.android.systemui.doze.pulse";
++
++    // Supported actions.
++    private static final int DISABLED = 0;
++    private static final int WAKE_UP = 1;
++    private static final int PULSE_AMBIENT = 2;
++    private static final int TORCH = 3;
++    private static final int AIRPLANE = 4;
++    private static final int MUSIC_PLAY_PAUSE = 5;
++    private static final int MUSIC_NEXT = 6;
++    private static final int MUSIC_PREVIOUS = 7;
++    private static final int CAMERA = 8;
++    private static final int DIALER = 9;
++
++    private final Context mContext;
++    private PowerManager mPowerManager;
++    private PowerManagerInternal mPowerManagerInternal;
++    private String mCameraId;
++    private EventHandler mHandler;
++    private SensorManager mSensorManager;
++    private CameraManager mCameraManager;
++    private AudioManager mAudioManager;
++    private TelecomManager mTelecomManager;
++    private StatusBarManagerInternal mStatusBarManagerInternal;
++    private KeyguardManager mKeyguardManager;
++    private Sensor mProximitySensor;
++    private Vibrator mVibrator;
++    private WakeLock mProximityWakeLock;
++    private WakeLock mGestureWakeLock;
++    private boolean mTorchEnabled;
++    private boolean mSystemReady = false;
++
++    private int mDoubleTapKeyCode;
++    private int mSingleTapKeyCode;
++    private int mDrawOKeyCode;
++    private int mTwoFingerSwipeKeyCode;
++    private int mDrawVKeyCode;
++    private int mDrawInverseVKeyCode;
++    private int mDrawArrowLeftKeyCode;
++    private int mDrawArrowRightKeyCode;
++    private int mOneFingerSwipeUpKeyCode;
++    private int mOneFingerSwipeRightKeyCode;
++    private int mOneFingerSwipeDowKeyCode;
++    private int mOneFingerSwipeLeftKeyCode;
++    private int mDrawMKeyCode;
++    private int mDrawWKeyCode;
++    private int mDrawSKeyCode;
++
++    private int mDoubleTapGesture;
++    private int mSingleTapGesture;
++    private int mDrawOGesture;
++    private int mTwoFingerSwipeGesture;
++    private int mDrawVGesture;
++    private int mDrawInverseVGesture;
++    private int mDrawArrowLeftGesture;
++    private int mDrawArrowRightGesture;
++    private int mOneFingerSwipeUpGesture;
++    private int mOneFingerSwipeRightGesture;
++    private int mOneFingerSwipeDownGesture;
++    private int mOneFingerSwipeLeftGesture;
++    private int mDrawMGesture;
++    private int mDrawWGesture;
++    private int mDrawSGesture;
++
++    private boolean mGesturesEnabled;
++    private boolean mSingleDoubleSpecialCase;
++
++    private final SparseIntArray mGestures = new SparseIntArray(MAX_SUPPORTED_GESTURES);
++
++    private final ContentObserver mObserver = new ContentObserver(mHandler) {
++        @Override
++        public void onChange(boolean selfChange) {
++            onConfigurationChanged();
++        }
++    };
++
++    private class EventHandler extends Handler {
++
++        public EventHandler(Looper looper) {
++            super(looper, null, false);
++        }
++
++        @Override
++        public void handleMessage(Message msg) {
++            if (msg.obj instanceof KeyEvent) {
++                final KeyEvent event = (KeyEvent) msg.obj;
++
++                if (DEBUG) {
++                    Log.w(TAG, "EventHandler.handleMessage(): event.toString(): "
++                            + event.toString());
++                }
++
++                final int scanCode = event.getScanCode();
++                handleGesture(mGestures.get(scanCode));
++            }
++        }
++    }
++
++    public KeyHandler(Context context) {
++        mContext = context;
++        HandlerThread handlerThread = new HandlerThread(TAG, Process.THREAD_PRIORITY_BACKGROUND);
++        handlerThread.start();
++        mHandler = new EventHandler(handlerThread.getLooper());
++    }
++
++    public void systemReady() {
++        mSystemReady = true;
++
++        // Init configurations.
++        getConfiguration();
++
++        // Set up managers.
++        ensureAudioManager();
++        ensureTelecomManager();
++        ensureVibrator();
++        ensurePowerManager();
++        ensureSensors();
++        ensureStatusBarService();
++        ensureCameraManager();
++        ensureKeyguardManager();
++        ensureWakeLocks();
++
++        // Get camera id.
++        ensureCameraId();
++
++        // Register callbacks
++        registerTorchCallback();
++
++        // Register observers
++        registerObservers();
++    }
++
++    private void getConfiguration() {
++        final Resources resources = mContext.getResources();
++
++        // Gestures device key codes.
++        mDoubleTapKeyCode = resources.getInteger(R.integer.config_doubleTapKeyCode);
++        mSingleTapKeyCode = resources.getInteger(R.integer.config_singleTapKeyCode);
++        mDrawOKeyCode = resources.getInteger(R.integer.config_drawOKeyCode);
++        mTwoFingerSwipeKeyCode = resources.getInteger(R.integer.config_twoFingerSwipeKeyCode);
++        mDrawVKeyCode = resources.getInteger(R.integer.config_drawVKeyCode);
++        mDrawInverseVKeyCode = resources.getInteger(R.integer.config_drawInverseVKeyCode);
++        mDrawArrowLeftKeyCode = resources.getInteger(R.integer.config_drawArrowLeftKeyCode);
++        mDrawArrowRightKeyCode = resources.getInteger(R.integer.config_drawArrowRightKeyCode);
++        mOneFingerSwipeUpKeyCode = resources.getInteger(R.integer.config_oneFingerSwipeUpKeyCode);
++        mOneFingerSwipeRightKeyCode = resources.getInteger(R.integer.config_oneFingerSwipeRightKeyCode);
++        mOneFingerSwipeDowKeyCode = resources.getInteger(R.integer.config_oneFingerSwipeDownKeyCode);
++        mOneFingerSwipeLeftKeyCode = resources.getInteger(R.integer.config_oneFingerSwipeLeftKeyCode);
++        mDrawMKeyCode = resources.getInteger(R.integer.config_drawMKeyCode);
++        mDrawWKeyCode = resources.getInteger(R.integer.config_drawWKeyCode);
++        mDrawSKeyCode = resources.getInteger(R.integer.config_drawSKeyCode);
++
++        mGestures.clear();
++        mGestures.put(mDoubleTapKeyCode, mDoubleTapGesture);
++        mGestures.put(mSingleTapKeyCode, mSingleTapGesture);
++        mGestures.put(mDrawOKeyCode, mDrawOGesture);
++        mGestures.put(mTwoFingerSwipeKeyCode, mTwoFingerSwipeGesture);
++        mGestures.put(mDrawVKeyCode, mDrawVGesture);
++        mGestures.put(mDrawInverseVKeyCode, mDrawInverseVGesture);
++        mGestures.put(mDrawArrowLeftKeyCode, mDrawArrowLeftGesture);
++        mGestures.put(mDrawArrowRightKeyCode, mDrawArrowRightGesture);
++        mGestures.put(mOneFingerSwipeUpKeyCode, mOneFingerSwipeUpGesture);
++        mGestures.put(mOneFingerSwipeRightKeyCode, mOneFingerSwipeRightGesture);
++        mGestures.put(mOneFingerSwipeDowKeyCode, mOneFingerSwipeDownGesture);
++        mGestures.put(mOneFingerSwipeLeftKeyCode, mOneFingerSwipeLeftGesture);
++        mGestures.put(mDrawMKeyCode, mDrawMGesture);
++        mGestures.put(mDrawWKeyCode, mDrawWGesture);
++        mGestures.put(mDrawSKeyCode, mDrawSGesture);
++
++        // Trigger configuration changed.
++        onConfigurationChanged();
++    }
++
++    private void onConfigurationChanged() {
++        boolean gesturesEnabled = Settings.System.getInt(mContext.getContentResolver(),
++                Settings.System.GESTURES_ENABLED, GESTURES_DEFAULT) != 0;
++        if (gesturesEnabled != mGesturesEnabled) {
++            mGesturesEnabled = gesturesEnabled;
++        }
++
++        int doubleTapGesture = Settings.System.getInt(mContext.getContentResolver(),
++                Settings.System.GESTURE_DOUBLE_TAP, mContext.getResources()
++                        .getInteger(com.android.internal.R.integer.config_doubleTapDefault));
++        if (doubleTapGesture != mDoubleTapGesture) {
++            mDoubleTapGesture = doubleTapGesture;
++            mGestures.put(mDoubleTapKeyCode, mDoubleTapGesture);
++        }
++
++        int singleTapGesture = Settings.System.getInt(mContext.getContentResolver(),
++                Settings.System.GESTURE_SINGLE_TAP, mContext.getResources()
++                        .getInteger(com.android.internal.R.integer.config_singleTapDefault));
++        if (singleTapGesture != mSingleTapGesture) {
++            mSingleTapGesture = singleTapGesture;
++            mGestures.put(mSingleTapKeyCode, mSingleTapGesture);
++        }
++
++        int drawOGesture = Settings.System.getInt(mContext.getContentResolver(),
++                Settings.System.GESTURE_DRAW_O, mContext.getResources()
++                        .getInteger(com.android.internal.R.integer.config_drawODefault));
++        if (drawOGesture != mDrawOGesture) {
++            mDrawOGesture = drawOGesture;
++            mGestures.put(mDrawOKeyCode, mDrawOGesture);
++        }
++
++        int twoFingerSwipeGesture = Settings.System.getInt(mContext.getContentResolver(),
++                Settings.System.GESTURE_TWO_FINGER_SWIPE, mContext.getResources()
++                        .getInteger(com.android.internal.R.integer.config_twoFingerSwipeDefault));
++        if (twoFingerSwipeGesture != mTwoFingerSwipeGesture) {
++            mTwoFingerSwipeGesture = twoFingerSwipeGesture;
++            mGestures.put(mTwoFingerSwipeKeyCode, mTwoFingerSwipeGesture);
++        }
++
++        int drawVGesture = Settings.System.getInt(mContext.getContentResolver(),
++                Settings.System.GESTURE_DRAW_V, mContext.getResources()
++                        .getInteger(com.android.internal.R.integer.config_drawVDefault));
++        if (drawVGesture != mDrawVGesture) {
++            mDrawVGesture = drawVGesture;
++            mGestures.put(mDrawVKeyCode, mDrawVGesture);
++        }
++
++        int drawInverseVGesture = Settings.System.getInt(mContext.getContentResolver(),
++                Settings.System.GESTURE_DRAW_INVERSE_V, mContext.getResources()
++                        .getInteger(com.android.internal.R.integer.config_drawInverseVDefault));
++        if (drawInverseVGesture != mDrawInverseVGesture) {
++            mDrawInverseVGesture = drawInverseVGesture;
++            mGestures.put(mDrawInverseVKeyCode, mDrawInverseVGesture);
++        }
++
++        int drawArrowLeftGesture = Settings.System.getInt(mContext.getContentResolver(),
++                Settings.System.GESTURE_DRAW_ARROW_LEFT, mContext.getResources()
++                        .getInteger(com.android.internal.R.integer.config_drawArrowLeftDefault));
++        if (drawArrowLeftGesture != mDrawArrowLeftGesture) {
++            mDrawArrowLeftGesture = drawArrowLeftGesture;
++            mGestures.put(mDrawArrowLeftKeyCode, mDrawArrowLeftGesture);
++        }
++
++        int drawArrowRightGesture = Settings.System.getInt(mContext.getContentResolver(),
++                Settings.System.GESTURE_DRAW_ARROW_RIGHT, mContext.getResources()
++                        .getInteger(com.android.internal.R.integer.config_drawArrowRightDefault));
++        if (drawArrowRightGesture != mDrawArrowRightGesture) {
++            mDrawArrowRightGesture = drawArrowRightGesture;
++            mGestures.put(mDrawArrowRightKeyCode, mDrawArrowRightGesture);
++        }
++
++        int oneFingerSwipeUpGesture = Settings.System.getInt(mContext.getContentResolver(),
++                Settings.System.GESTURE_ONE_FINGER_SWIPE_UP, mContext.getResources()
++                        .getInteger(com.android.internal.R.integer.config_oneFingerSwipeUpDefault));
++        if (oneFingerSwipeUpGesture != mOneFingerSwipeUpGesture) {
++            mOneFingerSwipeUpGesture = oneFingerSwipeUpGesture;
++            mGestures.put(mOneFingerSwipeUpKeyCode, mOneFingerSwipeUpGesture);
++        }
++
++        int oneFingerSwipeRightGesture = Settings.System.getInt(mContext.getContentResolver(),
++                Settings.System.GESTURE_ONE_FINGER_SWIPE_RIGHT, mContext.getResources()
++                        .getInteger(com.android.internal.R.integer.config_oneFingerSwipeRightDefault));
++        if (oneFingerSwipeRightGesture != mOneFingerSwipeRightGesture) {
++            mOneFingerSwipeRightGesture = oneFingerSwipeRightGesture;
++            mGestures.put(mOneFingerSwipeRightKeyCode, mOneFingerSwipeRightGesture);
++        }
++
++        int oneFingerSwipeDownGesture = Settings.System.getInt(mContext.getContentResolver(),
++                Settings.System.GESTURE_ONE_FINGER_SWIPE_DOWN, mContext.getResources()
++                        .getInteger(com.android.internal.R.integer.config_oneFingerSwipeDownDefault));
++        if (oneFingerSwipeDownGesture != mOneFingerSwipeDownGesture) {
++            mOneFingerSwipeDownGesture = oneFingerSwipeDownGesture;
++            mGestures.put(mOneFingerSwipeDowKeyCode, mOneFingerSwipeDownGesture);
++        }
++
++        int oneFingerSwipeLeftGesture = Settings.System.getInt(mContext.getContentResolver(),
++                Settings.System.GESTURE_ONE_FINGER_SWIPE_LEFT, mContext.getResources()
++                        .getInteger(com.android.internal.R.integer.config_oneFingerSwipeLeftDefault));
++        if (oneFingerSwipeLeftGesture != mOneFingerSwipeLeftGesture) {
++            mOneFingerSwipeLeftGesture = oneFingerSwipeLeftGesture;
++            mGestures.put(mOneFingerSwipeLeftKeyCode, mOneFingerSwipeLeftGesture);
++        }
++
++        int drawMGesture = Settings.System.getInt(mContext.getContentResolver(),
++                Settings.System.GESTURE_DRAW_M, mContext.getResources()
++                        .getInteger(com.android.internal.R.integer.config_drawMDefault));
++        if (drawMGesture != mDrawMGesture) {
++            mDrawMGesture = drawMGesture;
++            mGestures.put(mDrawMKeyCode, mDrawMGesture);
++        }
++
++        int drawWGesture = Settings.System.getInt(mContext.getContentResolver(),
++                Settings.System.GESTURE_DRAW_W, mContext.getResources()
++                        .getInteger(com.android.internal.R.integer.config_drawWDefault));
++        if (drawWGesture != mDrawWGesture) {
++            mDrawWGesture = drawWGesture;
++            mGestures.put(mDrawWKeyCode, mDrawWGesture);
++        }
++
++        int drawSGesture = Settings.System.getInt(mContext.getContentResolver(),
++                Settings.System.GESTURE_DRAW_S, mContext.getResources()
++                        .getInteger(com.android.internal.R.integer.config_drawSDefault));
++        if (drawSGesture != mDrawSGesture) {
++            mDrawSGesture = drawSGesture;
++            mGestures.put(mDrawSKeyCode, mDrawSGesture);
++        }
++
++        mSingleDoubleSpecialCase = mGestures.get(mDoubleTapKeyCode) > 0 &&
++                mGestures.get(mSingleTapKeyCode) > 0;
++    }
++
++    private void ensureAudioManager() {
++        if (mAudioManager == null) {
++            mAudioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
++        }
++    }
++
++    private void ensureTelecomManager() {
++        if (mTelecomManager == null) {
++            mTelecomManager = TelecomManager.from(mContext);
++        }
++    }
++
++    private void ensureVibrator() {
++        if (mVibrator == null) {
++            mVibrator = (Vibrator) mContext.getSystemService(Context.VIBRATOR_SERVICE);
++            if (!mVibrator.hasVibrator()) {
++                mVibrator = null;
++            }
++        }
++    }
++
++    private void ensurePowerManager() {
++        if (mPowerManager == null) {
++            mPowerManager = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
++        }
++        if (mPowerManagerInternal == null) {
++            mPowerManagerInternal = LocalServices.getService(PowerManagerInternal.class);
++
++        }
++    }
++
++    private void ensureSensors() {
++        if (mSensorManager == null) {
++            mSensorManager = (SensorManager) mContext.getSystemService(Context.SENSOR_SERVICE);
++        }
++        if (mProximitySensor == null) {
++            mProximitySensor = mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
++        }
++    }
++
++    private void ensureStatusBarService() {
++        if (mStatusBarManagerInternal == null) {
++            mStatusBarManagerInternal = LocalServices.getService(StatusBarManagerInternal.class);
++        }
++    }
++
++    private void ensureKeyguardManager() {
++        if (mKeyguardManager == null) {
++            mKeyguardManager = (KeyguardManager) mContext.getSystemService(Context.KEYGUARD_SERVICE);
++        }
++    }
++
++    private void ensureWakeLocks() {
++        if (mGestureWakeLock == null) {
++            mGestureWakeLock = mPowerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
++                    "GestureWakeLock");
++        }
++        if (mProximityWakeLock == null) {
++            mProximityWakeLock = mPowerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
++                    "ProximityWakeLock");
++        }
++    }
++
++    private void ensureCameraManager() {
++        if (mCameraManager == null) {
++            mCameraManager = (CameraManager) mContext.getSystemService(Context.CAMERA_SERVICE);
++        }
++    }
++
++    private void ensureCameraId() {
++        try {
++            mCameraId = getCameraId();
++        } catch (Throwable e) {
++            Log.e(TAG, "Couldn't initialize.", e);
++            return;
++        }
++    }
++
++    private void registerTorchCallback() {
++        if (mCameraManager != null) {
++            mCameraManager.registerTorchCallback(mTorchCallback, mHandler);
++        }
++    }
++
++    private void registerObservers() {
++        final ContentResolver resolver = mContext.getContentResolver();
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURES_ENABLED),
++                false, mObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_DOUBLE_TAP),
++                false, mObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_SINGLE_TAP),
++                false, mObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_DRAW_V),
++                false, mObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_DRAW_INVERSE_V),
++                false, mObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_DRAW_O),
++                false, mObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_DRAW_M),
++                false, mObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_DRAW_W),
++                false, mObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_DRAW_S),
++                false, mObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_DRAW_ARROW_LEFT),
++                false, mObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_DRAW_ARROW_RIGHT),
++                false, mObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_ONE_FINGER_SWIPE_UP),
++                false, mObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_ONE_FINGER_SWIPE_RIGHT),
++                false, mObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_ONE_FINGER_SWIPE_UP),
++                false, mObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_ONE_FINGER_SWIPE_RIGHT),
++                false, mObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_ONE_FINGER_SWIPE_DOWN),
++                false, mObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_ONE_FINGER_SWIPE_LEFT),
++                false, mObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_TWO_FINGER_SWIPE),
++                false, mObserver, UserHandle.USER_ALL);
++    }
++
++    private void handleGesture(int gesture) {
++        if (DEBUG) {
++            Log.w(TAG, "handleCodeBehavior: gesture = " + gesture);
++        }
++
++        acquireGestureWakeLock();
++
++        mPowerManagerInternal.setPowerBoost(Boost.INTERACTION, 0);
++
++        boolean handled;
++        boolean vibrate;
++
++        switch(gesture) {
++            case DISABLED:
++                // Don't do anything if the gesture was disabled by the user
++                releaseGestureWakeLock();
++                return;
++            case CAMERA:
++                mStatusBarManagerInternal.onCameraLaunchGestureDetected(
++                        StatusBarManager.CAMERA_LAUNCH_SOURCE_SCREEN_GESTURE);
++                handled = true;
++                vibrate = true;
++                break;
++            case MUSIC_PLAY_PAUSE:
++                handled = dispatchMediaKeyWithWakeLockToMediaSession(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE);
++                vibrate = true;
++                break;
++            case TORCH:
++                handled = setTorchMode(!mTorchEnabled);
++                vibrate = true;
++                break;
++            case MUSIC_PREVIOUS:
++                handled = isMusicActive() && dispatchMediaKeyWithWakeLockToMediaSession(KeyEvent.KEYCODE_MEDIA_PREVIOUS);
++                vibrate = true;
++                break;
++            case MUSIC_NEXT:
++                handled = isMusicActive() && dispatchMediaKeyWithWakeLockToMediaSession(KeyEvent.KEYCODE_MEDIA_NEXT);
++                vibrate = true;
++                break;
++            case WAKE_UP:
++                if (mPowerManager.isInteractive()) {
++                    return;
++                }
++                mPowerManager.wakeUp(SystemClock.uptimeMillis());
++                handled = true;
++                vibrate = false;
++                break;
++            case DIALER:
++                mPowerManager.wakeUp(SystemClock.uptimeMillis());
++                if (isKeyguardShowing()) {
++                    dismissKeyguard();
++                }
++                Intent dialIntent = new Intent(Intent.ACTION_DIAL);
++                dialIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
++                mContext.startActivity(dialIntent, null);
++                handled = true;
++                vibrate = true;
++                break;
++            case AIRPLANE:
++                // Change the system setting
++                boolean enabled = Settings.Global.getInt(mContext.getContentResolver(),
++                        Settings.Global.AIRPLANE_MODE_ON, 0) != 0;
++                Settings.Global.putInt(mContext.getContentResolver(),
++                        Settings.Global.AIRPLANE_MODE_ON, !enabled ? 1 : 0);
++                // Post the intent
++                Intent intent = new Intent(Intent.ACTION_AIRPLANE_MODE_CHANGED);
++                intent.addFlags(Intent.FLAG_RECEIVER_REPLACE_PENDING);
++                intent.putExtra("state", enabled);
++                mContext.sendBroadcastAsUser(intent, UserHandle.ALL);
++                handled = true;
++                vibrate = true;
++                break;
++            case PULSE_AMBIENT:
++                Intent pulseIntent = new Intent(DOZE_INTENT);
++                pulseIntent.putExtra(DOZE_NO_PROXIMITY_CHECK, 1);
++                mContext.sendBroadcastAsUser(pulseIntent,
++                    new UserHandle(UserHandle.USER_CURRENT));
++                handled = true;
++                vibrate = false;
++                break;
++            default:
++                handled = false;
++                vibrate = false;
++                releaseGestureWakeLock();
++                break;
++        }
++
++        doHapticFeedback(handled, vibrate);
++    }
++
++    private void acquireGestureWakeLock() {
++        if (mGestureWakeLock.isHeld()) {
++            mGestureWakeLock.release();
++        }
++        mGestureWakeLock.acquire(KeyHandler.GESTURE_WAKE_LOCK_DURATION);
++    }
++
++    private void releaseGestureWakeLock() {
++        if (mGestureWakeLock.isHeld()) {
++            mGestureWakeLock.release();
++        }
++    }
++
++    public boolean handleKeyEvent(KeyEvent event) {
++        if (DEBUG) {
++            Log.w(TAG, "handleKeyEvent(): event.toString(): " + event.toString());
++        }
++
++        if (!mSystemReady || !mGesturesEnabled || isDisabledByPhoneState()) {
++            return false;
++        }
++
++        int action = event.getAction();
++        int scanCode = event.getScanCode();
++        int repeatCount = event.getRepeatCount();
++
++        if (scanCode <= 0) {
++            if (DEBUG) {
++                Log.w(TAG, "handleKeyEvent(): scanCode is invalid, returning." );
++            }
++            return false;
++        }
++
++        if (action != KeyEvent.ACTION_UP || repeatCount != 0) {
++            if (DEBUG) {
++                Log.w(TAG, "handleKeyEvent(): action != ACTION_UP || repeatCount != 0, returning.");
++            }
++            return false;
++        }
++
++        boolean isKeySupportedAndEnabled = mGestures.get(scanCode) > 0;
++
++        if (DEBUG) {
++            Log.w(TAG, "handleKeyEvent(): isKeySupportedAndEnabled = " + isKeySupportedAndEnabled);
++        }
++
++        // If it's held, means we just processed a gesture or we are in the middle of one
++        if (isKeySupportedAndEnabled && !mGestureWakeLock.isHeld()) {
++            Message msg = getMessageForKeyEvent(event);
++            if (mProximitySensor != null) {
++                mHandler.sendMessageDelayed(msg, 250 /* proximity timeout */);
++                processEvent(event);
++            } else {
++                if (scanCode == mSingleTapKeyCode && mSingleDoubleSpecialCase) {
++                    mHandler.sendMessageDelayed(msg, ViewConfiguration.getDoubleTapTimeout());
++                } else {
++                    mHandler.removeMessages(GESTURE_REQUEST);
++                    mHandler.sendMessage(msg);
++                }
++            }
++        }
++
++        return isKeySupportedAndEnabled;
++    }
++
++    private Message getMessageForKeyEvent(KeyEvent keyEvent) {
++        Message msg = mHandler.obtainMessage(GESTURE_REQUEST);
++        msg.obj = keyEvent;
++        return msg;
++    }
++
++    private void processEvent(final KeyEvent keyEvent) {
++        mProximityWakeLock.acquire();
++        mSensorManager.registerListener(new SensorEventListener() {
++            @Override
++            public void onSensorChanged(SensorEvent event) {
++                mProximityWakeLock.release();
++                mSensorManager.unregisterListener(this);
++                if (!mHandler.hasMessages(GESTURE_REQUEST)) {
++                    // The sensor took to long, ignoring.
++                    return;
++                }
++                mHandler.removeMessages(GESTURE_REQUEST);
++                if (event.values[0] == mProximitySensor.getMaximumRange()) {
++                    Message msg = getMessageForKeyEvent(keyEvent);
++                    mHandler.sendMessage(msg);
++                }
++            }
++
++            @Override
++            public void onAccuracyChanged(Sensor sensor, int accuracy) { }
++
++        }, mProximitySensor, SensorManager.SENSOR_DELAY_FASTEST);
++    }
++
++    private boolean dispatchMediaKeyWithWakeLockToMediaSession(int keycode) {
++        MediaSessionLegacyHelper helper = MediaSessionLegacyHelper.getHelper(mContext);
++        if (helper != null) {
++            KeyEvent event = new KeyEvent(SystemClock.uptimeMillis(),
++                    SystemClock.uptimeMillis(), KeyEvent.ACTION_DOWN, keycode, 0);
++            helper.sendMediaButtonEvent(event, true);
++            event = KeyEvent.changeAction(event, KeyEvent.ACTION_UP);
++            helper.sendMediaButtonEvent(event, true);
++            return true;
++        } else {
++            if (DEBUG) {
++                Log.w(TAG, "Unable to send media key event");
++            }
++            return false;
++        }
++    }
++
++    private void doHapticFeedback(boolean success, boolean vibrate) {
++        final boolean hapticsEnabled = Settings.System.getIntForUser(mContext.getContentResolver(),
++                Settings.System.HAPTIC_FEEDBACK_ENABLED, 0, UserHandle.USER_CURRENT) != 0;
++        if (vibrate && hapticsEnabled && mVibrator != null) {
++            if (success) {
++                mVibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK));
++            } else {
++                mVibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_DOUBLE_CLICK));
++            }
++        }
++    }
++
++    private String getCameraId() throws CameraAccessException {
++        String[] ids = mCameraManager.getCameraIdList();
++        if (ids != null && ids.length > 0) {
++            for (String id : ids) {
++                CameraCharacteristics c = mCameraManager.getCameraCharacteristics(id);
++                Boolean flashAvailable = c.get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
++                Integer lensFacing = c.get(CameraCharacteristics.LENS_FACING);
++                if (flashAvailable != null && flashAvailable
++                        && lensFacing != null && lensFacing == CameraCharacteristics.LENS_FACING_BACK) {
++                    return id;
++                }
++            }
++        }
++        return null;
++    }
++
++    private boolean setTorchMode(boolean enabled) {
++        if (mCameraId == null) ensureCameraId();
++        try {
++            mCameraManager.setTorchMode(mCameraId, enabled);
++        } catch (CameraAccessException | IllegalArgumentException e) {
++            return false;
++        }
++        return true;
++    }
++
++    private final TorchCallback mTorchCallback = new TorchCallback() {
++        @Override
++        public void onTorchModeChanged(String cameraId, boolean enabled) {
++            if (!TextUtils.isEmpty(mCameraId)) {
++                if (mCameraId.equals(cameraId)) {
++                    mTorchEnabled = enabled;
++                }
++            } else {
++                mTorchEnabled = enabled;
++            }
++        }
++
++        @Override
++        public void onTorchModeUnavailable(String cameraId) {
++            if (!TextUtils.isEmpty(mCameraId)) {
++                if (mCameraId.equals(cameraId)) {
++                    mTorchEnabled = false;
++                }
++            } else {
++                mTorchEnabled = false;
++            }
++        }
++    };
++
++    private boolean isMusicActive() {
++        if (mAudioManager != null) {
++            return mAudioManager.isMusicActive();
++        }
++        return false;
++    }
++
++    private void dismissKeyguard() {
++        try {
++            WindowManagerGlobal.getWindowManagerService().dismissKeyguard(null, null);
++        } catch (RemoteException e) {
++            if (DEBUG) {
++                Log.w(TAG, "WindowManagerGlobal.getWindowManagerService() instance not alive");
++            }
++        }
++    }
++
++    private boolean isKeyguardShowing() {
++        return mKeyguardManager.isKeyguardLocked();
++    }
++
++    private long[] getLongIntArray(Resources r, int resid) {
++        int[] ar = r.getIntArray(resid);
++        if (ar == null) {
++            return null;
++        }
++        long[] out = new long[ar.length];
++        for (int i = 0; i < ar.length; i++) {
++            out[i] = ar[i];
++        }
++        return out;
++    }
++
++    private boolean isDisabledByPhoneState() {
++        if (mTelecomManager != null) {
++            return mTelecomManager.isInCall() || mTelecomManager.isRinging();
++        }
++        return false;
++    }
++}
+diff --git a/services/core/java/com/android/server/policy/PhoneWindowManager.java b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+index d137bcfd5d7b..21542b4a5f05 100644
+--- a/services/core/java/com/android/server/policy/PhoneWindowManager.java
++++ b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+@@ -700,6 +700,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+     // Maps global key codes to the components that will handle them.
+     private GlobalKeyManager mGlobalKeyManager;
+ 
++    // Gesture key handler.
++    private KeyHandler mKeyHandler;
++
+     // Fallback actions by key code.
+     private final SparseArray<KeyCharacterMap.FallbackAction> mFallbackActions =
+             new SparseArray<KeyCharacterMap.FallbackAction>();
+@@ -2526,6 +2529,11 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+         if (DEBUG_INPUT) {
+             Slog.d(TAG, "" + mDeviceKeyHandlers.size() + " device key handlers loaded");
+         }
++        boolean enableKeyHandler = mContext.getResources().
++                getBoolean(com.android.internal.R.bool.config_enableKeyHandler);
++        if (enableKeyHandler) {
++            mKeyHandler = new KeyHandler(mContext);
++        }
+     }
+ 
+     private void initKeyCombinationRules() {
+@@ -4759,6 +4767,15 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+                     + " policyFlags=" + Integer.toHexString(policyFlags));
+         }
+ 
++        /**
++         * Handle gestures input earlier then anything when screen is off.
++         */
++        if (!interactive) {
++            if (mKeyHandler != null && mKeyHandler.handleKeyEvent(event)) {
++                return 0;
++            }
++        }
++
+         // Basic policy based on interactive state.
+         int result;
+         if (interactive || (isInjected && !isWakeKey)) {
+@@ -5046,7 +5063,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+             case KeyEvent.KEYCODE_WAKEUP: {
+                 logKeyboardSystemsEventOnActionUp(event, KeyboardLogEvent.WAKEUP);
+                 result &= ~ACTION_PASS_TO_USER;
+-                isWakeKey = true;
++                isWakeKey = false;  // We handle this in KeyHandler
+                 break;
+             }
+ 
+@@ -6145,6 +6162,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+ 
+         mAutofillManagerInternal = LocalServices.getService(AutofillManagerInternal.class);
+         mGestureLauncherService = LocalServices.getService(GestureLauncherService.class);
++        if (mKeyHandler != null) {
++            mKeyHandler.systemReady();
++        }
+     }
+ 
+     /** {@inheritDoc} */
+diff --git a/services/core/java/com/android/server/power/PowerManagerService.java b/services/core/java/com/android/server/power/PowerManagerService.java
+index e2fa2fd4831f..b7f699de311c 100644
+--- a/services/core/java/com/android/server/power/PowerManagerService.java
++++ b/services/core/java/com/android/server/power/PowerManagerService.java
+@@ -244,10 +244,6 @@ public final class PowerManagerService extends SystemService
+ 
+     // How long a partial wake lock must be held until we consider it a long wake lock.
+     static final long MIN_LONG_WAKE_CHECK_INTERVAL = 60*1000;
+-
+-    // Default setting for double tap to wake.
+-    private static final int DEFAULT_DOUBLE_TAP_TO_WAKE = 0;
+-
+     // System property indicating that the screen should remain off until an explicit user action
+     private static final String SYSTEM_PROPERTY_QUIESCENT = "ro.boot.quiescent";
+ 
+@@ -577,9 +573,6 @@ public final class PowerManagerService extends SystemService
+     // Otherwise the user won't get much screen on time before dimming occurs.
+     private float mMaximumScreenDimRatioConfig;
+ 
+-    // Whether device supports double tap to wake.
+-    private boolean mSupportsDoubleTapWakeConfig;
+-
+     // The screen off timeout setting value in milliseconds.
+     private long mScreenOffTimeoutSetting;
+ 
+@@ -702,8 +695,59 @@ public final class PowerManagerService extends SystemService
+     // True if always on display is enabled
+     private boolean mAlwaysOnEnabled;
+ 
++    // Gestures
++    private boolean mGesturesEnabled;
++
++    private boolean mSupportsDoubleTapConfig;
++    private boolean mSupportsSingleTapConfig;
++    private boolean mSupportsDrawVConfig;
++    private boolean mSupportsDrawInverseVConfig;
++    private boolean mSupportsDrawOConfig;
++    private boolean mSupportsDrawMConfig;
++    private boolean mSupportsDrawWConfig;
++    private boolean mSupportsDrawSConfig;
++    private boolean mSupportsDrawArrowLeftConfig;
++    private boolean mSupportsDrawArrowRightConfig;
++    private boolean mSupportsOneFingerSwipeUpConfig;
++    private boolean mSupportsOneFingerSwipeRightConfig;
++    private boolean mSupportsOneFingerSwipeDownConfig;
++    private boolean mSupportsOneFingerSwipeLeftConfig;
++    private boolean mSupportsTwoFingerSwipeConfig;
++
+     // True if double tap to wake is enabled
+-    private boolean mDoubleTapWakeEnabled;
++    private boolean mDoubleTapEnabled;
++    private boolean mSingleTapEnabled;
++    private boolean mDrawVEnabled;
++    private boolean mDrawInverseVEnabled;
++    private boolean mDrawOEnabled;
++    private boolean mDrawMEnabled;
++    private boolean mDrawWEnabled;
++    private boolean mDrawSEnabled;
++    private boolean mDrawArrowLeftEnabled;
++    private boolean mDrawArrowRightEnabled;
++    private boolean mOneFingerSwipeUpEnabled;
++    private boolean mOneFingerSwipeRightEnabled;
++    private boolean mOneFingerSwipeDownEnabled;
++    private boolean mOneFingerSwipeLeftEnabled;
++    private boolean mTwoFingerSwipeEnabled;
++
++    // Power features defined in vendor/pa/interfaces/power/vendor/aospa/power/Feature.aidl.
++    private static final int POWER_FEATURE_GESTURES = 0;
++    private static final int POWER_FEATURE_DOUBLE_TAP = 1;
++    private static final int POWER_FEATURE_DRAW_V = 2;
++    private static final int POWER_FEATURE_DRAW_INVERSE_V = 3;
++    private static final int POWER_FEATURE_DRAW_O = 4;
++    private static final int POWER_FEATURE_DRAW_M = 5;
++    private static final int POWER_FEATURE_DRAW_W = 6;
++    private static final int POWER_FEATURE_DRAW_ARROW_LEFT = 7;
++    private static final int POWER_FEATURE_DRAW_ARROW_RIGHT = 8;
++    private static final int POWER_FEATURE_ONE_FINGER_SWIPE_UP = 9;
++    private static final int POWER_FEATURE_ONE_FINGER_SWIPE_RIGHT = 10;
++    private static final int POWER_FEATURE_ONE_FINGER_SWIPE_DOWN = 11;
++    private static final int POWER_FEATURE_ONE_FINGER_SWIPE_LEFT = 12;
++    private static final int POWER_FEATURE_TWO_FINGER_SWIPE = 13;
++    private static final int POWER_FEATURE_DRAW_S = 14;
++    private static final int POWER_FEATURE_SINGLE_TAP = 15;
+ 
+     // True if we in the process of performing a forceSuspend
+     private boolean mForceSuspendActive;
+@@ -963,6 +1007,12 @@ public final class PowerManagerService extends SystemService
+             return PowerManagerService.nativeSetPowerMode(mode, enabled);
+         }
+ 
++        /** Wrapper for PowerManager.nativeSetParanoidFeature */
++        public void nativeSetParanoidFeature(int featureId, int data) {
++            PowerManagerService.nativeSetParanoidFeature (featureId, data);
++        }
++
++
+         /** Wrapper for PowerManager.nativeForceSuspend */
+         public boolean nativeForceSuspend() {
+             return PowerManagerService.nativeForceSuspend();
+@@ -1156,6 +1206,7 @@ public final class PowerManagerService extends SystemService
+     private static native void nativeSetAutoSuspend(boolean enable);
+     private static native void nativeSetPowerBoost(int boost, int durationMs);
+     private static native boolean nativeSetPowerMode(int mode, boolean enabled);
++    private static native void nativeSetParanoidFeature(int featureId, int data);
+     private static native boolean nativeForceSuspend();
+ 
+     public PowerManagerService(Context context) {
+@@ -1280,7 +1331,22 @@ public final class PowerManagerService extends SystemService
+             mNativeWrapper.nativeInit(this);
+             mNativeWrapper.nativeSetAutoSuspend(false);
+             mNativeWrapper.nativeSetPowerMode(Mode.INTERACTIVE, true);
+-            mNativeWrapper.nativeSetPowerMode(Mode.DOUBLE_TAP_TO_WAKE, false);
++            mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_GESTURES, 0);
++            mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_DOUBLE_TAP, 0);
++            mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_DRAW_V, 0);
++            mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_DRAW_INVERSE_V, 0);
++            mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_DRAW_O, 0);
++            mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_DRAW_M, 0);
++            mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_DRAW_W, 0);
++            mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_DRAW_S, 0);
++            mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_DRAW_ARROW_LEFT, 0);
++            mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_DRAW_ARROW_RIGHT, 0);
++            mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_ONE_FINGER_SWIPE_UP, 0);
++            mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_ONE_FINGER_SWIPE_RIGHT, 0);
++            mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_ONE_FINGER_SWIPE_DOWN, 0);
++            mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_ONE_FINGER_SWIPE_LEFT, 0);
++            mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_TWO_FINGER_SWIPE, 0);
++            mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_SINGLE_TAP, 0);
+             mInjector.invalidateIsInteractiveCaches();
+         }
+     }
+@@ -1476,8 +1542,59 @@ public final class PowerManagerService extends SystemService
+         resolver.registerContentObserver(Settings.Secure.getUriFor(
+                 Settings.Secure.DOZE_ALWAYS_ON),
+                 false, mSettingsObserver, UserHandle.USER_ALL);
+-        resolver.registerContentObserver(Settings.Secure.getUriFor(
+-                Settings.Secure.DOUBLE_TAP_TO_WAKE),
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURES_ENABLED),
++                false, mSettingsObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_DOUBLE_TAP),
++                false, mSettingsObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_SINGLE_TAP),
++                false, mSettingsObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_DRAW_V),
++                false, mSettingsObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_DRAW_INVERSE_V),
++                false, mSettingsObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_DRAW_O),
++                false, mSettingsObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_DRAW_M),
++                false, mSettingsObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_DRAW_W),
++                false, mSettingsObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_DRAW_S),
++                false, mSettingsObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_DRAW_ARROW_LEFT),
++                false, mSettingsObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_DRAW_ARROW_RIGHT),
++                false, mSettingsObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_ONE_FINGER_SWIPE_UP),
++                false, mSettingsObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_ONE_FINGER_SWIPE_RIGHT),
++                false, mSettingsObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_ONE_FINGER_SWIPE_UP),
++                false, mSettingsObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_ONE_FINGER_SWIPE_RIGHT),
++                false, mSettingsObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_ONE_FINGER_SWIPE_DOWN),
++                false, mSettingsObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_ONE_FINGER_SWIPE_LEFT),
++                false, mSettingsObserver, UserHandle.USER_ALL);
++        resolver.registerContentObserver(Settings.System.getUriFor(
++                Settings.System.GESTURE_TWO_FINGER_SWIPE),
+                 false, mSettingsObserver, UserHandle.USER_ALL);
+         resolver.registerContentObserver(Settings.Global.getUriFor(
+                 Settings.Global.DEVICE_DEMO_MODE),
+@@ -1550,8 +1667,36 @@ public final class PowerManagerService extends SystemService
+                 com.android.internal.R.integer.config_maximumScreenDimDuration);
+         mMaximumScreenDimRatioConfig = resources.getFraction(
+                 com.android.internal.R.fraction.config_maximumScreenDimRatio, 1, 1);
+-        mSupportsDoubleTapWakeConfig = resources.getBoolean(
+-                com.android.internal.R.bool.config_supportDoubleTapWake);
++        mSupportsDoubleTapConfig = resources.getInteger(
++                com.android.internal.R.integer.config_doubleTapKeyCode) > 0;
++        mSupportsSingleTapConfig = resources.getInteger(
++                com.android.internal.R.integer.config_singleTapKeyCode) > 0;
++        mSupportsDrawVConfig = resources.getInteger(
++                com.android.internal.R.integer.config_drawVKeyCode) > 0;
++        mSupportsDrawInverseVConfig = resources.getInteger(
++                com.android.internal.R.integer.config_drawInverseVKeyCode) > 0;
++        mSupportsDrawOConfig = resources.getInteger(
++                com.android.internal.R.integer.config_drawOKeyCode) > 0;
++        mSupportsDrawMConfig = resources.getInteger(
++                com.android.internal.R.integer.config_drawMKeyCode) > 0;
++        mSupportsDrawWConfig = resources.getInteger(
++                com.android.internal.R.integer.config_drawWKeyCode) > 0;
++        mSupportsDrawSConfig = resources.getInteger(
++                com.android.internal.R.integer.config_drawSKeyCode) > 0;
++        mSupportsDrawArrowLeftConfig = resources.getInteger(
++                com.android.internal.R.integer.config_drawArrowLeftKeyCode) > 0;
++        mSupportsDrawArrowRightConfig = resources.getInteger(
++                com.android.internal.R.integer.config_drawArrowRightKeyCode) > 0;
++        mSupportsOneFingerSwipeUpConfig = resources.getInteger(
++                com.android.internal.R.integer.config_oneFingerSwipeUpKeyCode) > 0;
++        mSupportsOneFingerSwipeRightConfig = resources.getInteger(
++                com.android.internal.R.integer.config_oneFingerSwipeRightKeyCode) > 0;
++        mSupportsOneFingerSwipeDownConfig = resources.getInteger(
++                com.android.internal.R.integer.config_oneFingerSwipeDownKeyCode) > 0;
++        mSupportsOneFingerSwipeLeftConfig = resources.getInteger(
++                com.android.internal.R.integer.config_oneFingerSwipeLeftKeyCode) > 0;
++        mSupportsTwoFingerSwipeConfig = resources.getInteger(
++                com.android.internal.R.integer.config_twoFingerSwipeKeyCode) > 0;
+     }
+ 
+     @GuardedBy("mLock")
+@@ -1586,13 +1731,191 @@ public final class PowerManagerService extends SystemService
+         mAlwaysOnEnabled =
+                 mAmbientDisplayConfiguration.alwaysOnEnabledSetting(UserHandle.USER_CURRENT);
+ 
+-        if (mSupportsDoubleTapWakeConfig) {
+-            boolean doubleTapWakeEnabled = Settings.Secure.getIntForUser(resolver,
+-                    Settings.Secure.DOUBLE_TAP_TO_WAKE, DEFAULT_DOUBLE_TAP_TO_WAKE,
+-                            UserHandle.USER_CURRENT) != 0;
+-            if (doubleTapWakeEnabled != mDoubleTapWakeEnabled) {
+-                mDoubleTapWakeEnabled = doubleTapWakeEnabled;
+-                mNativeWrapper.nativeSetPowerMode(Mode.DOUBLE_TAP_TO_WAKE, mDoubleTapWakeEnabled);
++        boolean gesturesEnabled = Settings.System.getIntForUser(resolver,
++                Settings.System.GESTURES_ENABLED, 1, UserHandle.USER_CURRENT) != 0;
++        if (gesturesEnabled != mGesturesEnabled) {
++            mGesturesEnabled = gesturesEnabled;
++            mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_GESTURES,
++                        mGesturesEnabled ? 1 : 0);
++        }
++
++        if (mSupportsDoubleTapConfig) {
++            boolean doubleTapEnabled = Settings.System.getIntForUser(resolver,
++                    Settings.System.GESTURE_DOUBLE_TAP, mContext.getResources()
++                    .getInteger(com.android.internal.R.integer.config_doubleTapDefault),
++                    UserHandle.USER_CURRENT) > 0;
++            if (doubleTapEnabled != mDoubleTapEnabled) {
++                mDoubleTapEnabled = doubleTapEnabled;
++                mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_DOUBLE_TAP,
++                        mDoubleTapEnabled && mGesturesEnabled ? 1 : 0);
++            }
++        }
++
++        if (mSupportsSingleTapConfig) {
++            boolean singleTapEnabled = Settings.System.getIntForUser(resolver,
++                    Settings.System.GESTURE_SINGLE_TAP, mContext.getResources()
++                    .getInteger(com.android.internal.R.integer.config_singleTapDefault),
++                    UserHandle.USER_CURRENT) > 0;
++            if (singleTapEnabled != mSingleTapEnabled) {
++                mSingleTapEnabled = singleTapEnabled;
++                mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_SINGLE_TAP,
++                        mSingleTapEnabled && mGesturesEnabled ? 1 : 0);
++            }
++        }
++
++        if (mSupportsDrawVConfig) {
++            boolean drawVEnabled = Settings.System.getIntForUser(resolver,
++                    Settings.System.GESTURE_DRAW_V, mContext.getResources()
++                    .getInteger(com.android.internal.R.integer.config_drawVDefault),
++                    UserHandle.USER_CURRENT) > 0;
++            if (drawVEnabled != mDrawVEnabled) {
++                mDrawVEnabled = drawVEnabled;
++                mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_DRAW_V,
++                        mDrawVEnabled && mGesturesEnabled ? 1 : 0);
++            }
++        }
++
++        if (mSupportsDrawInverseVConfig) {
++            boolean drawInverseVEnabled = Settings.System.getIntForUser(resolver,
++                    Settings.System.GESTURE_DRAW_INVERSE_V, mContext.getResources()
++                    .getInteger(com.android.internal.R.integer.config_drawInverseVDefault),
++                    UserHandle.USER_CURRENT) > 0 && mGesturesEnabled;
++            if (drawInverseVEnabled != mDrawInverseVEnabled) {
++                mDrawInverseVEnabled = drawInverseVEnabled;
++                mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_DRAW_INVERSE_V,
++                        mDrawInverseVEnabled && mGesturesEnabled ? 1 : 0);
++            }
++        }
++
++        if (mSupportsDrawOConfig) {
++            boolean drawOEnabled = Settings.System.getIntForUser(resolver,
++                    Settings.System.GESTURE_DRAW_O, mContext.getResources()
++                    .getInteger(com.android.internal.R.integer.config_drawODefault),
++                    UserHandle.USER_CURRENT) > 0;
++            if (drawOEnabled != mDrawOEnabled) {
++                mDrawOEnabled = drawOEnabled;
++                mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_DRAW_O,
++                        mDrawOEnabled && mGesturesEnabled ? 1 : 0);
++            }
++        }
++
++        if (mSupportsDrawMConfig) {
++            boolean drawMEnabled = Settings.System.getIntForUser(resolver,
++                    Settings.System.GESTURE_DRAW_M, mContext.getResources()
++                    .getInteger(com.android.internal.R.integer.config_drawMDefault),
++                    UserHandle.USER_CURRENT) > 0;
++            if (drawMEnabled != mDrawMEnabled) {
++                mDrawMEnabled = drawMEnabled;
++                mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_DRAW_M,
++                        mDrawMEnabled && mGesturesEnabled ? 1 : 0);
++            }
++        }
++
++        if (mSupportsDrawWConfig) {
++            boolean drawWEnabled = Settings.System.getIntForUser(resolver,
++                    Settings.System.GESTURE_DRAW_W, mContext.getResources()
++                    .getInteger(com.android.internal.R.integer.config_drawWDefault),
++                    UserHandle.USER_CURRENT) > 0;
++            if (drawWEnabled != mDrawWEnabled) {
++                mDrawWEnabled = drawWEnabled;
++                mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_DRAW_W,
++                        mDrawWEnabled && mGesturesEnabled ? 1 : 0);
++            }
++        }
++
++        if (mSupportsDrawSConfig) {
++            boolean drawSEnabled = Settings.System.getIntForUser(resolver,
++                    Settings.System.GESTURE_DRAW_S, mContext.getResources()
++                    .getInteger(com.android.internal.R.integer.config_drawSDefault),
++                    UserHandle.USER_CURRENT) > 0;
++            if (drawSEnabled != mDrawSEnabled) {
++                mDrawSEnabled = drawSEnabled;
++                mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_DRAW_S,
++                        mDrawSEnabled && mGesturesEnabled ? 1 : 0);
++            }
++        }
++
++        if (mSupportsDrawArrowLeftConfig) {
++            boolean drawArrowLeftEnabled = Settings.System.getIntForUser(resolver,
++                    Settings.System.GESTURE_DRAW_ARROW_LEFT, mContext.getResources()
++                    .getInteger(com.android.internal.R.integer.config_drawArrowLeftDefault),
++                    UserHandle.USER_CURRENT) > 0;
++            if (drawArrowLeftEnabled != mDrawArrowLeftEnabled) {
++                mDrawArrowLeftEnabled = drawArrowLeftEnabled;
++                mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_DRAW_ARROW_LEFT,
++                        mDrawArrowLeftEnabled && mGesturesEnabled ? 1 : 0);
++            }
++        }
++
++        if (mSupportsDrawArrowRightConfig) {
++            boolean drawArrowRightEnabled = Settings.System.getIntForUser(resolver,
++                    Settings.System.GESTURE_DRAW_ARROW_RIGHT, mContext.getResources()
++                    .getInteger(com.android.internal.R.integer.config_drawArrowRightDefault),
++                    UserHandle.USER_CURRENT) > 0;
++            if (drawArrowRightEnabled != mDrawArrowRightEnabled) {
++                mDrawArrowRightEnabled = drawArrowRightEnabled;
++                mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_DRAW_ARROW_RIGHT,
++                        mDrawArrowRightEnabled && mGesturesEnabled ? 1 : 0);
++            }
++        }
++
++        if (mSupportsOneFingerSwipeUpConfig) {
++            boolean oneFingerSwipeUpEnabled = Settings.System.getIntForUser(resolver,
++                    Settings.System.GESTURE_ONE_FINGER_SWIPE_UP, mContext.getResources()
++                            .getInteger(com.android.internal.R.integer.config_oneFingerSwipeUpDefault),
++                    UserHandle.USER_CURRENT) > 0 && mGesturesEnabled;
++            if (oneFingerSwipeUpEnabled != mOneFingerSwipeUpEnabled) {
++                mOneFingerSwipeUpEnabled = oneFingerSwipeUpEnabled;
++                mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_ONE_FINGER_SWIPE_UP,
++                        mOneFingerSwipeUpEnabled && mGesturesEnabled ? 1 : 0);
++            }
++        }
++
++        if (mSupportsOneFingerSwipeRightConfig) {
++            boolean oneFingerSwipeRightEnabled = Settings.System.getIntForUser(resolver,
++                    Settings.System.GESTURE_ONE_FINGER_SWIPE_RIGHT, mContext.getResources()
++                            .getInteger(com.android.internal.R.integer.config_oneFingerSwipeRightDefault),
++                    UserHandle.USER_CURRENT) > 0 && mGesturesEnabled;
++            if (oneFingerSwipeRightEnabled != mOneFingerSwipeRightEnabled) {
++                mOneFingerSwipeRightEnabled = oneFingerSwipeRightEnabled;
++                mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_ONE_FINGER_SWIPE_RIGHT,
++                        mOneFingerSwipeRightEnabled && mGesturesEnabled ? 1 : 0);
++            }
++        }
++
++        if (mSupportsOneFingerSwipeDownConfig) {
++            boolean oneFingerSwipeDownEnabled = Settings.System.getIntForUser(resolver,
++                    Settings.System.GESTURE_ONE_FINGER_SWIPE_DOWN, mContext.getResources()
++                    .getInteger(com.android.internal.R.integer.config_oneFingerSwipeDownDefault),
++                    UserHandle.USER_CURRENT) > 0 && mGesturesEnabled;
++            if (oneFingerSwipeDownEnabled != mOneFingerSwipeDownEnabled) {
++                mOneFingerSwipeDownEnabled = oneFingerSwipeDownEnabled;
++                mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_ONE_FINGER_SWIPE_DOWN,
++                        mOneFingerSwipeDownEnabled && mGesturesEnabled ? 1 : 0);
++            }
++        }
++
++        if (mSupportsOneFingerSwipeLeftConfig) {
++            boolean oneFingerSwipeLeftEnabled = Settings.System.getIntForUser(resolver,
++                    Settings.System.GESTURE_ONE_FINGER_SWIPE_LEFT, mContext.getResources()
++                    .getInteger(com.android.internal.R.integer.config_oneFingerSwipeLeftDefault),
++                    UserHandle.USER_CURRENT) > 0 && mGesturesEnabled;
++            if (oneFingerSwipeLeftEnabled != mOneFingerSwipeLeftEnabled) {
++                mOneFingerSwipeLeftEnabled = oneFingerSwipeLeftEnabled;
++                mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_ONE_FINGER_SWIPE_LEFT,
++                        mOneFingerSwipeLeftEnabled && mGesturesEnabled ? 1 : 0);
++            }
++        }
++
++        if (mSupportsTwoFingerSwipeConfig) {
++            boolean twoFingerSwipeEnabled = Settings.System.getIntForUser(resolver,
++                    Settings.System.GESTURE_TWO_FINGER_SWIPE, mContext.getResources()
++                    .getInteger(com.android.internal.R.integer.config_twoFingerSwipeDefault),
++                    UserHandle.USER_CURRENT) > 0 && mGesturesEnabled;
++            if (twoFingerSwipeEnabled != mTwoFingerSwipeEnabled) {
++                mTwoFingerSwipeEnabled = twoFingerSwipeEnabled;
++                mNativeWrapper.nativeSetParanoidFeature(POWER_FEATURE_TWO_FINGER_SWIPE,
++                        mTwoFingerSwipeEnabled && mGesturesEnabled ? 1 : 0);
+             }
+         }
+ 
+@@ -4785,7 +5108,22 @@ public final class PowerManagerService extends SystemService
+             pw.println("  mScreenBrightnessMinimum=" + mScreenBrightnessMinimum);
+             pw.println("  mScreenBrightnessMaximum=" + mScreenBrightnessMaximum);
+             pw.println("  mScreenBrightnessDefault=" + mScreenBrightnessDefault);
+-            pw.println("  mDoubleTapWakeEnabled=" + mDoubleTapWakeEnabled);
++            pw.println("  mGesturesEnabled=" + mGesturesEnabled);
++            pw.println("  mDoubleTapEnabled=" + mDoubleTapEnabled);
++            pw.println("  mSingleTapEnabled=" + mSingleTapEnabled);
++            pw.println("  mDrawVEnabled=" + mDrawVEnabled);
++            pw.println("  mDrawInverseVEnabled=" + mDrawInverseVEnabled);
++            pw.println("  mDrawOEnabled=" + mDrawOEnabled);
++            pw.println("  mDrawMEnabled=" + mDrawMEnabled);
++            pw.println("  mDrawWEnabled=" + mDrawWEnabled);
++            pw.println("  mDrawSEnabled=" + mDrawSEnabled);
++            pw.println("  mDrawArrowLeftEnabled=" + mDrawArrowLeftEnabled);
++            pw.println("  mDrawArrowRightEnabled=" + mDrawArrowRightEnabled);
++            pw.println("  mOneFingerSwipeUpEnabled=" + mOneFingerSwipeUpEnabled);
++            pw.println("  mOneFingerSwipeRightEnabled=" + mOneFingerSwipeRightEnabled);
++            pw.println("  mOneFingerSwipeDownEnabled=" + mOneFingerSwipeDownEnabled);
++            pw.println("  mOneFingerSwipeLeftEnabled=" + mOneFingerSwipeLeftEnabled);
++            pw.println("  mTwoFingerSwipeEnabled=" + mTwoFingerSwipeEnabled);
+             pw.println("  mForegroundProfile=" + mForegroundProfile);
+             pw.println("  mUserId=" + mUserId);
+ 
+@@ -5204,7 +5542,7 @@ public final class PowerManagerService extends SystemService
+ 
+             proto.write(
+                     PowerServiceSettingsAndConfigurationDumpProto.IS_DOUBLE_TAP_WAKE_ENABLED,
+-                    mDoubleTapWakeEnabled);
++                    mDoubleTapEnabled);
+             proto.end(settingsAndConfigurationToken);
+ 
+             final long attentiveTimeout = getAttentiveTimeoutLocked();
+diff --git a/services/core/jni/Android.bp b/services/core/jni/Android.bp
+index f8361bd92909..57966eb6b31b 100644
+--- a/services/core/jni/Android.bp
++++ b/services/core/jni/Android.bp
+@@ -211,6 +211,7 @@ cc_defaults {
+         "android.system.suspend-V1-ndk",
+         "server_configurable_flags",
+         "service.incremental",
++        "vendor.aospa.power-V1-cpp",
+     ],
+ 
+     static_libs: [
+diff --git a/services/core/jni/com_android_server_power_PowerManagerService.cpp b/services/core/jni/com_android_server_power_PowerManagerService.cpp
+index 841f314726c4..371f9e8373b4 100644
+--- a/services/core/jni/com_android_server_power_PowerManagerService.cpp
++++ b/services/core/jni/com_android_server_power_PowerManagerService.cpp
+@@ -24,6 +24,8 @@
+ #include <aidl/android/hardware/power/Mode.h>
+ #include <aidl/android/system/suspend/ISystemSuspend.h>
+ #include <aidl/android/system/suspend/IWakeLock.h>
++#include <vendor/aospa/power/Feature.h>
++#include <vendor/aospa/power/IPowerFeature.h>
+ #include <android-base/chrono_utils.h>
+ #include <android/binder_manager.h>
+ #include <android/system/suspend/ISuspendControlService.h>
+@@ -53,6 +55,8 @@ using aidl::android::system::suspend::IWakeLock;
+ using aidl::android::system::suspend::WakeLockType;
+ using android::String8;
+ using android::system::suspend::ISuspendControlService;
++using PowerFeature = vendor::aospa::power::Feature;
++using vendor::aospa::power::IPowerFeature;
+ 
+ namespace android {
+ 
+@@ -66,6 +70,7 @@ static struct {
+ 
+ static jobject gPowerManagerServiceObj;
+ static power::PowerHalController gPowerHalController;
++static sp<IPowerFeature> gPowerAospaHalAidl_ = nullptr;
+ static nsecs_t gLastEventTime[USER_ACTIVITY_EVENT_LAST + 1];
+ 
+ // Throttling interval for user activity calls.
+@@ -83,6 +88,24 @@ static bool checkAndClearExceptionFromCallback(JNIEnv* env, const char* methodNa
+     return false;
+ }
+ 
++// The caller must be holding gPowerHalMutex.
++static bool connectPowerFeatureHalLocked() {
++    static bool gPowerAospaHalAidlExists = true;
++    if (gPowerAospaHalAidlExists) {
++        if (!gPowerAospaHalAidl_) {
++            gPowerAospaHalAidl_ = waitForVintfService<IPowerFeature>();
++        }
++        if (gPowerAospaHalAidl_) {
++            ALOGV("Successfully connected to PowerFeature HAL AIDL service.");
++            return true;
++        } else {
++            ALOGV("Couldn't load PowerFeature HAL AIDL service");
++            gPowerAospaHalAidlExists = false;
++        }
++    }
++    return false;
++}
++
+ static void setPowerBoost(Boost boost, int32_t durationMs) {
+     gPowerHalController.setBoost(boost, durationMs);
+     SurfaceComposerClient::notifyPowerBoost(static_cast<int32_t>(boost));
+@@ -239,6 +262,14 @@ static jboolean nativeSetPowerMode(JNIEnv* /* env */, jclass /* clazz */, jint m
+     return setPowerMode(static_cast<Mode>(mode), enabled);
+ }
+ 
++static void nativeSetParanoidFeature(JNIEnv* /* env */, jclass /* clazz */, jint featureId,
++                                   jint data) {
++    // Try using AOSPAs power hal. If it fails or isn't available, ignore
++    if (connectPowerFeatureHalLocked()) {
++        gPowerAospaHalAidl_->setFeature(static_cast<PowerFeature>(featureId), static_cast<bool>(data));
++    }
++}
++
+ static bool nativeForceSuspend(JNIEnv* /* env */, jclass /* clazz */) {
+     bool retval = false;
+     getSuspendControlInternal()->forceSuspend(&retval);
+@@ -258,6 +289,7 @@ static const JNINativeMethod gPowerManagerServiceMethods[] = {
+         {"nativeSetAutoSuspend", "(Z)V", (void*)nativeSetAutoSuspend},
+         {"nativeSetPowerBoost", "(II)V", (void*)nativeSetPowerBoost},
+         {"nativeSetPowerMode", "(IZ)Z", (void*)nativeSetPowerMode},
++        {"nativeSetParanoidFeature", "(II)V", (void*)nativeSetParanoidFeature},
+ };
+ 
+ #define FIND_CLASS(var, className) \
+-- 
+2.47.1
+

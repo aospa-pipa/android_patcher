@@ -1,0 +1,70 @@
+From 756df391235e13f27eaacea1c533d23c47f034a1 Mon Sep 17 00:00:00 2001
+From: Pranav Vashi <neobuddy89@gmail.com>
+Date: Sat, 27 Jul 2024 05:12:46 +0530
+Subject: [PATCH 054/103] SystemUI: Remove composite alpha from additional
+ scrim on lockscreen
+
+* Remove animation to prevent flickering when screen turns on.
+
+Fixes: https://github.com/crdroidandroid/issue_tracker/issues/459
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ .../statusbar/phone/ScrimController.java        | 17 +++--------------
+ 1 file changed, 3 insertions(+), 14 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
+index d453391ecdaa..d747994fc8d4 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
+@@ -183,10 +183,6 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
+     public @interface ScrimVisibility {
+     }
+ 
+-    /**
+-     * Default alpha value for most scrims.
+-     */
+-    protected static final float KEYGUARD_SCRIM_ALPHA = 0.2f;
+     /**
+      * Scrim opacity when the phone is about to wake-up.
+      */
+@@ -237,7 +233,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
+     private float mAdditionalScrimBehindAlphaKeyguard = 0f;
+     // Combined scrim behind keyguard alpha of default scrim + additional scrim
+     // (if wallpaper dimming is applied).
+-    private float mScrimBehindAlphaKeyguard = KEYGUARD_SCRIM_ALPHA;
++    private float mScrimBehindAlphaKeyguard = 0f;
+     private final float mDefaultScrimAlpha;
+ 
+     private float mRawPanelExpansionFraction;
+@@ -703,11 +699,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
+      * This is used to apply additional keyguard dimming on top of the default scrim alpha value.
+      */
+     protected void applyCompositeAlphaOnScrimBehindKeyguard() {
+-        int compositeAlpha = ColorUtils.compositeAlpha(
+-                (int) (255 * mAdditionalScrimBehindAlphaKeyguard),
+-                (int) (255 * KEYGUARD_SCRIM_ALPHA));
+-        float keyguardScrimAlpha = (float) compositeAlpha / 255;
+-        setScrimBehindValues(keyguardScrimAlpha);
++        setScrimBehindValues(mAdditionalScrimBehindAlphaKeyguard);
+     }
+ 
+     /**
+@@ -1398,14 +1390,11 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
+         final int initialScrimTint = scrim instanceof ScrimView ? ((ScrimView) scrim).getTint() :
+                 Color.TRANSPARENT;
+         anim.addUpdateListener(animation -> {
+-            final float startAlpha = (Float) scrim.getTag(TAG_START_ALPHA);
+             final float animAmount = (float) animation.getAnimatedValue();
+             final int finalScrimTint = getCurrentScrimTint(scrim);
+             final float finalScrimAlpha = getCurrentScrimAlpha(scrim);
+-            float alpha = MathUtils.lerp(startAlpha, finalScrimAlpha, animAmount);
+-            alpha = MathUtils.constrain(alpha, 0f, 1f);
+             int tint = ColorUtils.blendARGB(initialScrimTint, finalScrimTint, animAmount);
+-            updateScrimColor(scrim, alpha, tint);
++            updateScrimColor(scrim, finalScrimAlpha, tint);
+             dispatchScrimsVisible();
+         });
+         anim.setInterpolator(mInterpolator);
+-- 
+2.47.1
+

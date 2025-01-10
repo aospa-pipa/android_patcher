@@ -1,0 +1,113 @@
+From 732e4191c14e2cc5f5165bc550720b78a4edd33c Mon Sep 17 00:00:00 2001
+From: Sourajit Karmakar <sourajit.karmakar@gmail.com>
+Date: Tue, 29 Dec 2020 21:50:09 +0100
+Subject: [PATCH 089/103] Screenrecord: Add delete action to the notification
+
+This reverts commit 6fcdb6b.
+
+Change-Id: I125d2aff9b406341a533cbfe80686ee473dd3e88
+---
+ packages/SystemUI/res/values/cm_strings.xml   |  5 +++
+ .../screenrecord/RecordingService.java        | 35 +++++++++++++++++++
+ 2 files changed, 40 insertions(+)
+
+diff --git a/packages/SystemUI/res/values/cm_strings.xml b/packages/SystemUI/res/values/cm_strings.xml
+index 379df116d530..dd0ae0420170 100644
+--- a/packages/SystemUI/res/values/cm_strings.xml
++++ b/packages/SystemUI/res/values/cm_strings.xml
+@@ -121,6 +121,11 @@
+     <!-- Content description indicating that tapping the element will allow deleting the screenshot [CHAR LIMIT=NONE] -->
+     <string name="screenshot_delete_description">Delete screenshot</string>
+ 
++    <!-- Label for notification action to delete a screen recording file [CHAR LIMIT=35] -->
++    <string name="screenrecord_delete_label">Delete</string>
++    <!-- A toast message shown after successfully deleting a screen recording [CHAR LIMIT=NONE] -->
++    <string name="screenrecord_delete_description">Screen recording deleted</string>
++
+     <!-- Screen record -->
+     <string name="screenrecord_stopdot_label">Show stop dot</string>
+     <string name="screenrecord_stopdot_summary">Long press to move it</string>
+diff --git a/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingService.java b/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingService.java
+index 8e3474295b4b..ef91a5708ece 100644
+--- a/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingService.java
++++ b/packages/SystemUI/src/com/android/systemui/screenrecord/RecordingService.java
+@@ -22,6 +22,7 @@ import android.app.NotificationChannel;
+ import android.app.NotificationManager;
+ import android.app.PendingIntent;
+ import android.app.Service;
++import android.content.ContentResolver;
+ import android.content.Context;
+ import android.content.Intent;
+ import android.graphics.PixelFormat;
+@@ -91,6 +92,7 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+     protected static final String ACTION_STOP_NOTIF =
+             "com.android.systemui.screenrecord.STOP_FROM_NOTIF";
+     protected static final String ACTION_SHARE = "com.android.systemui.screenrecord.SHARE";
++    protected static final String ACTION_DELETE = "com.android.systemui.screenrecord.DELETE";
+     private static final String PERMISSION_SELF = "com.android.systemui.permission.SELF";
+     private static final String PREF_DOT_RIGHT = "screenrecord_dot_right";
+ 
+@@ -264,6 +266,23 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+                 // Close quick shade
+                 closeSystemDialogs();
+                 break;
++            case ACTION_DELETE:
++                // Close quick shade
++                closeSystemDialogs();
++
++                ContentResolver resolver = getContentResolver();
++                Uri uri = intent.getParcelableExtra(EXTRA_PATH, Uri.class);
++                resolver.delete(uri, null, null);
++
++                Toast.makeText(
++                        this,
++                        R.string.screenrecord_delete_description,
++                        Toast.LENGTH_LONG).show();
++
++                // Remove notification
++                mNotificationManager.cancelAsUser(null, mNotificationId, currentUser);
++                Log.d(TAG, "Deleted recording " + uri);
++                break;
+         }
+         return Service.START_STICKY;
+     }
+@@ -401,6 +420,16 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+                         PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE))
+                 .build();
+ 
++        Notification.Action deleteAction = new Notification.Action.Builder(
++                Icon.createWithResource(this, R.drawable.ic_screenrecord),
++                getResources().getString(R.string.screenrecord_delete_label),
++                PendingIntent.getService(
++                        this,
++                        REQUEST_CODE,
++                        getDeleteIntent(this, uri),
++                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE))
++                .build();
++
+         Bundle extras = new Bundle();
+         extras.putString(Notification.EXTRA_SUBSTITUTE_APP_NAME, strings().getTitle());
+ 
+@@ -414,6 +443,7 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+                         viewIntent,
+                         PendingIntent.FLAG_IMMUTABLE))
+                 .addAction(shareAction)
++                .addAction(deleteAction)
+                 .setAutoCancel(true)
+                 .setGroup(GROUP_KEY)
+                 .addExtras(extras);
+@@ -657,6 +687,11 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
+                 .putExtra(EXTRA_PATH, path);
+     }
+ 
++    private Intent getDeleteIntent(Context context, Uri path) {
++        return new Intent(context, this.getClass()).setAction(ACTION_DELETE)
++                .putExtra(EXTRA_PATH, path);
++    }
++
+     @Override
+     public void onInfo(MediaRecorder mr, int what, int extra) {
+         Log.d(getTag(), "Media recorder info: " + what);
+-- 
+2.47.1
+

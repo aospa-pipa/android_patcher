@@ -1,0 +1,69 @@
+From 983425e59668852e6acf694481328d839c7afded Mon Sep 17 00:00:00 2001
+From: Alexander Martinz <amartinz@shiftphones.com>
+Date: Wed, 25 Jan 2023 12:40:25 +0100
+Subject: [PATCH 3/3] media: kona: Drop OMX heic encoder
+
+Test: run cts -m CtsMediaEncoderTestCases
+
+Change-Id: I8e29340feaa3ff5f7023a0e7da099ddc82a28465
+Signed-off-by: Alexander Martinz <amartinz@shiftphones.com>
+---
+ conf_files/kona/media_codecs.xml        | 15 ---------------
+ conf_files/kona/media_codecs_vendor.xml | 15 ---------------
+ 2 files changed, 30 deletions(-)
+
+diff --git a/conf_files/kona/media_codecs.xml b/conf_files/kona/media_codecs.xml
+index 534174b..17a69c4 100644
+--- a/conf_files/kona/media_codecs.xml
++++ b/conf_files/kona/media_codecs.xml
+@@ -248,21 +248,6 @@ Only the three quirks included above are recognized at this point:
+             <Feature name="bitrate-modes" value="CQ" />
+             <Limit name="performance-point-512x512" value="3825" />
+         </MediaCodec>
+-        <MediaCodec name="OMX.qcom.video.encoder.heic" type="image/vnd.android.heic" >
+-            <Quirk name="requires-allocate-on-input-ports" />
+-            <Quirk name="requires-allocate-on-input-ports" />
+-            <Quirk name="requires-allocate-on-output-ports" />
+-            <Quirk name="requires-loaded-to-idle-after-allocation" />
+-            <Limit name="size" min="512x512" max="16384x16384" />
+-            <Limit name="alignment" value="2x2" />
+-            <Limit name="block-size" value="16x16" />
+-            <Limit name="frame-rate" range="1-20" />
+-            <Limit name="concurrent-instances" max="6" />
+-            <Limit name="quality" range="0-100" default="80" />
+-            <Feature name="bitrate-modes" value="CQ" />
+-            <Limit name="performance-point-16384x8192" value="3" />
+-            <Limit name="performance-point-1920x1080" value="6" />
+-        </MediaCodec>
+     </Encoders>
+     <Decoders>
+        <!-- Video Hardware  -->
+diff --git a/conf_files/kona/media_codecs_vendor.xml b/conf_files/kona/media_codecs_vendor.xml
+index b2bbb7c..b13f393 100644
+--- a/conf_files/kona/media_codecs_vendor.xml
++++ b/conf_files/kona/media_codecs_vendor.xml
+@@ -249,21 +249,6 @@ Only the three quirks included above are recognized at this point:
+             <Feature name="bitrate-modes" value="CQ" />
+             <Limit name="performance-point-512x512" value="3825" />
+         </MediaCodec>
+-        <MediaCodec name="OMX.qcom.video.encoder.heic" type="image/vnd.android.heic" >
+-            <Quirk name="requires-allocate-on-input-ports" />
+-            <Quirk name="requires-allocate-on-input-ports" />
+-            <Quirk name="requires-allocate-on-output-ports" />
+-            <Quirk name="requires-loaded-to-idle-after-allocation" />
+-            <Limit name="size" min="512x512" max="16384x16384" />
+-            <Limit name="alignment" value="2x2" />
+-            <Limit name="block-size" value="16x16" />
+-            <Limit name="frame-rate" range="1-20" />
+-            <Limit name="concurrent-instances" max="6" />
+-            <Limit name="quality" range="0-100" default="80" />
+-            <Feature name="bitrate-modes" value="CQ" />
+-            <Limit name="performance-point-16384x8192" value="3" />
+-            <Limit name="performance-point-1920x1080" value="6" />
+-        </MediaCodec>
+     </Encoders>
+     <Decoders>
+        <!-- Video Hardware  -->
+-- 
+2.47.1
+

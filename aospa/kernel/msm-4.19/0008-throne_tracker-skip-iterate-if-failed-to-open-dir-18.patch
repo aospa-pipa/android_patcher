@@ -1,0 +1,36 @@
+From 135ca24598ad9e01f838f29f553094e8e6b559e9 Mon Sep 17 00:00:00 2001
+From: 5ec1cff <56485584+5ec1cff@users.noreply.github.com>
+Date: Wed, 19 Jun 2024 09:19:04 +0800
+Subject: [PATCH 08/21] throne_tracker: skip iterate if failed to open dir
+ (#1832) [v1.0.0]
+
+fix https://github.com/tiann/KernelSU/issues/1800
+
+Change-Id: I89f2ae13e7f9d76a82413d0b7fd60e2de4bed14c
+---
+ drivers/ksu/throne_tracker.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/ksu/throne_tracker.c b/drivers/ksu/throne_tracker.c
+index c709a6921a23..725c910336ac 100644
+--- a/drivers/ksu/throne_tracker.c
++++ b/drivers/ksu/throne_tracker.c
+@@ -240,13 +240,13 @@ void search_manager(const char *path, int depth, struct list_head *uid_data)
+ 				file = ksu_filp_open_compat(pos->dirpath, O_RDONLY | O_NOFOLLOW, 0);
+ 				if (IS_ERR(file)) {
+ 					pr_err("Failed to open directory: %s, err: %ld\n", pos->dirpath, PTR_ERR(file));
+-					return;
++					goto skip_iterate;
+ 				}
+ 
+ 				iterate_dir(file, &ctx.ctx);
+ 				filp_close(file, NULL);
+ 			}
+-
++skip_iterate:
+ 			list_del(&pos->list);
+ 			if (pos != &data)
+ 				kfree(pos);
+-- 
+2.47.1
+

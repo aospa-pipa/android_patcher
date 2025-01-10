@@ -1,0 +1,47 @@
+From 1ee30aaf3d0e6e27422c6d69877e5ab2de33771a Mon Sep 17 00:00:00 2001
+From: Dhina17 <dhinalogu@gmail.com>
+Date: Sat, 3 Aug 2024 12:28:05 +0530
+Subject: [PATCH 050/103] SystemUI: Update resources on theme change in shade
+ header
+
+So, it will update color after updating text appearance
+as like onDensityOrFontScaleChanged().
+
+Fixes QS carrier text color on theme changes after QPR3.
+
+Change-Id: I6e0c2b6094d74b12d029a3a4dce05e8e27d654ea
+
+onThemeChanged() will be called after onUiModeChanged()
+on device light/dark mode changes.
+So don't do twice as it produce race condition
+that shows wrong color for carrier text again.
+
+Change-Id: Ie74b67483cad8164478cc5fe36fa07abe2a3b3bf
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ .../src/com/android/systemui/shade/ShadeHeaderController.kt  | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/shade/ShadeHeaderController.kt b/packages/SystemUI/src/com/android/systemui/shade/ShadeHeaderController.kt
+index bd75fe4095db..bb0cfa45a081 100644
+--- a/packages/SystemUI/src/com/android/systemui/shade/ShadeHeaderController.kt
++++ b/packages/SystemUI/src/com/android/systemui/shade/ShadeHeaderController.kt
+@@ -296,14 +296,11 @@ constructor(
+                 clock.onDensityOrFontScaleChanged()
+             }
+ 
+-            override fun onUiModeChanged() {
+-                updateResources()
+-            }
+-
+             override fun onThemeChanged() {
+                 clock.setTextAppearance(R.style.TextAppearance_QS_Status)
+                 date.setTextAppearance(R.style.TextAppearance_QS_Status)
+                 mShadeCarrierGroup.updateTextAppearance(R.style.TextAppearance_QS_Status_Carriers)
++                updateResources()
+             }
+         }
+ 
+-- 
+2.47.1
+

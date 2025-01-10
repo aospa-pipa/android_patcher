@@ -1,0 +1,39 @@
+From cfb13f5a250702b6fbfc9447b811a20ed61f775f Mon Sep 17 00:00:00 2001
+From: Pat Erley <perley@cyngn.com>
+Date: Tue, 5 Jan 2016 16:50:02 -0800
+Subject: [PATCH 02/17] recovery: Enable the menu for User builds
+
+Upstream recovery doesn't provide a menu for non ENG/UserDebug
+builds.
+
+OPO-321
+
+Change-Id: Ifcc8bebf36ae728e7a0f382c1976125343e5dfc3
+Signed-off-by: chrisl7 <wandersonrodriguesf1@gmail.com>
+---
+ recovery.cpp | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/recovery.cpp b/recovery.cpp
+index 8251697fc..11dcca14b 100644
+--- a/recovery.cpp
++++ b/recovery.cpp
+@@ -950,12 +950,10 @@ Device::BuiltinAction start_recovery(Device* device, const std::vector<std::stri
+     status = ApplyFromAdb(device, true /* rescue_mode */, &next_action);
+     ui->Print("\nInstall from ADB complete (status: %d).\n", status);
+   } else if (!just_exit) {
+-    // If this is an eng or userdebug build, automatically turn on the text display if no command
+-    // is specified. Note that this should be called before setting the background to avoid
++    // Always show menu if no command is specified.
++    // Note that this should be called before setting the background to avoid
+     // flickering the background image.
+-    if (IsRoDebuggable()) {
+-      ui->ShowText(true);
+-    }
++    ui->ShowText(true);
+     status = INSTALL_NONE;  // No command specified
+     ui->SetBackground(RecoveryUI::NO_COMMAND);
+   }
+-- 
+2.47.1
+

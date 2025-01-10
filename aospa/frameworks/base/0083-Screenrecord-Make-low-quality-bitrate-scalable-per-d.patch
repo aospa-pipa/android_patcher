@@ -1,0 +1,45 @@
+From 57914fbc2c1a97de104d755bb1529f17edd334b8 Mon Sep 17 00:00:00 2001
+From: Ido Ben-Hur <idoybh2@gmail.com>
+Date: Mon, 26 Apr 2021 12:54:00 +0300
+Subject: [PATCH 083/103] Screenrecord: Make low quality bitrate scalable per
+ device
+
+Hack our way around that weird formula
+Just devide scaled bitrate by 3 for low quality
+
+Change-Id: I7669769ca3104b3566ed38f549af384f83d92d81
+---
+ .../systemui/screenrecord/ScreenMediaRecorder.java       | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java
+index a7a216050ee7..843ececcc2a9 100644
+--- a/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java
++++ b/packages/SystemUI/src/com/android/systemui/screenrecord/ScreenMediaRecorder.java
+@@ -73,8 +73,8 @@ public class ScreenMediaRecorder extends MediaProjection.Callback {
+     private static final int TOTAL_NUM_TRACKS = 1;
+     private static final int VIDEO_FRAME_RATE = 30;
+     private static final int VIDEO_FRAME_RATE_TO_RESOLUTION_RATIO = 6;
++    private static final int LOW_VIDEO_FRAME_RATE_TO_RESOLUTION_RATIO = 2;
+     private static final int LOW_VIDEO_FRAME_RATE = 25;
+-    private static final int LOW_VIDEO_BIT_RATE = 1750000;
+     private static final int AUDIO_BIT_RATE = 196000;
+     private static final int AUDIO_SAMPLE_RATE = 44100;
+     private static final int MAX_DURATION_MS = 60 * 60 * 1000;
+@@ -165,9 +165,10 @@ public class ScreenMediaRecorder extends MediaProjection.Callback {
+         int width = dimens[0];
+         int height = dimens[1];
+         refreshRate = dimens[2];
+-        int vidBitRate = mLowQuality ? LOW_VIDEO_BIT_RATE :
+-                width * height * refreshRate / VIDEO_FRAME_RATE
+-                * VIDEO_FRAME_RATE_TO_RESOLUTION_RATIO;
++        int resRatio = mLowQuality ? LOW_VIDEO_FRAME_RATE_TO_RESOLUTION_RATIO
++                : VIDEO_FRAME_RATE_TO_RESOLUTION_RATIO;
++        int vidBitRate = width * height * refreshRate / VIDEO_FRAME_RATE * resRatio;
++        long maxFilesize = mLongerDuration ? MAX_FILESIZE_BYTES_LONGER : MAX_FILESIZE_BYTES;
+         mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+         mMediaRecorder.setVideoEncodingProfileLevel(
+                 MediaCodecInfo.CodecProfileLevel.AVCProfileMain,
+-- 
+2.47.1
+

@@ -1,0 +1,31 @@
+From 24d98aa766521a605abcfb57065000bed39fede5 Mon Sep 17 00:00:00 2001
+From: maxwen <max.weninger@gmail.com>
+Date: Wed, 9 Feb 2022 18:02:46 +0100
+Subject: [PATCH 070/103] SystemUI: use default dialogCornerRadius for qs
+ customize title
+
+just use the same as everywhere else in qs customize
+
+Change-Id: I1ddd502376c89245f821dba3c869cbc258ea3e13
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ .../SystemUI/res/drawable/qs_customize_tile_decoration.xml    | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/packages/SystemUI/res/drawable/qs_customize_tile_decoration.xml b/packages/SystemUI/res/drawable/qs_customize_tile_decoration.xml
+index d7a9edcbc31f..45efa41bab9a 100644
+--- a/packages/SystemUI/res/drawable/qs_customize_tile_decoration.xml
++++ b/packages/SystemUI/res/drawable/qs_customize_tile_decoration.xml
+@@ -15,6 +15,6 @@
+ -->
+ <shape xmlns:android="http://schemas.android.com/apk/res/android">
+     <solid android:color="?android:attr/colorBackground"/>
+-    <corners android:topLeftRadius="20dp"
+-             android:topRightRadius="20dp" />
++    <corners android:topLeftRadius="?android:attr/dialogCornerRadius"
++             android:topRightRadius="?android:attr/dialogCornerRadius" />
+ </shape>
+\ No newline at end of file
+-- 
+2.47.1
+

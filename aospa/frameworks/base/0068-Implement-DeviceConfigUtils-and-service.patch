@@ -1,0 +1,273 @@
+From 698a2bb33d169400259906512acf56d5c63c843a Mon Sep 17 00:00:00 2001
+From: jhenrique09 <jhsv09@gmail.com>
+Date: Thu, 10 Aug 2023 14:22:06 +0000
+Subject: [PATCH 068/103] Implement DeviceConfigUtils and service
+
+- Allow overriding device configs while using GMS as device configurator package
+
+Change-Id: Ie7327610feca7a390915511088dfef831c946853
+
+DeviceConfigUtils: Make debug optional
+
+Change-Id: I65ffac8fd0a9971297b8d721d860face571a2d44
+(cherry picked from commit 9f54af5392d7ca70e1e495fc97560538459844e7)
+
+DeviceConfig: Change setProperties behavior
+
+Change-Id: I7cf1574f423c7362e6a7c9d8a002e4b20e5e7f87
+(cherry picked from commit f94a2c97e7bf53ee6681183f2394878369e99470)
+
+* Adapt to Android 14
+
+Change-Id: I6ece899c13f12ee299ba24b02f2b4ab96f3d92fb
+Signed-off-by: someone5678 <someone5678@users.noreply.github.com>
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ core/java/android/provider/Settings.java      | 13 ++-
+ .../util/crdroid/DeviceConfigUtils.java       | 85 +++++++++++++++++++
+ core/res/res/values/aospa_config.xml          |  6 ++
+ core/res/res/values/aospa_symbols.xml         |  4 +
+ .../crdroid/CustomDeviceConfigService.java    | 34 ++++++++
+ .../java/com/android/server/SystemServer.java |  6 ++
+ 6 files changed, 147 insertions(+), 1 deletion(-)
+ create mode 100644 core/java/com/android/internal/util/crdroid/DeviceConfigUtils.java
+ create mode 100644 services/core/java/com/android/server/crdroid/CustomDeviceConfigService.java
+
+diff --git a/core/java/android/provider/Settings.java b/core/java/android/provider/Settings.java
+index a1abaa2805c1..22f9c96a9d43 100644
+--- a/core/java/android/provider/Settings.java
++++ b/core/java/android/provider/Settings.java
+@@ -121,6 +121,8 @@ import java.util.Set;
+ import java.util.concurrent.Executor;
+ import java.util.function.Consumer;
+ 
++import com.android.internal.util.crdroid.DeviceConfigUtils;
++
+ /**
+  * The Settings provider contains global system-level device preferences.
+  */
+@@ -20634,6 +20636,9 @@ public final class Settings {
+         @RequiresPermission(Manifest.permission.WRITE_DEVICE_CONFIG)
+         public static boolean putString(@NonNull String namespace,
+                 @NonNull String name, @Nullable String value, boolean makeDefault) {
++            if (DeviceConfigUtils.shouldDenyDeviceConfigControl(namespace, name)) {
++                return true;
++            }
+             ContentResolver resolver = getContentResolver();
+             return sNameValueCache.putStringForUser(resolver, createCompositeName(namespace, name),
+                     value, null, makeDefault, resolver.getUserId(),
+@@ -20655,7 +20660,9 @@ public final class Settings {
+         public static boolean setStrings(@NonNull String namespace,
+                 @NonNull Map<String, String> keyValues)
+                 throws DeviceConfig.BadConfigException {
+-            return setStrings(getContentResolver(), namespace, keyValues);
++            boolean result = setStrings(getContentResolver(), namespace, keyValues);
++            DeviceConfigUtils.setDefaultProperties(namespace, null);
++            return result;
+         }
+ 
+         /**
+@@ -20705,6 +20712,9 @@ public final class Settings {
+         @RequiresPermission(Manifest.permission.WRITE_DEVICE_CONFIG)
+         public static boolean deleteString(@NonNull String namespace,
+                 @NonNull String name) {
++            if (DeviceConfigUtils.shouldDenyDeviceConfigControl(namespace, name)) {
++                return true;
++            }
+             ContentResolver resolver = getContentResolver();
+             return sNameValueCache.deleteStringForUser(resolver,
+                     createCompositeName(namespace, name), resolver.getUserId());
+@@ -20741,6 +20751,7 @@ public final class Settings {
+             } catch (RemoteException e) {
+                 Log.w(TAG, "Can't reset to defaults for " + CONTENT_URI, e);
+             }
++            DeviceConfigUtils.setDefaultProperties(null, null);
+         }
+ 
+         /**
+diff --git a/core/java/com/android/internal/util/crdroid/DeviceConfigUtils.java b/core/java/com/android/internal/util/crdroid/DeviceConfigUtils.java
+new file mode 100644
+index 000000000000..115c5199def8
+--- /dev/null
++++ b/core/java/com/android/internal/util/crdroid/DeviceConfigUtils.java
+@@ -0,0 +1,85 @@
++/*
++ * Copyright (C) 2023 The Pixel Experience Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ * http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.android.internal.util.crdroid;
++
++import android.content.res.Resources;
++import android.provider.Settings;
++import android.util.Log;
++import java.util.Arrays;
++import java.util.HashMap;
++import java.util.Map;
++import java.util.Set;
++
++import com.android.internal.util.ArrayUtils;
++
++public class DeviceConfigUtils {
++
++    private static final String TAG = DeviceConfigUtils.class.getSimpleName();
++
++    private static final boolean DEBUG = false;
++
++    private static String[] getDeviceConfigsOverride() {
++        String[] globalDeviceConfigs =
++            Resources.getSystem().getStringArray(com.android.internal.R.array.global_device_configs_override);
++        String[] deviceConfigs =
++            Resources.getSystem().getStringArray(com.android.internal.R.array.device_configs_override);
++        String[] allDeviceConfigs = Arrays.copyOf(globalDeviceConfigs, globalDeviceConfigs.length + deviceConfigs.length);
++        System.arraycopy(deviceConfigs, 0, allDeviceConfigs, globalDeviceConfigs.length, deviceConfigs.length);
++        return allDeviceConfigs;
++    }
++
++    public static boolean shouldDenyDeviceConfigControl(String namespace, String property) {
++        if (DEBUG) Log.d(TAG, "shouldAllowDeviceConfigControl, namespace=" + namespace + ", property=" + property);
++        for (String p : getDeviceConfigsOverride()) {
++            String[] kv = p.split("=");
++            String fullKey = kv[0];
++            String[] nsKey = fullKey.split("/");
++            if (nsKey[0] == namespace && nsKey[1] == property){
++                if (DEBUG) Log.d(TAG, "shouldAllowDeviceConfigControl, deny, namespace=" + namespace + ", property=" + property);
++                return true;
++            }
++        }
++        if (DEBUG) Log.d(TAG, "shouldAllowDeviceConfigControl, allow, namespace=" + namespace + ", property=" + property);
++        return false;
++    }
++
++    public static void setDefaultProperties(String filterNamespace, String filterProperty) {
++        if (DEBUG) Log.d(TAG, "setDefaultProperties");
++        for (String p : getDeviceConfigsOverride()) {
++            String[] kv = p.split("=");
++            String fullKey = kv[0];
++            String[] nsKey = fullKey.split("/");
++
++            String namespace = nsKey[0];
++            String key = nsKey[1];
++
++            if (filterNamespace != null && filterNamespace == namespace){
++                continue;
++            }
++
++            if (filterProperty != null && filterProperty == key){
++                continue;
++            }
++
++            String value = "";
++            if (kv.length > 1) {
++                value = kv[1];
++            }
++            Settings.Config.putString(namespace, key, value, false);
++        }
++    }
++}
+diff --git a/core/res/res/values/aospa_config.xml b/core/res/res/values/aospa_config.xml
+index 6c35bdf85f6c..4e61ecbfd982 100644
+--- a/core/res/res/values/aospa_config.xml
++++ b/core/res/res/values/aospa_config.xml
+@@ -140,4 +140,10 @@
+       -->
+     </string-array>
+ 
++    <!-- Define device configs on boot -->
++    <string-array name="global_device_configs_override" translatable="false">
++    </string-array>
++    <string-array name="device_configs_override" translatable="false">
++    </string-array>
++
+ </resources>
+diff --git a/core/res/res/values/aospa_symbols.xml b/core/res/res/values/aospa_symbols.xml
+index f34079b30745..042d94550c91 100644
+--- a/core/res/res/values/aospa_symbols.xml
++++ b/core/res/res/values/aospa_symbols.xml
+@@ -91,4 +91,8 @@
+     <!-- Build properties from a GMS certified device against current platform SPL level -->
+     <java-symbol type="array" name="config_certifiedBuildProperties" />
+ 
++    <!-- Define device configs on boot -->
++    <java-symbol type="array" name="global_device_configs_override" />
++    <java-symbol type="array" name="device_configs_override" />
++
+ </resources>
+diff --git a/services/core/java/com/android/server/crdroid/CustomDeviceConfigService.java b/services/core/java/com/android/server/crdroid/CustomDeviceConfigService.java
+new file mode 100644
+index 000000000000..8d8d18f188af
+--- /dev/null
++++ b/services/core/java/com/android/server/crdroid/CustomDeviceConfigService.java
+@@ -0,0 +1,34 @@
++/*
++ * Copyright (C) 2023 The PixelExperience Project
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++package com.android.server.crdroid;
++
++import android.content.Context;
++import com.android.server.SystemService;
++
++import com.android.internal.util.crdroid.DeviceConfigUtils;
++
++public class CustomDeviceConfigService extends SystemService {
++
++    private static final String TAG = "CustomDeviceConfigService";
++
++    private final Context mContext;
++
++    public CustomDeviceConfigService(Context context) {
++        super(context);
++        mContext = context;
++    }
++
++    @Override
++    public void onStart() {
++    }
++
++    @Override
++    public void onBootPhase(int phase) {
++        if (phase == PHASE_BOOT_COMPLETED) {
++            DeviceConfigUtils.setDefaultProperties(null, null);
++        }
++    }
++}
+diff --git a/services/java/com/android/server/SystemServer.java b/services/java/com/android/server/SystemServer.java
+index a38ab2c00c34..0b615ee139ad 100644
+--- a/services/java/com/android/server/SystemServer.java
++++ b/services/java/com/android/server/SystemServer.java
+@@ -155,6 +155,7 @@ import com.android.server.contextualsearch.ContextualSearchManagerService;
+ import com.android.server.coverage.CoverageService;
+ import com.android.server.cpu.CpuMonitorService;
+ import com.android.server.crdroid.AttestationService;
++import com.android.server.crdroid.CustomDeviceConfigService;
+ import com.android.server.credentials.CredentialManagerService;
+ import com.android.server.criticalevents.CriticalEventLog;
+ import com.android.server.devicepolicy.DevicePolicyManagerService;
+@@ -2707,6 +2708,11 @@ public final class SystemServer implements Dumpable {
+             t.traceBegin("AttestationService");
+             mSystemServiceManager.startService(AttestationService.class);
+             t.traceEnd();
++
++            // CustomDeviceConfigService
++            t.traceBegin("StartCustomDeviceConfigService");
++            mSystemServiceManager.startService(CustomDeviceConfigService.class);
++            t.traceEnd();
+         }
+ 
+         t.traceBegin("StartMediaProjectionManager");
+-- 
+2.47.1
+

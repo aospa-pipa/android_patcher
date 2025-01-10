@@ -1,0 +1,33 @@
+From dd87fc403ab9487aa4d20a0af8758ba9a56d74fa Mon Sep 17 00:00:00 2001
+From: Adithya R <gh0strider.2k18.reborn@gmail.com>
+Date: Tue, 20 Feb 2024 21:09:38 +0530
+Subject: [PATCH 17/17] recovery: Allow bypassing signature verification on all
+ builds
+
+Change-Id: Iaaf5c90e47ba0ad372fada79311fcc277f4de007
+---
+ recovery.cpp | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/recovery.cpp b/recovery.cpp
+index 1f64acbb9..ed808c8af 100644
+--- a/recovery.cpp
++++ b/recovery.cpp
+@@ -177,12 +177,8 @@ static bool yes_no(Device* device, const char* question1, const char* question2)
+ }
+ 
+ bool ask_to_continue_unverified(Device* device) {
+-  if (get_build_type() == "user") {
+-    return false;
+-  } else {
+-    device->GetUI()->SetProgressType(RecoveryUI::EMPTY);
+-    return yes_no(device, "Signature verification failed", "Install anyway?");
+-  }
++  device->GetUI()->SetProgressType(RecoveryUI::EMPTY);
++  return yes_no(device, "Signature verification failed", "Install anyway?");
+ }
+ 
+ bool ask_to_continue_downgrade(Device* device) {
+-- 
+2.47.1
+

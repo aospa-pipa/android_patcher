@@ -1,0 +1,70 @@
+From 053b37c4d529c67367672c5ebf271dc0a3f70d2b Mon Sep 17 00:00:00 2001
+From: Pranav Vashi <neobuddy89@gmail.com>
+Date: Sun, 6 Oct 2024 22:02:24 +0530
+Subject: [PATCH 2/2] FaceUnlock: Fix error when camera id is not found
+
+Log:
+09-16 00:39:00.307  2912  2912 E AndroidRuntime: FATAL EXCEPTION: main
+09-16 00:39:00.307  2912  2912 E AndroidRuntime: Process: co.aospa.sense, PID: 2912
+09-16 00:39:00.307  2912  2912 E AndroidRuntime: java.lang.RuntimeException: Unable to create service co.aospa.sense.SenseService: java.lang.NullPointerException: Attempt to get length of null array
+09-16 00:39:00.307  2912  2912 E AndroidRuntime: 	at android.app.ActivityThread.handleCreateService(ActivityThread.java:4932)
+09-16 00:39:00.307  2912  2912 E AndroidRuntime: 	at android.app.ActivityThread.-$$Nest$mhandleCreateService(Unknown Source:0)
+09-16 00:39:00.307  2912  2912 E AndroidRuntime: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2407)
+09-16 00:39:00.307  2912  2912 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:107)
+09-16 00:39:00.307  2912  2912 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:232)
+09-16 00:39:00.307  2912  2912 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:317)
+09-16 00:39:00.307  2912  2912 E AndroidRuntime: 	at android.app.ActivityThread.main(ActivityThread.java:8601)
+09-16 00:39:00.307  2912  2912 E AndroidRuntime: 	at java.lang.reflect.Method.invoke(Native Method)
+09-16 00:39:00.307  2912  2912 E AndroidRuntime: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:583)
+09-16 00:39:00.307  2912  2912 E AndroidRuntime: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:863)
+09-16 00:39:00.307  2912  2912 E AndroidRuntime: Caused by: java.lang.NullPointerException: Attempt to get length of null array
+09-16 00:39:00.307  2912  2912 E AndroidRuntime: 	at co.aospa.sense.camera.CameraUtil.getCameraId(CameraUtil.kt:43)
+09-16 00:39:00.307  2912  2912 E AndroidRuntime: 	at co.aospa.sense.SenseService.onCreate(SenseService.kt:248)
+09-16 00:39:00.307  2912  2912 E AndroidRuntime: 	at android.app.ActivityThread.handleCreateService(ActivityThread.java:4919)
+09-16 00:39:00.307  2912  2912 E AndroidRuntime: 	... 9 more
+
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ src/co/aospa/sense/camera/CameraUtil.kt | 23 ++++++++++++-----------
+ 1 file changed, 12 insertions(+), 11 deletions(-)
+
+diff --git a/src/co/aospa/sense/camera/CameraUtil.kt b/src/co/aospa/sense/camera/CameraUtil.kt
+index c2a20f2..9bfffee 100644
+--- a/src/co/aospa/sense/camera/CameraUtil.kt
++++ b/src/co/aospa/sense/camera/CameraUtil.kt
+@@ -30,20 +30,21 @@ object CameraUtil {
+ 
+     fun getCameraId(context: Context?): Int {
+         val cameraIdProp = SystemProperties.get("ro.face.sense_service.camera_id")
+-        if (cameraIdProp != null && cameraIdProp != "") {
++        if (!cameraIdProp.isNullOrEmpty()) {
+             return cameraIdProp.toInt()
+         }
+         try {
+-            val cameraManager = context!!.getSystemService(
+-                CameraManager::class.java
+-            )!!
+-            var cameraId: String
+-            var orientation: Int
+-            var characteristics: CameraCharacteristics
+-            for (i in cameraManager.cameraIdList.indices) {
+-                cameraId = cameraManager.cameraIdList[i]
+-                characteristics = cameraManager.getCameraCharacteristics(cameraId)
+-                orientation = characteristics.get(CameraCharacteristics.LENS_FACING)!!
++            val cameraManager = context?.getSystemService(CameraManager::class.java)
++            if (cameraManager == null) {
++                return -1
++            }
++            val cameraIdList = cameraManager.cameraIdList
++            if (cameraIdList.isNullOrEmpty()) {
++                return -1
++            }
++            for (cameraId in cameraIdList) {
++                val characteristics = cameraManager.getCameraCharacteristics(cameraId)
++                val orientation = characteristics.get(CameraCharacteristics.LENS_FACING) ?: continue
+                 if (orientation == CameraCharacteristics.LENS_FACING_FRONT) {
+                     return cameraId.toInt()
+                 }
+-- 
+2.47.1
+

@@ -16,6 +16,24 @@ ASB=(
 )
 
 REPOSITORIES=(
+    'bootable/recovery'
+    'build/make'
+    'build/soong'
+    'device/qcom/common'
+    'external/kotlinc'
+    'external/kotlinx.coroutines'
+    'external/kotlinx.serialization'
+    'frameworks/av'
+    'frameworks/base'
+    'kernel/msm-4.19'
+    'hardware/qcom/media'
+    'packages/apps/LMOFreeform'
+    'packages/apps/ParanoidSense'
+    'packages/apps/ParanoidSettings'
+    'packages/apps/Settings'
+    'system/sepolicy'
+    'vendor/qcom/common'
+    'vendor/qcom/opensource/usb'
 )
 
 for repository in "${ASB[@]}"; do

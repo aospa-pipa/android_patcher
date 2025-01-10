@@ -1,0 +1,258 @@
+From 5987c1b2da1abaa80a33d1ec7756a767a1f82255 Mon Sep 17 00:00:00 2001
+From: Danny Lin <danny@kdrag0n.dev>
+Date: Mon, 11 Oct 2021 19:25:08 -0700
+Subject: [PATCH 033/103] SystemUI: Add dual-tone light and dark themes for QS
+
+neobuddy89: Complete rewrite for material dynamic colors
+
+Change-Id: Icdc4957ecb4e0201377351f1a3e1c6928d6b3955
+Co-authored-by: Pranav Vashi <neobuddy89@gmail.com>
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ core/res/res/values-night/values.xml          | 143 +++++++++++++++++-
+ .../statusbar/phone/ScrimController.java      |  26 +++-
+ 2 files changed, 159 insertions(+), 10 deletions(-)
+
+diff --git a/core/res/res/values-night/values.xml b/core/res/res/values-night/values.xml
+index 1571fab66a5b..89273abf0e36 100644
+--- a/core/res/res/values-night/values.xml
++++ b/core/res/res/values-night/values.xml
+@@ -18,14 +18,151 @@
+ <resources>
+     <style name="Theme.DeviceDefault.SystemUI" parent="android:Theme.DeviceDefault">
+         <!-- Color palette -->
++        <item name="colorPrimary">@color/primary_device_default_settings</item>
+         <item name="colorPrimaryDark">@color/primary_dark_device_default_settings</item>
+         <item name="colorSecondary">@color/secondary_device_default_settings</item>
+         <item name="colorAccent">@color/accent_device_default_dark</item>
++
++        <item name="colorAccentPrimary">@color/accent_primary_device_default</item>
++        <item name="colorAccentSecondary">@color/accent_secondary_device_default</item>
++        <item name="colorAccentTertiary">@color/accent_tertiary_device_default</item>
++        <item name="colorAccentPrimaryVariant">@color/accent_primary_variant_dark_device_default</item>
++        <item name="colorAccentSecondaryVariant">@color/accent_secondary_variant_dark_device_default</item>
++        <item name="colorAccentTertiaryVariant">@color/accent_tertiary_variant_dark_device_default</item>
+         <item name="colorError">@color/error_color_device_default_dark</item>
+         <item name="colorControlNormal">?attr/textColorPrimary</item>
+         <item name="alertDialogTheme">@style/Theme.DeviceDefault.Dialog.Alert</item>
+-        <item name="forceDarkAllowed">false</item>
++
++        <!-- Text styles -->
++        <item name="textAppearanceButton">@style/TextAppearance.DeviceDefault.Widget.Button</item>
++
++        <!-- Button styles -->
++        <item name="buttonCornerRadius">@dimen/config_buttonCornerRadius</item>
++        <item name="buttonBarButtonStyle">@style/Widget.DeviceDefault.Button.ButtonBar.AlertDialog</item>
++
++        <!-- Progress bar attributes -->
++        <item name="colorProgressBackgroundNormal">@color/config_progress_background_tint</item>
++        <item name="progressBarCornerRadius">@dimen/config_progressBarCornerRadius</item>
++
++        <!-- Toolbar attributes -->
++        <item name="toolbarStyle">@style/Widget.DeviceDefault.Toolbar</item>
++
++        <item name="materialColorOnSecondaryFixedVariant">@color/system_on_secondary_fixed_variant</item>
++        <item name="materialColorOnTertiaryFixedVariant">@color/system_on_tertiary_fixed_variant</item>
++        <item name="materialColorSurfaceContainerLowest">@color/system_surface_container_lowest_dark</item>
++        <item name="materialColorOnPrimaryFixedVariant">@color/system_on_primary_fixed_variant</item>
++        <item name="materialColorOnSecondaryContainer">@color/system_on_secondary_container_dark</item>
++        <item name="materialColorOnTertiaryContainer">@color/system_on_tertiary_container_dark</item>
++        <item name="materialColorSurfaceContainerLow">@color/system_surface_container_low_dark</item>
++        <item name="materialColorOnPrimaryContainer">@color/system_on_primary_container_dark</item>
++        <item name="materialColorSecondaryFixedDim">@color/system_secondary_fixed_dim</item>
++        <item name="materialColorOnErrorContainer">@color/system_on_error_container_dark</item>
++        <item name="materialColorOnSecondaryFixed">@color/system_on_secondary_fixed</item>
++        <item name="materialColorOnSurfaceInverse">@color/system_on_surface_dark</item>
++        <item name="materialColorTertiaryFixedDim">@color/system_tertiary_fixed_dim</item>
++        <item name="materialColorOnTertiaryFixed">@color/system_on_tertiary_fixed</item>
++        <item name="materialColorPrimaryFixedDim">@color/system_primary_fixed_dim</item>
++        <item name="materialColorSecondaryContainer">@color/system_secondary_container_dark</item>
++        <item name="materialColorErrorContainer">@color/system_error_container_dark</item>
++        <item name="materialColorOnPrimaryFixed">@color/system_on_primary_fixed</item>
++        <item name="materialColorPrimaryInverse">@color/system_primary_dark</item>
++        <item name="materialColorSecondaryFixed">@color/system_secondary_fixed</item>
++        <item name="materialColorSurfaceInverse">@color/system_surface_dark</item>
++        <item name="materialColorSurfaceVariant">@color/system_surface_variant_dark</item>
++        <item name="materialColorTertiaryContainer">@color/system_tertiary_container_dark</item>
++        <item name="materialColorTertiaryFixed">@color/system_tertiary_fixed</item>
++        <item name="materialColorPrimaryContainer">@color/system_primary_container_dark</item>
++        <item name="materialColorOnBackground">@color/system_on_background_dark</item>
++        <item name="materialColorPrimaryFixed">@color/system_primary_fixed</item>
++
++        <item name="materialColorOnSecondary">@color/system_on_secondary_dark</item>
++        <item name="materialColorOnTertiary">@color/system_on_tertiary_dark</item>
++        <item name="materialColorSurfaceDim">@color/system_surface_dim_dark</item>
++        <item name="materialColorSurfaceBright">@color/system_surface_bright_dark</item>
++        <item name="materialColorOnError">@color/system_on_error_dark</item>
++        <item name="materialColorSurface">@color/system_surface_dark</item>
++        <item name="materialColorSurfaceContainerHigh">@color/system_surface_container_high_dark</item>
++        <item name="materialColorSurfaceContainerHighest">@color/system_surface_container_highest_dark</item>
++        <item name="materialColorOnSurfaceVariant">@color/system_on_surface_variant_dark</item>
++        <item name="materialColorOutline">@color/system_outline_dark</item>
++        <item name="materialColorOutlineVariant">@color/system_outline_variant_dark</item>
++        <item name="materialColorOnPrimary">@color/system_on_primary_dark</item>
++        <item name="materialColorOnSurface">@color/system_on_surface_dark</item>
++        <item name="materialColorSurfaceContainer">@color/system_surface_container_dark</item>
++        <item name="materialColorPrimary">@color/system_primary_dark</item>
++        <item name="materialColorSecondary">@color/system_secondary_dark</item>
++        <item name="materialColorTertiary">@color/system_tertiary_dark</item>
+     </style>
+ 
+-    <style name="Theme.DeviceDefault.SystemUI.Dialog" parent="Theme.DeviceDefault.Dialog" />
+-</resources>
+\ No newline at end of file
++    <style name="Theme.DeviceDefault.SystemUI.Dialog" parent="Theme.DeviceDefault.Dialog">
++        <!-- Color palette -->
++        <item name="colorPrimary">@color/primary_device_default_settings</item>
++        <item name="colorPrimaryDark">@color/primary_dark_device_default_settings</item>
++        <item name="colorSecondary">@color/secondary_device_default_settings</item>
++        <item name="colorAccent">@color/accent_device_default_dark</item>
++        <item name="colorAccentPrimary">@color/accent_primary_device_default</item>
++        <item name="colorAccentSecondary">@color/accent_secondary_device_default</item>
++        <item name="colorAccentTertiary">@color/accent_tertiary_device_default</item>
++        <item name="colorAccentPrimaryVariant">@color/accent_primary_variant_dark_device_default</item>
++        <item name="colorAccentSecondaryVariant">@color/accent_secondary_variant_dark_device_default</item>
++        <item name="colorAccentTertiaryVariant">@color/accent_tertiary_variant_dark_device_default</item>
++        <item name="colorSurface">@color/surface_dark</item>
++        <item name="colorSurfaceHighlight">@color/surface_highlight_dark</item>
++        <item name="colorSurfaceVariant">@color/surface_variant_dark</item>
++        <item name="colorError">@color/error_color_device_default_dark</item>
++        <item name="alertDialogTheme">@style/Theme.DeviceDefault.Dialog.Alert</item>
++
++        <!-- Progress bar attributes -->
++        <item name="colorProgressBackgroundNormal">@color/config_progress_background_tint</item>
++        <item name="progressBarCornerRadius">@dimen/config_progressBarCornerRadius</item>
++
++        <!-- Toolbar attributes -->
++        <item name="toolbarStyle">@style/Widget.DeviceDefault.Toolbar</item>
++
++        <item name="materialColorOnSecondaryFixedVariant">@color/system_on_secondary_fixed_variant</item>
++        <item name="materialColorOnTertiaryFixedVariant">@color/system_on_tertiary_fixed_variant</item>
++        <item name="materialColorSurfaceContainerLowest">@color/system_surface_container_lowest_dark</item>
++        <item name="materialColorOnPrimaryFixedVariant">@color/system_on_primary_fixed_variant</item>
++        <item name="materialColorOnSecondaryContainer">@color/system_on_secondary_container_dark</item>
++        <item name="materialColorOnTertiaryContainer">@color/system_on_tertiary_container_dark</item>
++        <item name="materialColorSurfaceContainerLow">@color/system_surface_container_low_dark</item>
++        <item name="materialColorOnPrimaryContainer">@color/system_on_primary_container_dark</item>
++        <item name="materialColorSecondaryFixedDim">@color/system_secondary_fixed_dim</item>
++        <item name="materialColorOnErrorContainer">@color/system_on_error_container_dark</item>
++        <item name="materialColorOnSecondaryFixed">@color/system_on_secondary_fixed</item>
++        <item name="materialColorOnSurfaceInverse">@color/system_on_surface_dark</item>
++        <item name="materialColorTertiaryFixedDim">@color/system_tertiary_fixed_dim</item>
++        <item name="materialColorOnTertiaryFixed">@color/system_on_tertiary_fixed</item>
++        <item name="materialColorPrimaryFixedDim">@color/system_primary_fixed_dim</item>
++        <item name="materialColorSecondaryContainer">@color/system_secondary_container_dark</item>
++        <item name="materialColorErrorContainer">@color/system_error_container_dark</item>
++        <item name="materialColorOnPrimaryFixed">@color/system_on_primary_fixed</item>
++        <item name="materialColorPrimaryInverse">@color/system_primary_dark</item>
++        <item name="materialColorSecondaryFixed">@color/system_secondary_fixed</item>
++        <item name="materialColorSurfaceInverse">@color/system_surface_dark</item>
++        <item name="materialColorSurfaceVariant">@color/system_surface_variant_dark</item>
++        <item name="materialColorTertiaryContainer">@color/system_tertiary_container_dark</item>
++        <item name="materialColorTertiaryFixed">@color/system_tertiary_fixed</item>
++        <item name="materialColorPrimaryContainer">@color/system_primary_container_dark</item>
++        <item name="materialColorOnBackground">@color/system_on_background_dark</item>
++        <item name="materialColorPrimaryFixed">@color/system_primary_fixed</item>
++
++        <item name="materialColorOnSecondary">@color/system_on_secondary_dark</item>
++        <item name="materialColorOnTertiary">@color/system_on_tertiary_dark</item>
++        <item name="materialColorSurfaceDim">@color/system_surface_dim_dark</item>
++        <item name="materialColorSurfaceBright">@color/system_surface_bright_dark</item>
++        <item name="materialColorOnError">@color/system_on_error_dark</item>
++        <item name="materialColorSurface">@color/system_surface_dark</item>
++        <item name="materialColorSurfaceContainerHigh">@color/system_surface_container_high_dark</item>
++        <item name="materialColorSurfaceContainerHighest">@color/system_surface_container_highest_dark</item>
++        <item name="materialColorOnSurfaceVariant">@color/system_on_surface_variant_dark</item>
++        <item name="materialColorOutline">@color/system_outline_dark</item>
++        <item name="materialColorOutlineVariant">@color/system_outline_variant_dark</item>
++        <item name="materialColorOnPrimary">@color/system_on_primary_dark</item>
++        <item name="materialColorOnSurface">@color/system_on_surface_dark</item>
++        <item name="materialColorSurfaceContainer">@color/system_surface_container_dark</item>
++        <item name="materialColorPrimary">@color/system_primary_dark</item>
++        <item name="materialColorSecondary">@color/system_secondary_dark</item>
++        <item name="materialColorTertiary">@color/system_tertiary_dark</item>
++    </style>
++</resources>
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
+index 2508f47504da..d1c90bc96bb0 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
+@@ -30,12 +30,14 @@ import android.animation.AnimatorListenerAdapter;
+ import android.animation.ValueAnimator;
+ import android.annotation.IntDef;
+ import android.app.AlarmManager;
++import android.content.Context;
+ import android.graphics.Color;
+ import android.os.Handler;
+ import android.os.Trace;
+ import android.util.Log;
+ import android.util.MathUtils;
+ import android.util.Pair;
++import android.view.ContextThemeWrapper;
+ import android.view.View;
+ import android.view.ViewTreeObserver;
+ import android.view.animation.DecelerateInterpolator;
+@@ -225,6 +227,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
+     private final KeyguardInteractor mKeyguardInteractor;
+ 
+     private GradientColors mColors;
++    private GradientColors mBehindColors;
+     private boolean mNeedsDrawableColorUpdate;
+ 
+     private float mAdditionalScrimBehindAlphaKeyguard = 0f;
+@@ -388,6 +391,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
+             }
+         });
+         mColors = new GradientColors();
++        mBehindColors = new GradientColors();
+         mPrimaryBouncerToGoneTransitionViewModel = primaryBouncerToGoneTransitionViewModel;
+         mAlternateBouncerToGoneTransitionViewModel = alternateBouncerToGoneTransitionViewModel;
+         mKeyguardTransitionInteractor = keyguardTransitionInteractor;
+@@ -1249,7 +1253,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
+                     && !mBlankScreen;
+ 
+             mScrimInFront.setColors(mColors, animateScrimInFront);
+-            mScrimBehind.setColors(mColors, animateBehindScrim);
++            mScrimBehind.setColors(mBehindColors, animateBehindScrim);
+             mNotificationsScrim.setColors(mColors, animateScrimNotifications);
+ 
+             dispatchBackScrimState(mScrimBehind.getViewAlpha());
+@@ -1602,21 +1606,29 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
+ 
+     private void updateThemeColors() {
+         if (mScrimBehind == null) return;
+-        int background = Utils.getColorAttr(mScrimBehind.getContext(),
+-                com.android.internal.R.attr.materialColorSurfaceDim).getDefaultColor();
+-        int accent = Utils.getColorAttr(mScrimBehind.getContext(),
+-                com.android.internal.R.attr.materialColorPrimary).getDefaultColor();
++        Context themedContext =
++                new ContextThemeWrapper(mScrimBehind.getContext(), R.style.Theme_SystemUI_QuickSettings);
++        int background = Utils.getColorAttrDefaultColor(themedContext,
++                com.android.internal.R.attr.materialColorSurfaceDim);
++        int accent = Utils.getColorAttrDefaultColor(themedContext,
++                com.android.internal.R.attr.materialColorPrimary);
++
+         mColors.setMainColor(background);
+         mColors.setSecondaryColor(accent);
+         final boolean isBackgroundLight = !ContrastColorUtil.isColorDark(background);
+         mColors.setSupportsDarkText(isBackgroundLight);
+ 
+-        int surface = Utils.getColorAttr(mScrimBehind.getContext(),
+-                com.android.internal.R.attr.materialColorSurface).getDefaultColor();
++        int surface = Utils.getColorAttrDefaultColor(themedContext,
++                R.attr.underSurface);
+         for (ScrimState state : ScrimState.values()) {
+             state.setSurfaceColor(surface);
+         }
+ 
++        mBehindColors.setMainColor(surface);
++        mBehindColors.setSecondaryColor(accent);
++        final boolean isSurfaceBackgroundLight = !ContrastColorUtil.isColorDark(surface);
++        mBehindColors.setSupportsDarkText(isSurfaceBackgroundLight);
++
+         mNeedsDrawableColorUpdate = true;
+     }
+ 
+-- 
+2.47.1
+

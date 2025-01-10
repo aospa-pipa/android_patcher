@@ -1,0 +1,209 @@
+From f363d9c68037951f1395d5c36473446f7a191680 Mon Sep 17 00:00:00 2001
+From: minaripenguin <minaripenguin@users.noreply.github.com>
+Date: Sat, 27 Apr 2024 07:36:47 +0800
+Subject: [PATCH 069/103] SystemUI: Use lighter shade for notifications on
+ light theme
+
+* use colorSurface for QS tile bg color
+* shadeActive has a darker shade compared to system_accent1_600 which looks inconsistent if comparing material u palette across the system, launcher/settings/volume bar uses colorAccent instead of shadeActive
+* use colorSurface for the auto brightness button bg (inactive) because shadeInActive looks a bit dark and it doest match the QS tiles bg color
+
+neobuddy89:
+* Apply colorSurface to more notification elements
+* Do not disable color states for notifications
+
+test: visuals
+
+Change-Id: Ic89451fbdeb96208c2027602f7f724cfe2f2ab9c
+Signed-off-by: minaripenguin <minaripenguin@users.noreply.github.com>
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ .../res/drawable/brightness_progress_full_drawable.xml        | 2 +-
+ .../SystemUI/res/drawable/notif_footer_btn_background.xml     | 2 +-
+ packages/SystemUI/res/drawable/notification_guts_bg.xml       | 2 +-
+ packages/SystemUI/res/drawable/notification_material_bg.xml   | 2 +-
+ packages/SystemUI/res/layout/notification_snooze.xml          | 2 +-
+ packages/SystemUI/res/values-night/styles.xml                 | 2 +-
+ packages/SystemUI/res/values/styles.xml                       | 2 +-
+ .../src/com/android/systemui/qs/tileimpl/QSTileViewImpl.kt    | 4 ++--
+ .../statusbar/notification/footer/ui/view/FooterView.java     | 2 +-
+ .../notification/row/ActivatableNotificationView.java         | 2 +-
+ .../notification/row/NotificationBackgroundView.java          | 2 +-
+ .../notification/row/wrapper/NotificationViewWrapper.java     | 2 +-
+ .../notification/row/ActivatableNotificationViewTest.kt       | 2 +-
+ 13 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/packages/SystemUI/res/drawable/brightness_progress_full_drawable.xml b/packages/SystemUI/res/drawable/brightness_progress_full_drawable.xml
+index a9e7adf668a9..1e9687f6bd18 100644
+--- a/packages/SystemUI/res/drawable/brightness_progress_full_drawable.xml
++++ b/packages/SystemUI/res/drawable/brightness_progress_full_drawable.xml
+@@ -22,7 +22,7 @@
+         android:height="@dimen/rounded_slider_height">
+         <shape>
+             <size android:height="@dimen/rounded_slider_height" />
+-            <solid android:color="?attr/shadeActive" />
++            <solid android:color="?android:attr/colorAccent" />
+             <corners android:radius="@dimen/rounded_slider_corner_radius"/>
+         </shape>
+     </item>
+diff --git a/packages/SystemUI/res/drawable/notif_footer_btn_background.xml b/packages/SystemUI/res/drawable/notif_footer_btn_background.xml
+index b9597375c3df..e6266754c0af 100644
+--- a/packages/SystemUI/res/drawable/notif_footer_btn_background.xml
++++ b/packages/SystemUI/res/drawable/notif_footer_btn_background.xml
+@@ -26,7 +26,7 @@
+                 <padding
+                     android:left="20dp"
+                     android:right="20dp" />
+-                <solid android:color="?androidprv:attr/materialColorSurfaceContainerHigh" />
++                <solid android:color="?androidprv:attr/colorSurface" />
+             </shape>
+         </inset>
+     </item>
+diff --git a/packages/SystemUI/res/drawable/notification_guts_bg.xml b/packages/SystemUI/res/drawable/notification_guts_bg.xml
+index 84e2231738d4..bd9394bf9f8a 100644
+--- a/packages/SystemUI/res/drawable/notification_guts_bg.xml
++++ b/packages/SystemUI/res/drawable/notification_guts_bg.xml
+@@ -17,7 +17,7 @@
+ 
+ <shape xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:androidprv="http://schemas.android.com/apk/prv/res/android">
+-    <solid android:color="?androidprv:attr/materialColorSurfaceContainerHigh" />
++    <solid android:color="?androidprv:attr/colorSurface" />
+     <!--The radius is 1dp smaller than the notification one, to avoid aliasing bugs on the corners -->
+     <corners android:radius="1dp" />
+ </shape>
+diff --git a/packages/SystemUI/res/drawable/notification_material_bg.xml b/packages/SystemUI/res/drawable/notification_material_bg.xml
+index 715be074eaa8..38b161a9fc97 100644
+--- a/packages/SystemUI/res/drawable/notification_material_bg.xml
++++ b/packages/SystemUI/res/drawable/notification_material_bg.xml
+@@ -20,7 +20,7 @@
+         android:color="?android:attr/colorControlHighlight">
+     <item>
+         <shape>
+-            <solid android:color="?androidprv:attr/materialColorSurfaceContainerHigh" />
++            <solid android:color="?androidprv:attr/colorSurface" />
+         </shape>
+     </item>
+     <item>
+diff --git a/packages/SystemUI/res/layout/notification_snooze.xml b/packages/SystemUI/res/layout/notification_snooze.xml
+index ce09385eaf45..2b1a3db9f43e 100644
+--- a/packages/SystemUI/res/layout/notification_snooze.xml
++++ b/packages/SystemUI/res/layout/notification_snooze.xml
+@@ -23,7 +23,7 @@
+     android:orientation="vertical"
+     android:paddingTop="2dp"
+     android:paddingBottom="2dp"
+-    android:background="?androidprv:attr/materialColorSurfaceContainerHigh"
++    android:background="?androidprv:attr/colorSurface"
+     android:theme="@style/Theme.SystemUI">
+ 
+     <RelativeLayout
+diff --git a/packages/SystemUI/res/values-night/styles.xml b/packages/SystemUI/res/values-night/styles.xml
+index 70226ccfbe3e..f982f0ceaa83 100644
+--- a/packages/SystemUI/res/values-night/styles.xml
++++ b/packages/SystemUI/res/values-night/styles.xml
+@@ -35,7 +35,7 @@
+ 
+         <item name="surfaceBright">?androidprv:attr/materialColorSurfaceBright</item>
+         <item name="android:colorBackground">?attr/surfaceBright</item>
+-        <item name="scHigh">?androidprv:attr/materialColorSurfaceContainerHigh</item>
++        <item name="scHigh">?androidprv:attr/colorSurface</item>
+         <item name="primary">?androidprv:attr/materialColorPrimary</item>
+         <item name="tertiary">?androidprv:attr/materialColorTertiary</item>
+         <item name="onSurface">?androidprv:attr/materialColorOnSurface</item>
+diff --git a/packages/SystemUI/res/values/styles.xml b/packages/SystemUI/res/values/styles.xml
+index 43db3b2da334..107f5f6bfb8c 100644
+--- a/packages/SystemUI/res/values/styles.xml
++++ b/packages/SystemUI/res/values/styles.xml
+@@ -508,7 +508,7 @@
+ 
+         <item name="surfaceBright">?androidprv:attr/materialColorSurfaceBright</item>
+         <item name="android:colorBackground">?attr/surfaceBright</item>
+-        <item name="scHigh">?androidprv:attr/materialColorSurfaceContainerHigh</item>
++        <item name="scHigh">?androidprv:attr/colorSurface</item>
+         <item name="primary">?androidprv:attr/materialColorPrimary</item>
+         <item name="tertiary">?androidprv:attr/materialColorTertiary</item>
+         <item name="onSurface">?androidprv:attr/materialColorOnSurface</item>
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/tileimpl/QSTileViewImpl.kt b/packages/SystemUI/src/com/android/systemui/qs/tileimpl/QSTileViewImpl.kt
+index a0d6000631ec..6d57b6c098d5 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/tileimpl/QSTileViewImpl.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/tileimpl/QSTileViewImpl.kt
+@@ -116,8 +116,8 @@ constructor(
+             updateHeight()
+         }
+ 
+-    private val colorActive = Utils.getColorAttrDefaultColor(context, R.attr.shadeActive)
+-    private val colorInactive = Utils.getColorAttrDefaultColor(context, R.attr.shadeInactive)
++    private val colorActive = Utils.getColorAttrDefaultColor(context, com.android.internal.R.attr.colorAccent)
++    private val colorInactive = Utils.getColorAttrDefaultColor(context, com.android.internal.R.attr.colorSurface)
+     private val colorUnavailable = Utils.applyAlpha(UNAVAILABLE_ALPHA, colorInactive)
+ 
+     private val overlayColorActive =
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/footer/ui/view/FooterView.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/footer/ui/view/FooterView.java
+index 5a616dfd1f63..821a7e4fa7f5 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/footer/ui/view/FooterView.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/footer/ui/view/FooterView.java
+@@ -409,7 +409,7 @@ public class FooterView extends StackScrollerDecorView {
+         final @ColorInt int scHigh;
+         if (!notificationFooterBackgroundTintOptimization()) {
+             scHigh = Utils.getColorAttrDefaultColor(mContext,
+-                    com.android.internal.R.attr.materialColorSurfaceContainerHigh);
++                    com.android.internal.R.attr.colorSurface);
+             if (scHigh != 0) {
+                 final ColorFilter bgColorFilter = new PorterDuffColorFilter(scHigh, SRC_ATOP);
+                 clearAllBg.setColorFilter(bgColorFilter);
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ActivatableNotificationView.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ActivatableNotificationView.java
+index d2d0aaa63003..bf7652cefe30 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ActivatableNotificationView.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/ActivatableNotificationView.java
+@@ -126,7 +126,7 @@ public abstract class ActivatableNotificationView extends ExpandableOutlineView
+ 
+     private void updateColors() {
+         mNormalColor = Utils.getColorAttrDefaultColor(mContext,
+-                com.android.internal.R.attr.materialColorSurfaceContainerHigh);
++                com.android.internal.R.attr.colorSurface);
+         mTintedRippleColor = mContext.getColor(
+                 R.color.notification_ripple_tinted_color);
+         mNormalRippleColor = mContext.getColor(
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/NotificationBackgroundView.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/NotificationBackgroundView.java
+index d0db5145e0ff..29b7baaaf95a 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/NotificationBackgroundView.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/NotificationBackgroundView.java
+@@ -75,7 +75,7 @@ public class NotificationBackgroundView extends View implements Dumpable {
+         mDarkColoredStatefulColors = getResources().getColorStateList(
+                 R.color.notification_state_color_dark);
+         mNormalColor = Utils.getColorAttrDefaultColor(mContext,
+-                com.android.internal.R.attr.materialColorSurfaceContainerHigh);
++                com.android.internal.R.attr.colorSurface);
+         mFocusOverlayStroke = getResources().getDimension(R.dimen.notification_focus_stroke_width);
+     }
+ 
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/wrapper/NotificationViewWrapper.java b/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/wrapper/NotificationViewWrapper.java
+index 22b95efa5a95..d4cf91a9bab1 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/wrapper/NotificationViewWrapper.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/notification/row/wrapper/NotificationViewWrapper.java
+@@ -343,7 +343,7 @@ public abstract class NotificationViewWrapper implements TransformableView {
+             return customBackgroundColor;
+         }
+         return Utils.getColorAttr(mView.getContext(),
+-                        com.android.internal.R.attr.materialColorSurfaceContainerHigh)
++                        com.android.internal.R.attr.colorSurface)
+                 .getDefaultColor();
+     }
+ 
+diff --git a/packages/SystemUI/tests/src/com/android/systemui/statusbar/notification/row/ActivatableNotificationViewTest.kt b/packages/SystemUI/tests/src/com/android/systemui/statusbar/notification/row/ActivatableNotificationViewTest.kt
+index 9f98fd4c8508..cb28818ef098 100644
+--- a/packages/SystemUI/tests/src/com/android/systemui/statusbar/notification/row/ActivatableNotificationViewTest.kt
++++ b/packages/SystemUI/tests/src/com/android/systemui/statusbar/notification/row/ActivatableNotificationViewTest.kt
+@@ -63,7 +63,7 @@ class ActivatableNotificationViewTest : SysuiTestCase() {
+         }
+ 
+         mNormalColor = Utils.getColorAttrDefaultColor(mContext,
+-                com.android.internal.R.attr.materialColorSurfaceContainerHigh)
++                com.android.internal.R.attr.colorSurface)
+     }
+ 
+     @Test
+-- 
+2.47.1
+

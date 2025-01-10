@@ -1,0 +1,56 @@
+From 15eba3a721bd84b00d6a9b0cc7039e0e62406d53 Mon Sep 17 00:00:00 2001
+From: Krishna Kurapati <quic_kriskura@quicinc.com>
+Date: Mon, 23 May 2022 19:53:24 +0530
+Subject: [PATCH 2/2] init.qcom.usb.rc: Add support for diag_cnss comp for non
+ IPA targets
+
+Currently in the init scripts, we don't have any compositions that
+can enumerate diag_cnss port (diag_mdm2 interface) but don't have any
+RMNET related interfaces. On targets like Neo where IPA is absent,
+it would be difficult to enumerate diag_mdm2 interface. So reuse PID
+90D9, that corresponds to diag,diag_mdm,adb and refactor it to point
+to diag_mdm2 to enable diag_cnss port for Non-IPA targets.
+
+Change-Id: I8597920f91124cd329c0d869ca18ebb76603fc12
+---
+ etc/init.qcom.usb.rc | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
+
+diff --git a/etc/init.qcom.usb.rc b/etc/init.qcom.usb.rc
+index fd4f350..90df20e 100644
+--- a/etc/init.qcom.usb.rc
++++ b/etc/init.qcom.usb.rc
+@@ -1551,6 +1551,30 @@ on property:sys.usb.ffs.ready=1 && property:sys.usb.config=diag,diag_mdm,adb &&
+     write /config/usb_gadget/g1/UDC ${sys.usb.controller}
+     setprop sys.usb.state ${sys.usb.config}
+ 
++on property:sys.usb.config=diag,diag_cnss,adb && property:sys.usb.configfs=1
++    start adbd
++
++on property:sys.usb.ffs.ready=1 && property:sys.usb.config=diag,diag_cnss,adb && property:sys.usb.configfs=1
++    write /config/usb_gadget/g1/configs/b.1/strings/0x409/configuration "diag_diag_cnss_adb"
++    rm /config/usb_gadget/g1/configs/b.1/f1
++    rm /config/usb_gadget/g1/configs/b.1/f2
++    rm /config/usb_gadget/g1/configs/b.1/f3
++    rm /config/usb_gadget/g1/configs/b.1/f4
++    rm /config/usb_gadget/g1/configs/b.1/f5
++    rm /config/usb_gadget/g1/configs/b.1/f6
++    rm /config/usb_gadget/g1/configs/b.1/f7
++    rm /config/usb_gadget/g1/configs/b.1/f8
++    rm /config/usb_gadget/g1/configs/b.1/f9
++    symlink /config/usb_gadget/g1/configs/b.1 /config/usb_gadget/g1/os_desc/b.1
++    write /config/usb_gadget/g1/idVendor 0x05C6
++    write /config/usb_gadget/g1/idProduct 0x90D9
++    write /config/usb_gadget/g1/functions/diag.diag/pid 0x90d9
++    symlink /config/usb_gadget/g1/functions/${vendor.usb.diag.func.name}.diag /config/usb_gadget/g1/configs/b.1/f1
++    symlink /config/usb_gadget/g1/functions/${vendor.usb.diag.func.name}.diag_mdm2 /config/usb_gadget/g1/configs/b.1/f2
++    symlink /config/usb_gadget/g1/functions/ffs.adb /config/usb_gadget/g1/configs/b.1/f3
++    write /config/usb_gadget/g1/UDC ${sys.usb.controller}
++    setprop sys.usb.state ${sys.usb.config}
++
+ on property:sys.usb.ffs.ready=1 && property:sys.usb.config=diag,diag_mdm,diag_mdm2,qdss,qdss_mdm,serial_cdev,dpl,rmnet && property:sys.usb.configfs=1
+     write /config/usb_gadget/g1/configs/b.1/strings/0x409/configuration "diag_diag_mdm_diag_mdm2_qdss_qdss_mdm_dun_dpl_rmnet"
+     rm /config/usb_gadget/g1/configs/b.1/f1
+-- 
+2.47.1
+

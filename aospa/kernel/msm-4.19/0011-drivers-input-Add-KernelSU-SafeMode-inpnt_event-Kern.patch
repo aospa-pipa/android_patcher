@@ -1,0 +1,40 @@
+From 8eedd3336a2fba4a291f2cf1347809f786dbafc1 Mon Sep 17 00:00:00 2001
+From: tiann <twsxtd@gmail.com>
+Date: Fri, 31 Mar 2023 21:41:43 +0800
+Subject: [PATCH 11/21] drivers: input: Add KernelSU SafeMode inpnt_event
+ Kernel Hook
+
+Change-Id: I1451a84ec902dac8a9c7687b0f8164279cb7a8d6
+---
+ drivers/input/input.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/drivers/input/input.c b/drivers/input/input.c
+index 70ffffea3e58..9f7676ef273d 100644
+--- a/drivers/input/input.c
++++ b/drivers/input/input.c
+@@ -378,6 +378,10 @@ static int input_get_disposition(struct input_dev *dev,
+ 	return disposition;
+ }
+ 
++#ifdef CONFIG_KSU
++extern int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value);
++#endif
++
+ static void input_handle_event(struct input_dev *dev,
+ 			       unsigned int type, unsigned int code, int value)
+ {
+@@ -386,6 +390,10 @@ static void input_handle_event(struct input_dev *dev,
+ 	if (disposition != INPUT_IGNORE_EVENT && type != EV_SYN)
+ 		add_input_randomness(type, code, value);
+ 
++#ifdef CONFIG_KSU
++	ksu_handle_input_handle_event(&type, &code, &value);
++#endif
++
+ 	if ((disposition & INPUT_PASS_TO_DEVICE) && dev->event)
+ 		dev->event(dev, type, code, value);
+ 
+-- 
+2.47.1
+

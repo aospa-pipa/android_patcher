@@ -1,0 +1,100 @@
+From 4df0545f882758f354778fe55da9ae6b0a9c4eea Mon Sep 17 00:00:00 2001
+From: Pranav Vashi <neobuddy89@gmail.com>
+Date: Sun, 29 Jan 2023 21:05:17 +0530
+Subject: [PATCH 052/103] SystemUI: Fix multiple QS background scrim issues
+
+* Apply custom scrim alpha correctly.
+* Fixes: Flickering when using custom scrim alpha and
+  expanding notifications from secured lock screen
+* Fixes: https://github.com/crdroidandroid/issue_tracker/issues/110
+
+Change-Id: Ia683d0c16e03b7f0b266260ce50c8862ab5c2438
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ .../systemui/statusbar/phone/ScrimController.java |  3 +++
+ .../systemui/statusbar/phone/ScrimState.java      | 15 ++++++++++-----
+ 2 files changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
+index bab7ed95b935..6c44c56f1153 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimController.java
+@@ -432,6 +432,9 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
+                 mScrimBehind.getContext().getContentResolver(),
+                 Settings.System.QS_TRANSPARENCY, 100,
+                 UserHandle.USER_CURRENT) / 100);
++            for (ScrimState state : ScrimState.values()) {
++                state.setCustomScrimAlpha(mCustomScrimAlpha);
++            }
+         }
+         final ScrimState[] states = ScrimState.values();
+         for (int i = 0; i < states.length; i++) {
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java
+index dd3c7e3f42d7..e0706a7aef47 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ScrimState.java
+@@ -84,7 +84,7 @@ public enum ScrimState {
+             mNotifTint = mClipQsScrim ? mBackgroundColor : Color.TRANSPARENT;
+ 
+             mFrontAlpha = 0;
+-            mBehindAlpha = mClipQsScrim ? 1 : mScrimBehindAlphaKeyguard;
++            mBehindAlpha = mClipQsScrim ? mCustomScrimAlpha : mScrimBehindAlphaKeyguard;
+             mNotifAlpha = mClipQsScrim ? mScrimBehindAlphaKeyguard : 0;
+             if (mClipQsScrim) {
+                 updateScrimColor(mScrimBehind, 1f /* alpha */, mBackgroundColor);
+@@ -126,7 +126,7 @@ public enum ScrimState {
+     BOUNCER {
+         @Override
+         public void prepare(ScrimState previousState) {
+-            mBehindAlpha = mClipQsScrim ? 1 : mDefaultScrimAlpha;
++            mBehindAlpha = mClipQsScrim ? mCustomScrimAlpha : mDefaultScrimAlpha;
+             mBehindTint = mSurfaceColor;
+             mNotifAlpha = mClipQsScrim ? mDefaultScrimAlpha : 0;
+             mNotifTint = Color.TRANSPARENT;
+@@ -156,7 +156,7 @@ public enum ScrimState {
+     SHADE_LOCKED {
+         @Override
+         public void prepare(ScrimState previousState) {
+-            mBehindAlpha = mClipQsScrim ? 1 : mDefaultScrimAlpha;
++            mBehindAlpha = mClipQsScrim ? mCustomScrimAlpha : mDefaultScrimAlpha;
+             mNotifAlpha = 1f;
+             mFrontAlpha = 0f;
+             mBehindTint = Color.TRANSPARENT;
+@@ -251,7 +251,7 @@ public enum ScrimState {
+         @Override
+         public void prepare(ScrimState previousState) {
+             // State that UI will sync to.
+-            mBehindAlpha = mClipQsScrim ? 1 : 0;
++            mBehindAlpha = mClipQsScrim ? mCustomScrimAlpha : 0;
+             mNotifAlpha = 0;
+             mFrontAlpha = 0;
+             mAnimationDuration = mKeyguardFadingAway
+@@ -295,7 +295,7 @@ public enum ScrimState {
+             mNotifTint = mClipQsScrim ? mBackgroundColor : Color.TRANSPARENT;
+ 
+             mFrontAlpha = 0;
+-            mBehindAlpha = mClipQsScrim ? 1 : 0;
++            mBehindAlpha = mClipQsScrim ? mCustomScrimAlpha : 0;
+             mNotifAlpha = 0;
+ 
+             mBlankScreen = false;
+@@ -359,6 +359,7 @@ public enum ScrimState {
+     float mFrontAlpha;
+     float mBehindAlpha;
+     float mNotifAlpha;
++    float mCustomScrimAlpha;
+ 
+     float mScrimBehindAlphaKeyguard;
+     float mDefaultScrimAlpha;
+@@ -505,4 +506,8 @@ public enum ScrimState {
+     public void setClipQsScrim(boolean clipsQsScrim) {
+         mClipQsScrim = clipsQsScrim;
+     }
++
++    public void setCustomScrimAlpha(float customScrimAlpha) {
++        mCustomScrimAlpha = customScrimAlpha;
++    }
+ }
+-- 
+2.47.1
+

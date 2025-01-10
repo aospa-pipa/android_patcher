@@ -1,0 +1,46 @@
+From 90c0212e21f49bf608e40d99ba7c87d155ea24d1 Mon Sep 17 00:00:00 2001
+From: Adithya R <gh0strider.2k18.reborn@gmail.com>
+Date: Wed, 25 Oct 2023 21:37:45 +0530
+Subject: [PATCH 009/103] KeyHandler: Specify reason when waking up the device
+
+Without this, it defaults to WAKE_REASON_UNKNOWN which isn't included
+in config_face_auth_wake_up_triggers and fails to trigger face unlock...
+
+Change-Id: If355d06438a0b4bd2d15ab270d5d293b9b06eb52
+---
+ .../core/java/com/android/server/policy/KeyHandler.java   | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/services/core/java/com/android/server/policy/KeyHandler.java b/services/core/java/com/android/server/policy/KeyHandler.java
+index 8ba379950601..6101e0300e01 100644
+--- a/services/core/java/com/android/server/policy/KeyHandler.java
++++ b/services/core/java/com/android/server/policy/KeyHandler.java
+@@ -573,12 +573,12 @@ public class KeyHandler {
+                 if (mPowerManager.isInteractive()) {
+                     return;
+                 }
+-                mPowerManager.wakeUp(SystemClock.uptimeMillis());
++                wakeUp();
+                 handled = true;
+                 vibrate = false;
+                 break;
+             case DIALER:
+-                mPowerManager.wakeUp(SystemClock.uptimeMillis());
++                wakeUp();
+                 if (isKeyguardShowing()) {
+                     dismissKeyguard();
+                 }
+@@ -620,6 +620,10 @@ public class KeyHandler {
+         doHapticFeedback(handled, vibrate);
+     }
+ 
++    private void wakeUp() {
++        mPowerManager.wakeUp(SystemClock.uptimeMillis(), PowerManager.WAKE_REASON_GESTURE, TAG);
++    }
++
+     private void acquireGestureWakeLock() {
+         if (mGestureWakeLock.isHeld()) {
+             mGestureWakeLock.release();
+-- 
+2.47.1
+

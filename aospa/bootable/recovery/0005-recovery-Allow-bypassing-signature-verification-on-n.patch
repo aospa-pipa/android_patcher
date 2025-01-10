@@ -1,0 +1,156 @@
+From 6bd6f2fe4a1bd16877105c0cf6243170a51b6513 Mon Sep 17 00:00:00 2001
+From: Tom Marshall <tdm.code@gmail.com>
+Date: Thu, 21 Jun 2018 00:57:24 +0200
+Subject: [PATCH 05/17] recovery: Allow bypassing signature verification on
+ non-release builds
+
+For non-release (userdebug, eng) builds, when signature verification
+fails, ask the user whether they wish to install anyway.
+
+[aleasto]
+Rewritten to minimize the diff footprint for maintainability
+
+[ghostrider-reborn]
+Don't show WARNING when user chooses not to install when signature
+verification fails.
+
+Change-Id: I950ad455e6f698cabe348f0482eb64287cc88a08
+Signed-off-by: Adithya R <gh0strider.2k18.reborn@gmail.com>
+---
+ install/install.cpp                  | 10 +++++++++-
+ recovery.cpp                         |  9 +++++++++
+ recovery.h                           |  2 ++
+ recovery_main.cpp                    |  2 +-
+ recovery_ui/device.cpp               |  1 +
+ recovery_ui/include/recovery_ui/ui.h | 12 ++++++++++++
+ 6 files changed, 34 insertions(+), 2 deletions(-)
+
+diff --git a/install/install.cpp b/install/install.cpp
+index c392edcb6..fcb6cd295 100644
+--- a/install/install.cpp
++++ b/install/install.cpp
+@@ -55,12 +55,15 @@
+ #include "otautil/sysutil.h"
+ #include "otautil/verifier.h"
+ #include "private/setup_commands.h"
++#include "recovery_ui/device.h"
+ #include "recovery_ui/ui.h"
+ #include "recovery_utils/roots.h"
+ #include "recovery_utils/thermalutil.h"
+ 
+ using namespace std::chrono_literals;
+ 
++bool ask_to_continue_unverified(Device* device);
++
+ static constexpr int kRecoveryApiVersion = 3;
+ // We define RECOVERY_API_VERSION in Android.mk, which will be picked up by build system and packed
+ // into target_files.zip. Assert the version defined in code and in Android.mk are consistent.
+@@ -615,7 +618,12 @@ static InstallResult VerifyAndInstallPackage(Package* package, bool* wipe_cache,
+   // Verify package.
+   if (!verify_package(package, ui)) {
+     log_buffer->push_back(android::base::StringPrintf("error: %d", kZipVerificationFailure));
+-    return INSTALL_CORRUPT;
++    if (!ui->IsTextVisible()) {
++        return INSTALL_CORRUPT;
++    }
++    if (!ask_to_continue_unverified(ui->GetDevice())) {
++        return INSTALL_NONE;
++    }
+   }
+ 
+   // Verify and install the contents of the package.
+diff --git a/recovery.cpp b/recovery.cpp
+index 11dcca14b..789e3c8ec 100644
+--- a/recovery.cpp
++++ b/recovery.cpp
+@@ -175,6 +175,15 @@ static bool yes_no(Device* device, const char* question1, const char* question2)
+   return (chosen_item == 1);
+ }
+ 
++bool ask_to_continue_unverified(Device* device) {
++  if (get_build_type() == "user") {
++    return false;
++  } else {
++    device->GetUI()->SetProgressType(RecoveryUI::EMPTY);
++    return yes_no(device, "Signature verification failed", "Install anyway?");
++  }
++}
++
+ static bool ask_to_wipe_data(Device* device) {
+   std::vector<std::string> headers{ "Wipe all user data?", "  THIS CAN NOT BE UNDONE!" };
+   std::vector<std::string> items{ " Cancel", " Factory data reset" };
+diff --git a/recovery.h b/recovery.h
+index f050549cc..08bacbf0c 100644
+--- a/recovery.h
++++ b/recovery.h
+@@ -22,3 +22,5 @@
+ #include "recovery_ui/device.h"
+ 
+ Device::BuiltinAction start_recovery(Device* device, const std::vector<std::string>& args);
++
++std::string get_build_type();
+diff --git a/recovery_main.cpp b/recovery_main.cpp
+index e4ec4062e..80c2a67bd 100644
+--- a/recovery_main.cpp
++++ b/recovery_main.cpp
+@@ -84,7 +84,7 @@ static void UiLogger(android::base::LogId log_buffer_id, android::base::LogSever
+   }
+ }
+ 
+-static std::string get_build_type() {
++std::string get_build_type() {
+   return android::base::GetProperty("ro.build.type", "");
+ }
+ 
+diff --git a/recovery_ui/device.cpp b/recovery_ui/device.cpp
+index d46df92d3..75bc2bacb 100644
+--- a/recovery_ui/device.cpp
++++ b/recovery_ui/device.cpp
+@@ -51,6 +51,7 @@ static void PopulateMenuItems() {
+ }
+ 
+ Device::Device(RecoveryUI* ui) : ui_(ui) {
++  ui->SetDevice(this);
+   PopulateMenuItems();
+ }
+ 
+diff --git a/recovery_ui/include/recovery_ui/ui.h b/recovery_ui/include/recovery_ui/ui.h
+index c3bb03f38..e9502a844 100644
+--- a/recovery_ui/include/recovery_ui/ui.h
++++ b/recovery_ui/include/recovery_ui/ui.h
+@@ -27,6 +27,8 @@
+ #include <thread>
+ #include <vector>
+ 
++class Device;
++
+ static constexpr const char* DEFAULT_LOCALE = "en-US";
+ 
+ // Abstract class for controlling the user interface during recovery.
+@@ -62,6 +64,14 @@ class RecoveryUI {
+ 
+   virtual ~RecoveryUI();
+ 
++  void SetDevice(Device* device) {
++    device_ = device;
++  }
++
++  Device* GetDevice() {
++    return device_;
++  }
++
+   // Initializes the object; called before anything else. UI texts will be initialized according
+   // to the given locale. Returns true on success.
+   virtual bool Init(const std::string& locale);
+@@ -222,6 +232,8 @@ class RecoveryUI {
+     OFF,
+   };
+ 
++  Device* device_;
++
+   // The sensitivity when detecting a swipe.
+   const int touch_low_threshold_;
+   const int touch_high_threshold_;
+-- 
+2.47.1
+

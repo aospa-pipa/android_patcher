@@ -1,0 +1,36 @@
+From f4864b4041fa64e21931c14737cc98d483c9b441 Mon Sep 17 00:00:00 2001
+From: Wang Han <1701210638@pku.edu.cn>
+Date: Mon, 3 Jun 2024 21:21:39 +0800
+Subject: [PATCH 07/21] Convert devpts domain to ksu_file (#1801) [v1.0.0]
+
+AOSP sepolicy does not allow appdomain to open pts. Hence, convert
+devpts domain to ksu_file to allow any access.
+
+Change-Id: I14191da3660c417cef76859b5a92ea5b5d37be0d
+---
+ drivers/ksu/selinux/selinux.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/ksu/selinux/selinux.c b/drivers/ksu/selinux/selinux.c
+index c333e8a800e6..4ba20b0435c2 100644
+--- a/drivers/ksu/selinux/selinux.c
++++ b/drivers/ksu/selinux/selinux.c
+@@ -131,7 +131,7 @@ bool is_zygote(void *sec)
+ 	return result;
+ }
+ 
+-#define DEVPTS_DOMAIN "u:object_r:devpts:s0"
++#define DEVPTS_DOMAIN "u:object_r:ksu_file:s0"
+ 
+ u32 ksu_get_devpts_sid()
+ {
+@@ -142,4 +142,4 @@ u32 ksu_get_devpts_sid()
+ 		pr_info("get devpts sid err %d\n", err);
+ 	}
+ 	return devpts_sid;
+-}
+\ No newline at end of file
++}
+-- 
+2.47.1
+

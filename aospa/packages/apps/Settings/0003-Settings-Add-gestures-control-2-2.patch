@@ -1,0 +1,740 @@
+From ce3431a525ae300afebd64e39d1695a6f040ce7c Mon Sep 17 00:00:00 2001
+From: Willi Ye <williye97@gmail.com>
+Date: Thu, 7 Apr 2016 17:20:09 +0200
+Subject: [PATCH 03/16] Settings: Add gestures control [2/2]
+
+* Place screen off gesture preferences inside existing system gestures activity
+
+Co-authored-by: Alexander Koskovich <zvnexus@outlook.com>
+Co-authored-by: Jyotiraditya Panda <jyotiraditya@aospa.co>
+Co-authored-by: 33bca <fabian.leutenegger@bluewin.ch>
+Co-authored-by: Carlo Savignano <carlosavignano@aospa.co>
+Co-authored-by: TheStrix <parthbhatia98@gmail.com>
+Co-authored-by: Vishalcj17 <vishalcj@aospa.co>
+Change-Id: I67b1706bfb3c084577d35568c35e55057c0c4bf5
+---
+ res/values/aospa_arrays.xml                   |  53 +++++
+ res/values/aospa_strings.xml                  |  51 +++++
+ res/values/strings.xml                        |   6 -
+ res/xml/display_settings.xml                  |   5 -
+ res/xml/gestures.xml                          |   7 +
+ res/xml/offscreen_gesture_settings.xml        | 141 ++++++++++++
+ src/com/android/settings/DisplaySettings.java |   2 -
+ .../TapToWakePreferenceController.java        |  59 -----
+ .../gestures/OffscreenGestureEnabler.java     |  94 ++++++++
+ .../gestures/OffscreenGestureSettings.java    | 201 ++++++++++++++++++
+ 10 files changed, 547 insertions(+), 72 deletions(-)
+ create mode 100644 res/values/aospa_arrays.xml
+ create mode 100644 res/values/aospa_strings.xml
+ create mode 100644 res/xml/offscreen_gesture_settings.xml
+ delete mode 100644 src/com/android/settings/display/TapToWakePreferenceController.java
+ create mode 100644 src/com/android/settings/gestures/OffscreenGestureEnabler.java
+ create mode 100644 src/com/android/settings/gestures/OffscreenGestureSettings.java
+
+diff --git a/res/values/aospa_arrays.xml b/res/values/aospa_arrays.xml
+new file mode 100644
+index 0000000..55ead00
+--- /dev/null
++++ b/res/values/aospa_arrays.xml
+@@ -0,0 +1,53 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Copyright 2016-2023 Paranoid Android
++
++     Licensed under the Apache License, Version 2.0 (the "License");
++     you may not use this file except in compliance with the License.
++     You may obtain a copy of the License at
++
++          http://www.apache.org/licenses/LICENSE-2.0
++
++     Unless required by applicable law or agreed to in writing, software
++     distributed under the License is distributed on an "AS IS" BASIS,
++     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++     See the License for the specific language governing permissions and
++     limitations under the License.
++-->
++<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
++
++    <!-- Gestures Settings -->
++    <string-array name="gestures_entries">
++        <item>@string/gestures_disabled</item>
++        <item>@string/gestures_wake_device</item>
++        <item>@string/gestures_toggle_flashlight</item>
++        <item>@string/gestures_toggle_airplane_mode</item>
++        <item>@string/gestures_play_pause_music</item>
++        <item>@string/gestures_next_music</item>
++        <item>@string/gestures_previous_music</item>
++        <item>@string/gestures_open_camera</item>
++        <item>@string/gestures_open_dialer</item>
++    </string-array>
++
++    <string-array name="gestures_values">
++        <item>0</item>
++        <item>1</item>
++        <item>3</item>
++        <item>4</item>
++        <item>5</item>
++        <item>6</item>
++        <item>7</item>
++        <item>8</item>
++        <item>9</item>
++    </string-array>
++
++    <string-array name="gestures_entries_ambient">
++        <item>@string/gestures_disabled</item>
++        <item>@string/gestures_pulse_ambient_display</item>
++    </string-array>
++
++    <string-array name="gestures_values_ambient">
++        <item>0</item>
++        <item>2</item>
++    </string-array>
++
++</resources>
+diff --git a/res/values/aospa_strings.xml b/res/values/aospa_strings.xml
+new file mode 100644
+index 0000000..148aa8d
+--- /dev/null
++++ b/res/values/aospa_strings.xml
+@@ -0,0 +1,51 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Copyright 2016-2024 Paranoid Android
++
++     Licensed under the Apache License, Version 2.0 (the "License");
++     you may not use this file except in compliance with the License.
++     You may obtain a copy of the License at
++
++          http://www.apache.org/licenses/LICENSE-2.0
++
++     Unless required by applicable law or agreed to in writing, software
++     distributed under the License is distributed on an "AS IS" BASIS,
++     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++     See the License for the specific language governing permissions and
++     limitations under the License.
++-->
++<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
++
++    <!-- Gestures Settings -->
++    <string name="offscreen_gesture_title">Screen off gestures</string>
++    <string name="offscreen_gesture_summary">Draw patterns or tap on screen to perform actions</string>
++    <string name="keywords_gestures">screen touchscreen draw swipe finger tap</string>
++
++    <string name="gestures_master">Use screen off gestures</string>
++    <string name="gestures_disabled">Disabled</string>
++    <string name="gestures_wake_device">Wake device</string>
++    <string name="gestures_pulse_ambient_display">Pulse to ambient display</string>
++    <string name="gestures_toggle_flashlight">Toggle flashlight</string>
++    <string name="gestures_toggle_airplane_mode">Toggle airplane mode</string>
++    <string name="gestures_play_pause_music">Play/Pause music</string>
++    <string name="gestures_next_music">Next music</string>
++    <string name="gestures_previous_music">Previous music</string>
++    <string name="gestures_open_camera">Open camera</string>
++    <string name="gestures_open_dialer">Open dialer</string>
++
++    <string name="gestures_double_tap">Double-tap</string>
++    <string name="gestures_single_tap">Single-tap</string>
++    <string name="gestures_draw_v">Draw V</string>
++    <string name="gestures_draw_inverse_v">Draw Inverse V</string>
++    <string name="gestures_draw_o">Draw O</string>
++    <string name="gestures_draw_m">Draw M</string>
++    <string name="gestures_draw_w">Draw W</string>
++    <string name="gestures_draw_s">Draw S</string>
++    <string name="gestures_draw_arrow_left">Draw &lt;</string>
++    <string name="gestures_draw_arrow_right">Draw &gt;</string>
++    <string name="gestures_one_finger_swipe_up">One-finger swipe up</string>
++    <string name="gestures_one_finger_swipe_right">One-finger swipe right</string>
++    <string name="gestures_one_finger_swipe_down">One-finger swipe down</string>
++    <string name="gestures_one_finger_swipe_left">One-finger swipe left</string>
++    <string name="gestures_two_finger_swipe">Two-finger swipe</string>
++
++</resources>
+diff --git a/res/values/strings.xml b/res/values/strings.xml
+index 56b8dfe..6754be9 100644
+--- a/res/values/strings.xml
++++ b/res/values/strings.xml
+@@ -9708,12 +9708,6 @@
+     <!-- Summary for the entrypoint that navigates to the App Data Sharing Updates page. [CHAR LIMIT=130]-->
+     <string name="app_data_sharing_updates_summary">Review apps that changed the way they may share your location data</string>
+ 
+-    <!-- Label for tap to wake setting [CHAR LIMIT=30] -->
+-    <string name="tap_to_wake">Tap to wake</string>
+-
+-    <!-- Summary for take to wake setting [CHAR LIMIT=90] -->
+-    <string name="tap_to_wake_summary">Double-tap anywhere on the screen to wake device</string>
+-
+     <!-- Title of a preference item that will show the user's preferences for this app's priority for opening links to websites that it claims to support [CHAR LIMIT=30] -->
+     <string name="domain_urls_title">Opening links</string>
+ 
+diff --git a/res/xml/display_settings.xml b/res/xml/display_settings.xml
+index c65286f..7dc9565 100644
+--- a/res/xml/display_settings.xml
++++ b/res/xml/display_settings.xml
+@@ -196,11 +196,6 @@
+             android:key="lift_to_wake"
+             android:title="@string/lift_to_wake_title"/>
+ 
+-        <SwitchPreferenceCompat
+-            android:key="tap_to_wake"
+-            android:title="@string/tap_to_wake"
+-            android:summary="@string/tap_to_wake_summary"/>
+-
+         <ListPreference
+             android:key="theme"
+             android:title="@string/device_theme"
+diff --git a/res/xml/gestures.xml b/res/xml/gestures.xml
+index de45036..2325362 100644
+--- a/res/xml/gestures.xml
++++ b/res/xml/gestures.xml
+@@ -86,4 +86,11 @@
+         android:title="@string/gesture_prevent_ringing_screen_title"
+         android:fragment="com.android.settings.gestures.PreventRingingGestureSettings"
+         settings:controller="com.android.settings.gestures.PreventRingingParentPreferenceController" />
++
++    <Preference
++        android:key="offscreen_gesture"
++        android:title="@string/offscreen_gesture_title"
++        android:summary="@string/offscreen_gesture_summary"
++        android:fragment="com.android.settings.gestures.OffscreenGestureSettings" />
++
+ </PreferenceScreen>
+diff --git a/res/xml/offscreen_gesture_settings.xml b/res/xml/offscreen_gesture_settings.xml
+new file mode 100644
+index 0000000..d7ccbe6
+--- /dev/null
++++ b/res/xml/offscreen_gesture_settings.xml
+@@ -0,0 +1,141 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!-- Copyright (C) 2022 Paranoid Android
++
++     Licensed under the Apache License, Version 2.0 (the "License");
++     you may not use this file except in compliance with the License.
++     You may obtain a copy of the License at
++
++          http://www.apache.org/licenses/LICENSE-2.0
++
++     Unless required by applicable law or agreed to in writing, software
++     distributed under the License is distributed on an "AS IS" BASIS,
++     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++     See the License for the specific language governing permissions and
++     limitations under the License.
++-->
++<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
++    xmlns:settings="http://schemas.android.com/apk/res/com.android.settings"
++    android:title="@string/offscreen_gesture_title"
++    settings:keywords="@string/keywords_gestures">
++
++    <ListPreference
++        android:entries="@array/gestures_entries"
++        android:entryValues="@array/gestures_values"
++        android:key="double_tap"
++        android:persistent="false"
++        android:summary="%s"
++        android:title="@string/gestures_double_tap" />
++
++    <ListPreference
++        android:entries="@array/gestures_entries_ambient"
++        android:entryValues="@array/gestures_values_ambient"
++        android:key="single_tap"
++        android:persistent="false"
++        android:summary="%s"
++        android:title="@string/gestures_single_tap" />
++
++    <ListPreference
++        android:entries="@array/gestures_entries"
++        android:entryValues="@array/gestures_values"
++        android:key="one_finger_swipe_up"
++        android:persistent="false"
++        android:summary="%s"
++        android:title="@string/gestures_one_finger_swipe_up" />
++
++    <ListPreference
++        android:entries="@array/gestures_entries"
++        android:entryValues="@array/gestures_values"
++        android:key="one_finger_swipe_right"
++        android:persistent="false"
++        android:summary="%s"
++        android:title="@string/gestures_one_finger_swipe_right" />
++
++    <ListPreference
++        android:entries="@array/gestures_entries"
++        android:entryValues="@array/gestures_values"
++        android:key="one_finger_swipe_down"
++        android:persistent="false"
++        android:summary="%s"
++        android:title="@string/gestures_one_finger_swipe_down" />
++
++    <ListPreference
++        android:entries="@array/gestures_entries"
++        android:entryValues="@array/gestures_values"
++        android:key="one_finger_swipe_left"
++        android:persistent="false"
++        android:summary="%s"
++        android:title="@string/gestures_one_finger_swipe_left" />
++
++    <ListPreference
++        android:entries="@array/gestures_entries"
++        android:entryValues="@array/gestures_values"
++        android:key="two_finger_swipe"
++        android:persistent="false"
++        android:summary="%s"
++        android:title="@string/gestures_two_finger_swipe" />
++
++    <ListPreference
++        android:entries="@array/gestures_entries"
++        android:entryValues="@array/gestures_values"
++        android:key="draw_o"
++        android:persistent="false"
++        android:summary="%s"
++        android:title="@string/gestures_draw_o" />
++
++    <ListPreference
++        android:entries="@array/gestures_entries"
++        android:entryValues="@array/gestures_values"
++        android:key="draw_v"
++        android:persistent="false"
++        android:summary="%s"
++        android:title="@string/gestures_draw_v" />
++
++    <ListPreference
++        android:entries="@array/gestures_entries"
++        android:entryValues="@array/gestures_values"
++        android:key="draw_inverse_v"
++        android:persistent="false"
++        android:summary="%s"
++        android:title="@string/gestures_draw_inverse_v" />
++
++    <ListPreference
++        android:entries="@array/gestures_entries"
++        android:entryValues="@array/gestures_values"
++        android:key="draw_m"
++        android:persistent="false"
++        android:summary="%s"
++        android:title="@string/gestures_draw_m" />
++
++    <ListPreference
++        android:entries="@array/gestures_entries"
++        android:entryValues="@array/gestures_values"
++        android:key="draw_w"
++        android:persistent="false"
++        android:summary="%s"
++        android:title="@string/gestures_draw_w" />
++
++    <ListPreference
++        android:entries="@array/gestures_entries"
++        android:entryValues="@array/gestures_values"
++        android:key="draw_s"
++        android:persistent="false"
++        android:summary="%s"
++        android:title="@string/gestures_draw_s" />
++
++    <ListPreference
++        android:entries="@array/gestures_entries"
++        android:entryValues="@array/gestures_values"
++        android:key="draw_arrow_left"
++        android:persistent="false"
++        android:summary="%s"
++        android:title="@string/gestures_draw_arrow_left" />
++
++    <ListPreference
++        android:entries="@array/gestures_entries"
++        android:entryValues="@array/gestures_values"
++        android:key="draw_arrow_right"
++        android:persistent="false"
++        android:summary="%s"
++        android:title="@string/gestures_draw_arrow_right" />
++
++</PreferenceScreen>
+diff --git a/src/com/android/settings/DisplaySettings.java b/src/com/android/settings/DisplaySettings.java
+index 97b9aae..a4ed2e9 100644
+--- a/src/com/android/settings/DisplaySettings.java
++++ b/src/com/android/settings/DisplaySettings.java
+@@ -25,7 +25,6 @@ import com.android.settings.display.BrightnessLevelPreferenceController;
+ import com.android.settings.display.CameraGesturePreferenceController;
+ import com.android.settings.display.LiftToWakePreferenceController;
+ import com.android.settings.display.ShowOperatorNamePreferenceController;
+-import com.android.settings.display.TapToWakePreferenceController;
+ import com.android.settings.display.ThemePreferenceController;
+ import com.android.settings.display.VrDisplayPreferenceController;
+ import com.android.settings.search.BaseSearchIndexProvider;
+@@ -75,7 +74,6 @@ public class DisplaySettings extends DashboardFragment {
+         final List<AbstractPreferenceController> controllers = new ArrayList<>();
+         controllers.add(new CameraGesturePreferenceController(context));
+         controllers.add(new LiftToWakePreferenceController(context));
+-        controllers.add(new TapToWakePreferenceController(context));
+         controllers.add(new VrDisplayPreferenceController(context));
+         controllers.add(new ShowOperatorNamePreferenceController(context));
+         controllers.add(new ThemePreferenceController(context));
+diff --git a/src/com/android/settings/display/TapToWakePreferenceController.java b/src/com/android/settings/display/TapToWakePreferenceController.java
+deleted file mode 100644
+index b074d21..0000000
+--- a/src/com/android/settings/display/TapToWakePreferenceController.java
++++ /dev/null
+@@ -1,59 +0,0 @@
+-/*
+- * Copyright (C) 2016 The Android Open Source Project
+- *
+- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
+- * except in compliance with the License. You may obtain a copy of the License at
+- *
+- *      http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing, software distributed under the
+- * License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+- * KIND, either express or implied. See the License for the specific language governing
+- * permissions and limitations under the License.
+- */
+-package com.android.settings.display;
+-
+-import android.content.Context;
+-import android.provider.Settings;
+-
+-import androidx.preference.Preference;
+-import androidx.preference.TwoStatePreference;
+-
+-import com.android.settings.core.PreferenceControllerMixin;
+-import com.android.settingslib.core.AbstractPreferenceController;
+-
+-public class TapToWakePreferenceController extends AbstractPreferenceController implements
+-        PreferenceControllerMixin, Preference.OnPreferenceChangeListener {
+-
+-    private static final String KEY_TAP_TO_WAKE = "tap_to_wake";
+-
+-    public TapToWakePreferenceController(Context context) {
+-        super(context);
+-    }
+-
+-    @Override
+-    public String getPreferenceKey() {
+-        return KEY_TAP_TO_WAKE;
+-    }
+-
+-    @Override
+-    public boolean isAvailable() {
+-        return mContext.getResources().getBoolean(
+-                com.android.internal.R.bool.config_supportDoubleTapWake);
+-    }
+-
+-    @Override
+-    public void updateState(Preference preference) {
+-        int value = Settings.Secure.getInt(
+-                mContext.getContentResolver(), Settings.Secure.DOUBLE_TAP_TO_WAKE, 0);
+-        ((TwoStatePreference) preference).setChecked(value != 0);
+-    }
+-
+-    @Override
+-    public boolean onPreferenceChange(Preference preference, Object newValue) {
+-        boolean value = (Boolean) newValue;
+-        Settings.Secure.putInt(
+-                mContext.getContentResolver(), Settings.Secure.DOUBLE_TAP_TO_WAKE, value ? 1 : 0);
+-        return true;
+-    }
+-}
+diff --git a/src/com/android/settings/gestures/OffscreenGestureEnabler.java b/src/com/android/settings/gestures/OffscreenGestureEnabler.java
+new file mode 100644
+index 0000000..e9ce7b5
+--- /dev/null
++++ b/src/com/android/settings/gestures/OffscreenGestureEnabler.java
+@@ -0,0 +1,94 @@
++/*
++ * Copyright (C) 2021 Paranoid Android
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.android.settings.gestures;
++
++import android.content.Context;
++import android.os.UserHandle;
++import android.provider.Settings;
++
++import com.android.settings.R;
++import com.android.settings.widget.SwitchWidgetController;
++import com.android.settingslib.core.lifecycle.Lifecycle;
++import com.android.settingslib.core.lifecycle.LifecycleObserver;
++import com.android.settingslib.core.lifecycle.events.OnPause;
++import com.android.settingslib.core.lifecycle.events.OnResume;
++
++public class OffscreenGestureEnabler implements SwitchWidgetController.OnSwitchChangeListener,
++        LifecycleObserver, OnResume, OnPause {
++    private final Context mContext;
++    private final SwitchWidgetController mSwitchWidgetController;
++    private final OnGestureSwitchChangeListener mListener;
++
++    OffscreenGestureEnabler(Context context, SwitchWidgetController switchWidgetController,
++            OnGestureSwitchChangeListener listener, Lifecycle lifecycle) {
++        mContext = context;
++        mSwitchWidgetController = switchWidgetController;
++        if (lifecycle != null) {
++            lifecycle.addObserver(this);
++        }
++
++        final boolean enabled = Settings.System.getIntForUser(mContext.getContentResolver(),
++                Settings.System.GESTURES_ENABLED, 1, UserHandle.USER_CURRENT) != 0;
++        mSwitchWidgetController.setChecked(enabled);
++        mSwitchWidgetController.setTitle(mContext.getString(R.string.gestures_master));
++        mSwitchWidgetController.setupView();
++        mListener = listener;
++
++        mSwitchWidgetController.setListener(this);
++    }
++
++    @Override
++    public void onPause() {
++        try {
++            mSwitchWidgetController.stopListening();
++        } catch (IllegalStateException e) {
++            // Ignore
++        }
++    }
++
++    @Override
++    public void onResume() {
++        try {
++            mSwitchWidgetController.startListening();
++        } catch (IllegalStateException e) {
++            // Ignore
++        }
++    }
++
++    @Override
++    public boolean onSwitchToggled(boolean isChecked) {
++        final boolean succeed = Settings.System.putIntForUser(mContext.getContentResolver(),
++                Settings.System.GESTURES_ENABLED, isChecked ? 1 : 0, UserHandle.USER_CURRENT);
++        if (succeed && mListener != null) {
++            mListener.onChanged(isChecked);
++        }
++        return succeed;
++    }
++
++    public void teardownSwitchController() {
++        try {
++            mSwitchWidgetController.stopListening();
++        } catch (IllegalStateException e) {
++            // Ignore
++        }
++        mSwitchWidgetController.teardownView();
++    }
++
++    public interface OnGestureSwitchChangeListener {
++        void onChanged(boolean enabled);
++    }
++}
+diff --git a/src/com/android/settings/gestures/OffscreenGestureSettings.java b/src/com/android/settings/gestures/OffscreenGestureSettings.java
+new file mode 100644
+index 0000000..e8cc1b5
+--- /dev/null
++++ b/src/com/android/settings/gestures/OffscreenGestureSettings.java
+@@ -0,0 +1,201 @@
++/*
++ * Copyright (C) 2021 Paranoid Android
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.android.settings.gestures;
++
++import android.content.Context;
++import android.os.Bundle;
++import android.os.UserHandle;
++import android.provider.SearchIndexableResource;
++import android.provider.Settings;
++
++import androidx.preference.ListPreference;
++
++import com.android.settings.R;
++import com.android.settings.SettingsActivity;
++import com.android.settings.SettingsPreferenceFragment;
++import com.android.settings.search.BaseSearchIndexProvider;
++import com.android.settings.widget.MainSwitchBarController;
++import com.android.settings.widget.SettingsMainSwitchBar;
++import com.android.settingslib.search.SearchIndexable;
++
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.HashMap;
++import java.util.List;
++
++@SearchIndexable
++public class OffscreenGestureSettings extends SettingsPreferenceFragment implements
++        OffscreenGestureEnabler.OnGestureSwitchChangeListener {
++    private static final String KEY_DOUBLE_TAP = "double_tap";
++    private static final String KEY_SINGLE_TAP = "single_tap";
++    private static final String KEY_DRAW_V = "draw_v";
++    private static final String KEY_DRAW_INVERSE_V = "draw_inverse_v";
++    private static final String KEY_DRAW_O = "draw_o";
++    private static final String KEY_DRAW_M = "draw_m";
++    private static final String KEY_DRAW_W = "draw_w";
++    private static final String KEY_DRAW_S = "draw_s";
++    private static final String KEY_DRAW_ARROW_LEFT = "draw_arrow_left";
++    private static final String KEY_DRAW_ARROW_RIGHT = "draw_arrow_right";
++    private static final String KEY_ONE_FINGER_SWIPE_UP = "one_finger_swipe_up";
++    private static final String KEY_ONE_FINGER_SWIPE_RIGHT = "one_finger_swipe_right";
++    private static final String KEY_ONE_FINGER_SWIPE_DOWN = "one_finger_swipe_down";
++    private static final String KEY_ONE_FINGER_SWIPE_LEFT = "one_finger_swipe_left";
++    private static final String KEY_TWO_FINGER_SWIPE = "two_finger_swipe";
++
++    private static final HashMap<String, Integer> sGesturesKeyCodes = new HashMap<>();
++    private static final HashMap<String, Integer> sGesturesDefaults = new HashMap<>();
++    private static final HashMap<String, String> sGesturesSettings = new HashMap<>();
++
++    static {
++        sGesturesKeyCodes.put(KEY_DOUBLE_TAP, com.android.internal.R.integer.config_doubleTapKeyCode);
++        sGesturesKeyCodes.put(KEY_SINGLE_TAP, com.android.internal.R.integer.config_singleTapKeyCode);
++        sGesturesKeyCodes.put(KEY_DRAW_V, com.android.internal.R.integer.config_drawVKeyCode);
++        sGesturesKeyCodes.put(KEY_DRAW_INVERSE_V, com.android.internal.R.integer.config_drawInverseVKeyCode);
++        sGesturesKeyCodes.put(KEY_DRAW_O, com.android.internal.R.integer.config_drawOKeyCode);
++        sGesturesKeyCodes.put(KEY_DRAW_M, com.android.internal.R.integer.config_drawMKeyCode);
++        sGesturesKeyCodes.put(KEY_DRAW_W, com.android.internal.R.integer.config_drawWKeyCode);
++        sGesturesKeyCodes.put(KEY_DRAW_S, com.android.internal.R.integer.config_drawSKeyCode);
++        sGesturesKeyCodes.put(KEY_DRAW_ARROW_LEFT, com.android.internal.R.integer.config_drawArrowLeftKeyCode);
++        sGesturesKeyCodes.put(KEY_DRAW_ARROW_RIGHT, com.android.internal.R.integer.config_drawArrowRightKeyCode);
++        sGesturesKeyCodes.put(KEY_ONE_FINGER_SWIPE_UP, com.android.internal.R.integer.config_oneFingerSwipeUpKeyCode);
++        sGesturesKeyCodes.put(KEY_ONE_FINGER_SWIPE_RIGHT, com.android.internal.R.integer.config_oneFingerSwipeRightKeyCode);
++        sGesturesKeyCodes.put(KEY_ONE_FINGER_SWIPE_DOWN, com.android.internal.R.integer.config_oneFingerSwipeDownKeyCode);
++        sGesturesKeyCodes.put(KEY_ONE_FINGER_SWIPE_LEFT, com.android.internal.R.integer.config_oneFingerSwipeLeftKeyCode);
++        sGesturesKeyCodes.put(KEY_TWO_FINGER_SWIPE, com.android.internal.R.integer.config_twoFingerSwipeKeyCode);
++    }
++
++    static {
++        sGesturesDefaults.put(KEY_DOUBLE_TAP, com.android.internal.R.integer.config_doubleTapDefault);
++        sGesturesDefaults.put(KEY_SINGLE_TAP, com.android.internal.R.integer.config_singleTapDefault);
++        sGesturesDefaults.put(KEY_DRAW_V, com.android.internal.R.integer.config_drawVDefault);
++        sGesturesDefaults.put(KEY_DRAW_INVERSE_V, com.android.internal.R.integer.config_drawInverseVDefault);
++        sGesturesDefaults.put(KEY_DRAW_O, com.android.internal.R.integer.config_drawODefault);
++        sGesturesDefaults.put(KEY_DRAW_M, com.android.internal.R.integer.config_drawMDefault);
++        sGesturesDefaults.put(KEY_DRAW_W, com.android.internal.R.integer.config_drawWDefault);
++        sGesturesDefaults.put(KEY_DRAW_S, com.android.internal.R.integer.config_drawSDefault);
++        sGesturesDefaults.put(KEY_DRAW_ARROW_LEFT, com.android.internal.R.integer.config_drawArrowLeftDefault);
++        sGesturesDefaults.put(KEY_DRAW_ARROW_RIGHT, com.android.internal.R.integer.config_drawArrowRightDefault);
++        sGesturesDefaults.put(KEY_ONE_FINGER_SWIPE_UP, com.android.internal.R.integer.config_oneFingerSwipeUpDefault);
++        sGesturesDefaults.put(KEY_ONE_FINGER_SWIPE_RIGHT, com.android.internal.R.integer.config_oneFingerSwipeRightDefault);
++        sGesturesDefaults.put(KEY_ONE_FINGER_SWIPE_DOWN, com.android.internal.R.integer.config_oneFingerSwipeDownDefault);
++        sGesturesDefaults.put(KEY_ONE_FINGER_SWIPE_LEFT, com.android.internal.R.integer.config_oneFingerSwipeLeftDefault);
++        sGesturesDefaults.put(KEY_TWO_FINGER_SWIPE, com.android.internal.R.integer.config_twoFingerSwipeDefault);
++    }
++
++    static {
++        sGesturesSettings.put(KEY_DOUBLE_TAP, Settings.System.GESTURE_DOUBLE_TAP);
++        sGesturesSettings.put(KEY_SINGLE_TAP, Settings.System.GESTURE_SINGLE_TAP);
++        sGesturesSettings.put(KEY_DRAW_V, Settings.System.GESTURE_DRAW_V);
++        sGesturesSettings.put(KEY_DRAW_INVERSE_V, Settings.System.GESTURE_DRAW_INVERSE_V);
++        sGesturesSettings.put(KEY_DRAW_O, Settings.System.GESTURE_DRAW_O);
++        sGesturesSettings.put(KEY_DRAW_M, Settings.System.GESTURE_DRAW_M);
++        sGesturesSettings.put(KEY_DRAW_W, Settings.System.GESTURE_DRAW_W);
++        sGesturesSettings.put(KEY_DRAW_S, Settings.System.GESTURE_DRAW_S);
++        sGesturesSettings.put(KEY_DRAW_ARROW_LEFT, Settings.System.GESTURE_DRAW_ARROW_LEFT);
++        sGesturesSettings.put(KEY_DRAW_ARROW_RIGHT, Settings.System.GESTURE_DRAW_ARROW_RIGHT);
++        sGesturesSettings.put(KEY_ONE_FINGER_SWIPE_UP, Settings.System.GESTURE_ONE_FINGER_SWIPE_UP);
++        sGesturesSettings.put(KEY_ONE_FINGER_SWIPE_RIGHT, Settings.System.GESTURE_ONE_FINGER_SWIPE_RIGHT);
++        sGesturesSettings.put(KEY_ONE_FINGER_SWIPE_DOWN, Settings.System.GESTURE_ONE_FINGER_SWIPE_DOWN);
++        sGesturesSettings.put(KEY_ONE_FINGER_SWIPE_LEFT, Settings.System.GESTURE_ONE_FINGER_SWIPE_LEFT);
++        sGesturesSettings.put(KEY_TWO_FINGER_SWIPE, Settings.System.GESTURE_TWO_FINGER_SWIPE);
++    }
++
++    private OffscreenGestureEnabler mGestureEnabler;
++
++    @Override
++    public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
++        super.onCreatePreferences(savedInstanceState, rootKey);
++
++        final boolean enabled = Settings.System.getIntForUser(getContext().getContentResolver(),
++                Settings.System.GESTURES_ENABLED, 1, UserHandle.USER_CURRENT) != 0;
++        for (String gestureKey : sGesturesKeyCodes.keySet()) {
++            if (getResources().getInteger(sGesturesKeyCodes.get(gestureKey)) > 0) {
++                ListPreference pref = findPreference(gestureKey);
++                int gestureDefault = getResources().getInteger(
++                        sGesturesDefaults.get(gestureKey));
++                int gestureBehaviour = Settings.System.getInt(getContentResolver(),
++                        sGesturesSettings.get(gestureKey), gestureDefault);
++
++                pref.setValue(String.valueOf(gestureBehaviour));
++                pref.setEnabled(enabled);
++                pref.setOnPreferenceChangeListener(
++                        (preference, o) -> Settings.System.putIntForUser(getContentResolver(),
++                                sGesturesSettings.get(preference.getKey()),
++                                Integer.parseInt((String) o), UserHandle.USER_CURRENT)
++                );
++            } else {
++                removePreference(gestureKey);
++            }
++        }
++    }
++
++    @Override
++    public void onDestroyView() {
++        super.onDestroyView();
++        mGestureEnabler.teardownSwitchController();
++    }
++
++    @Override
++    protected int getPreferenceScreenResId() {
++        return R.xml.offscreen_gesture_settings;
++    }
++
++    @Override
++    public int getMetricsCategory() {
++        return -1;
++    }
++
++    @Override
++    public void onActivityCreated(Bundle savedInstanceState) {
++        super.onActivityCreated(savedInstanceState);
++        final SettingsActivity activity = (SettingsActivity) getActivity();
++        final SettingsMainSwitchBar switchBar = activity.getSwitchBar();
++        mGestureEnabler = new OffscreenGestureEnabler(getContext(),
++                new MainSwitchBarController(switchBar), this, getSettingsLifecycle());
++    }
++
++    @Override
++    public void onChanged(boolean enabled) {
++        for (String gestureKey : sGesturesKeyCodes.keySet()) {
++            if (getResources().getInteger(sGesturesKeyCodes.get(gestureKey)) > 0) {
++                ListPreference gesturePref = findPreference(gestureKey);
++                gesturePref.setEnabled(enabled);
++            }
++        }
++    }
++
++    public static final SearchIndexProvider SEARCH_INDEX_DATA_PROVIDER = new BaseSearchIndexProvider() {
++        @Override
++        public List<SearchIndexableResource> getXmlResourcesToIndex(
++                Context context, boolean enabled) {
++            final SearchIndexableResource sir = new SearchIndexableResource(context);
++            sir.xmlResId = R.xml.offscreen_gesture_settings;
++            return Collections.singletonList(sir);
++        }
++
++        @Override
++        public List<String> getNonIndexableKeys(Context context) {
++            final List<String> keys = new ArrayList<>();
++            for (String gestureKey : sGesturesKeyCodes.keySet()) {
++                if (context.getResources().getInteger(sGesturesKeyCodes.get(gestureKey)) == 0) {
++                    keys.add(gestureKey);
++                }
++            }
++            return keys;
++        }
++    };
++}
+-- 
+2.47.1
+

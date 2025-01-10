@@ -1,0 +1,33 @@
+From fe5a63601776604a37af92d3c79104501487f70b Mon Sep 17 00:00:00 2001
+From: Krishna Kurapati <quic_kriskura@quicinc.com>
+Date: Mon, 23 May 2022 20:39:39 +0530
+Subject: [PATCH 1/2] USBGadgetHAL: Add diag,diag_cnss,adb to supported
+ composition list
+
+Currently in the gadget hal, we don't have any composition that can
+enumerate diag_cnss port (diag_mdm2 interface) but don't have any
+rmnet related interfaces. On targets like Neo where IPA is absent,
+it would be difficult to enumerate diag_mdm2 interface. So reuse PID
+90D9, that corresponds to diag,diag_mdm,adb and prepare composition
+to enumerate diag_mdm2 on Non-IPA targets.
+
+Change-Id: I5872ab9e031a1812a69efdc584c89a8a6006cbb2
+---
+ hal/usb_compositions.conf | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/hal/usb_compositions.conf b/hal/usb_compositions.conf
+index 263fef4..618da74 100644
+--- a/hal/usb_compositions.conf
++++ b/hal/usb_compositions.conf
+@@ -61,6 +61,7 @@ rndis,diag,diag_mdm,qdss,qdss_mdm,serial_cdev,dpl,adb			0x05C6	0x90E7
+ rndis,diag,qdss,serial_cdev,dpl						0x05C6	0x90E8
+ rndis,diag,qdss,serial_cdev,dpl,adb					0x05C6	0x90E9
+ diag,diag_mdm,adb							0x05C6	0x90D9
++diag,diag_cnss,adb							0x05C6  0x90D9  diag,diag_mdm2,adb
+ diag,diag_mdm,diag_mdm2,qdss,qdss_mdm,serial_cdev,dpl,rmnet		0x05C6	0x90F6
+ diag,diag_mdm,diag_mdm2,qdss,qdss_mdm,serial_cdev,dpl,rmnet,adb		0x05C6	0x90F7
+ rndis,diag,diag_mdm,diag_mdm2,qdss,qdss_mdm,serial_cdev,dpl		0x05C6	0x90F8
+-- 
+2.47.1
+

@@ -1,0 +1,224 @@
+From d0e480495db5fcc83e363cc4191782f5c0ce076f Mon Sep 17 00:00:00 2001
+From: Danny Lin <danny@kdrag0n.dev>
+Date: Thu, 8 Jul 2021 03:04:30 -0700
+Subject: [PATCH 09/16] Settings: Add sliders for color balance adjustment
+
+These sliders allow the user to adjust RGB color balance using our
+simple ColorDisplayManager transforms.
+
+Requires frameworks/base commit: "display: Add simple RGB color balance transform"
+
+Change-Id: I8205ab6e0c354ab77b58d55c5ca2c51fb473cf30
+Signed-off-by: Adithya R <gh0strider.2k18.reborn@gmail.com>
+---
+ res/values/aospa_strings.xml                  |  10 ++
+ res/xml/color_mode_settings.xml               |  30 ++++-
+ .../ColorBalancePreferenceController.java     | 112 ++++++++++++++++++
+ .../display/ColorModePreferenceFragment.java  |  15 +++
+ 4 files changed, 166 insertions(+), 1 deletion(-)
+ create mode 100644 src/com/android/settings/display/ColorBalancePreferenceController.java
+
+diff --git a/res/values/aospa_strings.xml b/res/values/aospa_strings.xml
+index 148aa8d..7abd596 100644
+--- a/res/values/aospa_strings.xml
++++ b/res/values/aospa_strings.xml
+@@ -48,4 +48,14 @@
+     <string name="gestures_one_finger_swipe_left">One-finger swipe left</string>
+     <string name="gestures_two_finger_swipe">Two-finger swipe</string>
+ 
++    <!-- Display settings screen, color balance category title [CHAR LIMIT=30] -->
++    <string name="color_mode_balance_category">Color balance</string>
++    <!-- Display settings screen, red color balance setting slider [CHAR LIMIT=NONE] -->
++    <string name="color_mode_balance_red">Red strength</string>
++    <!-- Display settings screen, green color balance setting slider [CHAR LIMIT=NONE] -->
++    <string name="color_mode_balance_green">Green strength</string>
++    <!-- Display settings screen, blue color balance setting slider [CHAR LIMIT=NONE] -->
++    <string name="color_mode_balance_blue">Blue strength</string>
++    <string name="keywords_color_balance">color, color balance, color correction, red, green, blue, LiveDisplay</string>
++
+ </resources>
+diff --git a/res/xml/color_mode_settings.xml b/res/xml/color_mode_settings.xml
+index 6044141..4662e28 100644
+--- a/res/xml/color_mode_settings.xml
++++ b/res/xml/color_mode_settings.xml
+@@ -17,4 +17,32 @@
+ 
+ <PreferenceScreen
+     xmlns:android="http://schemas.android.com/apk/res/android"
+-    android:title="@string/color_mode_title" />
++    xmlns:settings="http://schemas.android.com/apk/res-auto"
++    android:title="@string/color_mode_title">
++
++    <PreferenceCategory
++        android:key="color_balance_category"
++        android:title="@string/color_mode_balance_category"
++        android:order="100">
++
++        <com.android.settings.widget.SeekBarPreference
++            android:key="color_balance_red"
++            android:title="@string/color_mode_balance_red"
++            settings:keywords="@string/keywords_color_balance"
++            settings:controller="com.android.settings.display.ColorBalancePreferenceController" />
++
++        <com.android.settings.widget.SeekBarPreference
++            android:key="color_balance_green"
++            android:title="@string/color_mode_balance_green"
++            settings:keywords="@string/keywords_color_balance"
++            settings:controller="com.android.settings.display.ColorBalancePreferenceController" />
++
++        <com.android.settings.widget.SeekBarPreference
++            android:key="color_balance_blue"
++            android:title="@string/color_mode_balance_blue"
++            settings:keywords="@string/keywords_color_balance"
++            settings:controller="com.android.settings.display.ColorBalancePreferenceController" />
++
++    </PreferenceCategory>
++
++</PreferenceScreen>
+diff --git a/src/com/android/settings/display/ColorBalancePreferenceController.java b/src/com/android/settings/display/ColorBalancePreferenceController.java
+new file mode 100644
+index 0000000..8eabd94
+--- /dev/null
++++ b/src/com/android/settings/display/ColorBalancePreferenceController.java
+@@ -0,0 +1,112 @@
++/*
++ * Copyright (C) 2018 The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.android.settings.display;
++
++import android.content.Context;
++import android.hardware.display.ColorDisplayManager;
++import android.text.TextUtils;
++
++import androidx.preference.PreferenceScreen;
++
++import com.android.settings.core.SliderPreferenceController;
++import com.android.settings.widget.SeekBarPreference;
++
++public class ColorBalancePreferenceController extends SliderPreferenceController {
++
++    private final ColorDisplayManager mColorDisplayManager;
++    private final int mChannel;
++
++    public ColorBalancePreferenceController(Context context, String key) {
++        super(context, key);
++        mColorDisplayManager = context.getSystemService(ColorDisplayManager.class);
++        mChannel = keyToChannel(key);
++    }
++
++    @Override
++    public int getAvailabilityStatus() {
++        return ColorDisplayManager.isColorTransformAccelerated(mContext) ?
++                AVAILABLE : UNSUPPORTED_ON_DEVICE;
++    }
++
++    @Override
++    public boolean isSliceable() {
++        return TextUtils.equals(getPreferenceKey(), channelToKey(mChannel));
++    }
++
++    @Override
++    public boolean isPublicSlice() {
++        return true;
++    }
++
++    @Override
++    public void displayPreference(PreferenceScreen screen) {
++        super.displayPreference(screen);
++        final SeekBarPreference preference = screen.findPreference(getPreferenceKey());
++        preference.setContinuousUpdates(true);
++        preference.setMax(getMax());
++        preference.setMin(getMin());
++        preference.setProgress(getSliderPosition());
++    }
++
++    @Override
++    public int getSliderPosition() {
++        return mColorDisplayManager.getColorBalanceChannel(mChannel);
++    }
++
++    @Override
++    public boolean setSliderPosition(int position) {
++        return mColorDisplayManager.setColorBalanceChannel(mChannel, position);
++    }
++
++    @Override
++    public int getMax() {
++        // 8-bpc linear sRGB
++        return 255;
++    }
++
++    @Override
++    public int getMin() {
++        // Users shouldn't be able to (accidentally) make their display black. Limit it to 10%.
++        return 25;
++    }
++
++    private static int keyToChannel(String key) {
++        switch (key) {
++            case "color_balance_red":
++                return 0;
++            case "color_balance_green":
++                return 1;
++            case "color_balance_blue":
++                return 2;
++            default:
++                throw new IllegalArgumentException("Unknown key: " + key);
++        }
++    }
++
++    /* package-private */ static String channelToKey(int channel) {
++        switch (channel) {
++            case 0:
++                return "color_balance_red";
++            case 1:
++                return "color_balance_green";
++            case 2:
++                return "color_balance_blue";
++            default:
++                throw new IllegalArgumentException("Unknown channel: " + channel);
++        }
++    }
++}
+diff --git a/src/com/android/settings/display/ColorModePreferenceFragment.java b/src/com/android/settings/display/ColorModePreferenceFragment.java
+index ce33e67..cb261f2 100644
+--- a/src/com/android/settings/display/ColorModePreferenceFragment.java
++++ b/src/com/android/settings/display/ColorModePreferenceFragment.java
+@@ -199,6 +199,21 @@ public class ColorModePreferenceFragment extends RadioButtonPickerFragment {
+         updateIndicator(mViewPager.getCurrentItem());
+     }
+ 
++    @Override
++    public void updateCandidates() {
++        super.updateCandidates();
++
++        PreferenceScreen screen = getPreferenceScreen();
++        getPreferenceManager().inflateFromResource(screen.getContext(), R.xml.color_mode_settings,
++                screen);
++
++        for (int channel = 0; channel < 3; channel++) {
++            ColorBalancePreferenceController controller = new ColorBalancePreferenceController(
++                    screen.getContext(), ColorBalancePreferenceController.channelToKey(channel));
++            controller.displayPreference(screen);
++        }
++    }
++
+     @Override
+     protected void addStaticPreferences(PreferenceScreen screen) {
+         final LayoutPreference preview = new LayoutPreference(screen.getContext(),
+-- 
+2.47.1
+

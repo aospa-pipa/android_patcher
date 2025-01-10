@@ -1,0 +1,88 @@
+From abbbb3766e2d62b2240ab9331c9f265a8645f7f5 Mon Sep 17 00:00:00 2001
+From: jrior001 <jriordan001@gmail.com>
+Date: Thu, 24 Nov 2016 22:34:25 -0500
+Subject: [PATCH 003/103] Allow lid to send a generic COVER_CHANGED broadcast
+
+This intent will be used to launch a common app for devices
+with a view window flip cover(LG, Asus..) or dotcase(HTC).
+
+Updated for Lineage SDK and squashed with the following change:
+
+  Author: Ethan Chen <intervigil@gmail.com>
+  Date:   Sat Jan 28 21:39:21 2017 -0800
+
+    Correctly name LID_STATE_CHANGED broadcast
+
+    Change-Id: I472becdcf310fab8536fb24e6cacf646199f464d
+
+Change-Id: I8ce163d0d3f71e40680f42348847e548b41a0045
+---
+ core/java/android/content/Intent.java             | 15 +++++++++++++++
+ core/res/AndroidManifest.xml                      |  3 +++
+ .../android/server/policy/PhoneWindowManager.java | 10 ++++++++++
+ 3 files changed, 28 insertions(+)
+
+diff --git a/core/java/android/content/Intent.java b/core/java/android/content/Intent.java
+index 360e0fe1e7bb..a873ad452032 100644
+--- a/core/java/android/content/Intent.java
++++ b/core/java/android/content/Intent.java
+@@ -6981,6 +6981,21 @@ public class Intent implements Parcelable, Cloneable {
+     public static final String EXTRA_IS_RESTORE =
+             "android.intent.extra.IS_RESTORE";
+ 
++    /**
++     * Broadcast action: lid state changed
++     * @hide
++     */
++    public static final String ACTION_LID_STATE_CHANGED =
++            "android.intent.action.LID_STATE_CHANGED";
++
++    /**
++     * This field is part of the intent {@link #ACTION_LID_STATE_CHANGED}.
++     * Intent extra field for the state of lid/cover
++     * @hide
++     */
++    public static final String EXTRA_LID_STATE =
++            "android.intent.extra.LID_STATE";
++
+     // ---------------------------------------------------------------------
+     // ---------------------------------------------------------------------
+     // Intent flags (see mFlags variable).
+diff --git a/core/res/AndroidManifest.xml b/core/res/AndroidManifest.xml
+index 5944b6e7f778..4b11778a3639 100644
+--- a/core/res/AndroidManifest.xml
++++ b/core/res/AndroidManifest.xml
+@@ -892,6 +892,9 @@
+     <protected-broadcast android:name="com.android.uwb.uwbcountrycode.GEOCODE_RETRY" />
+     <protected-broadcast android:name="android.telephony.action.ACTION_SATELLITE_SUBSCRIBER_ID_LIST_CHANGED" />
+ 
++    <!-- Used to launch a common app (FlipFlap) for devices with flip cover. -->
++    <protected-broadcast android:name="android.intent.action.LID_STATE_CHANGED" />
++
+     <!-- ====================================================================== -->
+     <!--                          RUNTIME PERMISSIONS                           -->
+     <!-- ====================================================================== -->
+diff --git a/services/core/java/com/android/server/policy/PhoneWindowManager.java b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+index 1226032424f2..41c85d1a6956 100644
+--- a/services/core/java/com/android/server/policy/PhoneWindowManager.java
++++ b/services/core/java/com/android/server/policy/PhoneWindowManager.java
+@@ -6373,6 +6373,16 @@ public class PhoneWindowManager implements WindowManagerPolicy {
+         synchronized (mLock) {
+             updateWakeGestureListenerLp();
+         }
++        sendLidChangeBroadcast();
++    }
++
++    private void sendLidChangeBroadcast() {
++        final int lidState = mDefaultDisplayPolicy.getLidState();
++        Log.d(TAG, "Sending cover change broadcast, lidState=" + lidState);
++        Intent intent = new Intent(Intent.ACTION_LID_STATE_CHANGED);
++        intent.putExtra(Intent.EXTRA_LID_STATE, lidState);
++        intent.setFlags(Intent.FLAG_RECEIVER_REPLACE_PENDING);
++        mContext.sendBroadcastAsUser(intent, UserHandle.SYSTEM);
+     }
+ 
+     void updateUiMode() {
+-- 
+2.47.1
+

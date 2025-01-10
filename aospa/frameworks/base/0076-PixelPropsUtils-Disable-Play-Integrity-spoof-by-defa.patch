@@ -1,0 +1,37 @@
+From 2a235720c3d76af3739c0db47dbb392645264128 Mon Sep 17 00:00:00 2001
+From: Sean Du <do4suki@gmail.com>
+Date: Tue, 24 Dec 2024 08:55:35 +0800
+Subject: [PATCH 076/103] PixelPropsUtils: Disable Play Integrity spoof by
+ default
+
+Change-Id: Id6a1c309df5084478efce917d3f6fb2a6d750850
+Signed-off-by: Sean Du <do4suki@gmail.com>
+---
+ .../com/android/internal/util/crdroid/PixelPropsUtils.java    | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/core/java/com/android/internal/util/crdroid/PixelPropsUtils.java b/core/java/com/android/internal/util/crdroid/PixelPropsUtils.java
+index 46f9342cb742..8182973ec365 100644
+--- a/core/java/com/android/internal/util/crdroid/PixelPropsUtils.java
++++ b/core/java/com/android/internal/util/crdroid/PixelPropsUtils.java
+@@ -382,7 +382,7 @@ public final class PixelPropsUtils {
+     }
+ 
+     private static void spoofBuildGms() {
+-        if (!SystemProperties.getBoolean(SPOOF_PIXEL_PI, true))
++        if (!SystemProperties.getBoolean(SPOOF_PIXEL_PI, false))
+             return;
+         // Alter build parameters to avoid hardware attestation enforcement
+         setPropValue("MANUFACTURER", "Google");
+@@ -407,7 +407,7 @@ public final class PixelPropsUtils {
+     }
+ 
+     public static void onEngineGetCertificateChain() {
+-        if (!SystemProperties.getBoolean(SPOOF_PIXEL_PI, true))
++        if (!SystemProperties.getBoolean(SPOOF_PIXEL_PI, false))
+             return;
+         // Check stack for SafetyNet or Play Integrity
+         if (isCallerSafetyNet() || sIsFinsky) {
+-- 
+2.47.1
+

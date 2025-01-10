@@ -1,0 +1,81 @@
+From 4b60cc243d5fd28b7497928a9834dfb32441e6f0 Mon Sep 17 00:00:00 2001
+From: Pranav Vashi <neobuddy89@gmail.com>
+Date: Wed, 31 Jul 2024 02:37:18 +0530
+Subject: [PATCH 08/16] Settings: Fix crash with face lock preference for
+ limited access users
+
+Ref: https://xdaforums.com/t/rom-14-0-official-clover-kernelsu-crdroid-14-0-for-xiaomi-mi-pad-4-plus.4675646/post-89634146
+
+Crash log:
+
+07-29 19:55:26.011 E/AndroidRuntime(17429): FATAL EXCEPTION: main
+07-29 19:55:26.011 E/AndroidRuntime(17429): Process: com.android.settings, PID: 17429
+07-29 19:55:26.011 E/AndroidRuntime(17429): java.lang.RuntimeException: Unable to resume activity {com.android.settings/com.android.settings.SubSettings}: java.lang.ClassCastException: androidx.preference.SwitchPreferenceCompat cannot be cast to com.android.settingslib.RestrictedSwitchPreference
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at android.app.ActivityThread.performResumeActivity(ActivityThread.java:5244)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at android.app.ActivityThread.handleResumeActivity(ActivityThread.java:5277)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at android.app.servertransaction.ResumeActivityItem.execute(ResumeActivityItem.java:57)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at android.app.servertransaction.ActivityTransactionItem.execute(ActivityTransactionItem.java:60)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at android.app.servertransaction.TransactionExecutor.executeLifecycleItem(TransactionExecutor.java:282)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at android.app.servertransaction.TransactionExecutor.executeTransactionItems(TransactionExecutor.java:150)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:93)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2595)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at android.os.Handler.dispatchMessage(Handler.java:107)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at android.os.Looper.loopOnce(Looper.java:232)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at android.os.Looper.loop(Looper.java:317)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at android.app.ActivityThread.main(ActivityThread.java:8594)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at java.lang.reflect.Method.invoke(Native Method)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:583)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:878)
+07-29 19:55:26.011 E/AndroidRuntime(17429): Caused by: java.lang.ClassCastException: androidx.preference.SwitchPreferenceCompat cannot be cast to com.android.settingslib.RestrictedSwitchPreference
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at com.android.settings.biometrics.face.FaceSettingsLockscreenBypassPreferenceController.updateState(FaceSettingsLockscreenBypassPreferenceController.java:76)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at com.android.settings.dashboard.DashboardFragment.updatePreferenceStates(DashboardFragment.java:414)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at com.android.settings.dashboard.DashboardFragment.onResume(DashboardFragment.java:242)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at androidx.fragment.app.Fragment.performResume(Fragment.java:3206)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at androidx.fragment.app.FragmentStateManager.resume(FragmentStateManager.java:658)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at androidx.fragment.app.FragmentStateManager.moveToExpectedState(FragmentStateManager.java:302)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at androidx.fragment.app.FragmentStore.moveToExpectedState(FragmentStore.java:114)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at androidx.fragment.app.FragmentManager.moveToState(FragmentManager.java:1613)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at androidx.fragment.app.FragmentManager.dispatchStateChange(FragmentManager.java:3197)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at androidx.fragment.app.FragmentManager.dispatchResume(FragmentManager.java:3129)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at androidx.fragment.app.FragmentController.dispatchResume(FragmentController.java:285)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at androidx.fragment.app.FragmentActivity.onResumeFragments(FragmentActivity.java:333)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at androidx.fragment.app.FragmentActivity.onPostResume(FragmentActivity.java:322)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at android.app.Activity.performResume(Activity.java:9163)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	at android.app.ActivityThread.performResumeActivity(ActivityThread.java:5234)
+07-29 19:55:26.011 E/AndroidRuntime(17429): 	... 14 more
+
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ res/xml/configure_notification_settings.xml | 2 +-
+ res/xml/security_lockscreen_settings.xml    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/res/xml/configure_notification_settings.xml b/res/xml/configure_notification_settings.xml
+index b673a08..1ba566b 100644
+--- a/res/xml/configure_notification_settings.xml
++++ b/res/xml/configure_notification_settings.xml
+@@ -98,7 +98,7 @@
+             android:summary="@string/lock_screen_notifs_redact_work_summary"
+             settings:controller="com.android.settings.notification.RedactNotificationPreferenceController" />
+ 
+-        <SwitchPreferenceCompat
++        <com.android.settingslib.RestrictedSwitchPreference
+             android:key="notification_lockscreen_bypass"
+             android:order="16"
+             android:title="@string/lockscreen_bypass_title"
+diff --git a/res/xml/security_lockscreen_settings.xml b/res/xml/security_lockscreen_settings.xml
+index 82a9998..24ca0a9 100644
+--- a/res/xml/security_lockscreen_settings.xml
++++ b/res/xml/security_lockscreen_settings.xml
+@@ -28,7 +28,7 @@
+             android:summary="@string/summary_placeholder"
+             settings:keywords="@string/keywords_lock_screen_notif"/>
+ 
+-        <SwitchPreferenceCompat
++        <com.android.settingslib.RestrictedSwitchPreference
+             android:key="security_display_lockscreen_bypass"
+             android:title="@string/lockscreen_bypass_title"
+             android:summary="@string/lockscreen_bypass_summary"
+-- 
+2.47.1
+

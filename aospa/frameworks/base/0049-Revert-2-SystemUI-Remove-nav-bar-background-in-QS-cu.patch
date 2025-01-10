@@ -1,0 +1,64 @@
+From 8768bd750fedde5b4e8b31cce4db56c4178fcef9 Mon Sep 17 00:00:00 2001
+From: althafvly <althafvly@gmail.com>
+Date: Tue, 8 Oct 2024 16:50:03 +0530
+Subject: [PATCH 049/103] Revert^2 "SystemUI: Remove nav bar background in QS
+ customizer"
+
+This reverts commit 870ecaf7f2362b3ce3f8ca7f2ec362178fe3e605.
+
+Change-Id: Icd1fd00daeabd8820da61063f14745e54b2542c8
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ .../res/layout/qs_customize_panel_content.xml         |  6 ------
+ .../android/systemui/qs/customize/QSCustomizer.java   | 11 -----------
+ 2 files changed, 17 deletions(-)
+
+diff --git a/packages/SystemUI/res/layout/qs_customize_panel_content.xml b/packages/SystemUI/res/layout/qs_customize_panel_content.xml
+index 156c98333f3a..eb12e60095eb 100644
+--- a/packages/SystemUI/res/layout/qs_customize_panel_content.xml
++++ b/packages/SystemUI/res/layout/qs_customize_panel_content.xml
+@@ -57,10 +57,4 @@
+             android:importantForAccessibility="auto" />
+     </com.android.keyguard.AlphaOptimizedLinearLayout>
+ 
+-    <View
+-        android:id="@+id/nav_bar_background"
+-        android:layout_width="match_parent"
+-        android:layout_height="@dimen/navigation_bar_size"
+-        android:layout_gravity="bottom"
+-        android:background="#ff000000" />
+ </merge>
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/customize/QSCustomizer.java b/packages/SystemUI/src/com/android/systemui/qs/customize/QSCustomizer.java
+index 663442476ae9..c1cd52e93d51 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/customize/QSCustomizer.java
++++ b/packages/SystemUI/src/com/android/systemui/qs/customize/QSCustomizer.java
+@@ -113,12 +113,6 @@ public class QSCustomizer extends LinearLayout {
+         if (enabled != mSceneContainerEnabled) {
+             mSceneContainerEnabled = enabled;
+             updateTransparentViewHeight();
+-            if (mSceneContainerEnabled) {
+-                findViewById(R.id.nav_bar_background).setVisibility(View.GONE);
+-            } else {
+-                findViewById(R.id.nav_bar_background)
+-                        .setVisibility(mIsShowingNavBackdrop ? View.VISIBLE : View.GONE);
+-            }
+         }
+     }
+ 
+@@ -133,13 +127,8 @@ public class QSCustomizer extends LinearLayout {
+     }
+ 
+     void updateNavBackDrop(Configuration newConfig, LightBarController lightBarController) {
+-        View navBackdrop = findViewById(R.id.nav_bar_background);
+         mIsShowingNavBackdrop = newConfig.smallestScreenWidthDp >= 600
+                 || newConfig.orientation != Configuration.ORIENTATION_LANDSCAPE;
+-        if (navBackdrop != null) {
+-            navBackdrop.setVisibility(
+-                    mIsShowingNavBackdrop && !mSceneContainerEnabled ? View.VISIBLE : View.GONE);
+-        }
+         updateNavColors(lightBarController);
+     }
+ 
+-- 
+2.47.1
+

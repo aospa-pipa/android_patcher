@@ -1,0 +1,70 @@
+From f3df8983567082da42226d406af37f04b5bcc12f Mon Sep 17 00:00:00 2001
+From: Ankit Savani <70018840+AnkitSavani111@users.noreply.github.com>
+Date: Tue, 24 Dec 2024 22:11:35 +0530
+Subject: [PATCH 075/103] PixelPropsUtils: Update spoof for PUBG and Tencent
+ Games (#1193)
+
+* Unlocks 120fps in BGMI and other Tencent games
+
+Signed-off-by: AnkitSavani111 <ankitmsavani12345@gmail.com>
+---
+ .../util/crdroid/PixelPropsUtils.java         | 21 ++++++++++---------
+ 1 file changed, 11 insertions(+), 10 deletions(-)
+
+diff --git a/core/java/com/android/internal/util/crdroid/PixelPropsUtils.java b/core/java/com/android/internal/util/crdroid/PixelPropsUtils.java
+index d1035140573c..46f9342cb742 100644
+--- a/core/java/com/android/internal/util/crdroid/PixelPropsUtils.java
++++ b/core/java/com/android/internal/util/crdroid/PixelPropsUtils.java
+@@ -57,7 +57,7 @@ public final class PixelPropsUtils {
+     private static final Map<String, Object> propsToChangeMI13P;
+     private static final Map<String, Object> propsToChangeF5;
+     private static final Map<String, Object> propsToChangeBS4;
+-    private static final Map<String, Object> propsToChangeK70;
++    private static final Map<String, Object> propsToChangeS24U;
+ 
+     // Packages to Spoof as the most recent Pixel device
+     private static final String[] packagesToChangeRecentPixel = {
+@@ -146,8 +146,8 @@ public final class PixelPropsUtils {
+             "com.proximabeta.mf.uamo"
+     };
+ 
+-    // Packages to Spoof as Redmi K70
+-    private static final String[] packagesToChangeK70 = {
++    // Packages to Spoof as Samsung S24 Ultra
++    private static final String[] packagesToChangeS24U = {
+             "com.pubg.imobile",
+             "com.pubg.krmobile",
+             "com.rekoo.pubgm",
+@@ -216,11 +216,12 @@ public final class PixelPropsUtils {
+         propsToChangeBS4 = new HashMap<>();
+         propsToChangeBS4.put("MODEL", "2SM-X706B");
+         propsToChangeBS4.put("MANUFACTURER", "blackshark");
+-        propsToChangeK70 = new HashMap<>();
+-        propsToChangeK70.put("BRAND", "Xiaomi");
+-        propsToChangeK70.put("DEVICE", "manet");
+-        propsToChangeK70.put("MANUFACTURER", "Xiaomi");
+-        propsToChangeK70.put("MODEL", "23117RK66C");
++        propsToChangeS24U = new HashMap<>();
++        propsToChangeS24U.put("BRAND", "SAMSUNG");
++        propsToChangeS24U.put("DEVICE", "S24 ULTRA");
++        propsToChangeS24U.put("MANUFACTURER", "SM-S928B");
++        propsToChangeS24U.put("MODEL", "SM-S928B");
++        
+     }
+ 
+     public static void setProps(Context context) {
+@@ -332,9 +333,9 @@ public final class PixelPropsUtils {
+                     Object value = prop.getValue();
+                     setPropValue(key, value);
+                 }
+-            } else if (Arrays.asList(packagesToChangeK70).contains(packageName)) {
++            } else if (Arrays.asList(packagesToChangeS24U).contains(packageName)) {
+                 if (DEBUG) Log.d(TAG, "Defining props for: " + packageName);
+-                for (Map.Entry<String, Object> prop : propsToChangeK70.entrySet()) {
++                for (Map.Entry<String, Object> prop : propsToChangeS24U.entrySet()) {
+                     String key = prop.getKey();
+                     Object value = prop.getValue();
+                     setPropValue(key, value);
+-- 
+2.47.1
+

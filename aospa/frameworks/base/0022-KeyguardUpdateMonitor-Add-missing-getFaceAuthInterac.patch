@@ -1,0 +1,34 @@
+From 7ccf0dd1fbe5be000d2f2dd0f92f4b474efd4caf Mon Sep 17 00:00:00 2001
+From: Michael Bestas <mkbestas@lineageos.org>
+Date: Wed, 30 Oct 2024 11:22:25 +0200
+Subject: [PATCH 022/103] KeyguardUpdateMonitor: Add missing
+ getFaceAuthInteractor null check
+
+Fixes commit 5e49307013cf55d0e37628b55d84ef71b4855d47
+
+Flag: EXEMPT bugfix
+Test: unfold foldable device without face auth.
+Change-Id: Idbfab8dbe671bfd6b992f5945d6636e99feccbc4
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ .../src/com/android/keyguard/KeyguardUpdateMonitor.java       | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/packages/SystemUI/src/com/android/keyguard/KeyguardUpdateMonitor.java b/packages/SystemUI/src/com/android/keyguard/KeyguardUpdateMonitor.java
+index 09c9dd19c390..346d44933010 100644
+--- a/packages/SystemUI/src/com/android/keyguard/KeyguardUpdateMonitor.java
++++ b/packages/SystemUI/src/com/android/keyguard/KeyguardUpdateMonitor.java
+@@ -1856,7 +1856,9 @@ public class KeyguardUpdateMonitor implements TrustManager.TrustListener, Dumpab
+                     if (posture == DEVICE_POSTURE_OPENED) {
+                         mLogger.d("Posture changed to open - attempting to request active"
+                                 + " unlock and run face auth");
+-                        getFaceAuthInteractor().onDeviceUnfolded();
++                        if (getFaceAuthInteractor() != null) {
++                            getFaceAuthInteractor().onDeviceUnfolded();
++                        }
+                         requestActiveUnlockFromWakeReason(PowerManager.WAKE_REASON_UNFOLD_DEVICE,
+                                 false);
+                     }
+-- 
+2.47.1
+

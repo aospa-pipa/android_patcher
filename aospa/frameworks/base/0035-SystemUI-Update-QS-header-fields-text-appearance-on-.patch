@@ -1,0 +1,97 @@
+From 8b9518e00ce0b4495b8af3fbf60755fd828d2caf Mon Sep 17 00:00:00 2001
+From: Dhina17 <dhinalogu@gmail.com>
+Date: Tue, 28 May 2024 22:05:42 +0530
+Subject: [PATCH 035/103] SystemUI: Update QS header fields text appearance on
+ theme change
+
+Now it's showing correct font for QS header clock, date and carrier text
+after changing system font.
+
+Change-Id: I75d7a065e93e17ebba01aa9cbe705ac6ab5a781d
+---
+ .../src/com/android/systemui/shade/ShadeHeaderController.kt | 6 ++++++
+ .../com/android/systemui/shade/carrier/ShadeCarrier.java    | 6 ++++--
+ .../android/systemui/shade/carrier/ShadeCarrierGroup.java   | 3 +--
+ .../mobile/ui/view/ModernShadeCarrierGroupMobileView.kt     | 4 ++++
+ 4 files changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/shade/ShadeHeaderController.kt b/packages/SystemUI/src/com/android/systemui/shade/ShadeHeaderController.kt
+index 37da114137fe..6cb4f2efa84c 100644
+--- a/packages/SystemUI/src/com/android/systemui/shade/ShadeHeaderController.kt
++++ b/packages/SystemUI/src/com/android/systemui/shade/ShadeHeaderController.kt
+@@ -290,6 +290,12 @@ constructor(
+                 updateCarrierGroupPadding()
+                 clock.onDensityOrFontScaleChanged()
+             }
++
++            override fun onThemeChanged() {
++                clock.setTextAppearance(R.style.TextAppearance_QS_Status)
++                date.setTextAppearance(R.style.TextAppearance_QS_Status)
++                mShadeCarrierGroup.updateTextAppearance(R.style.TextAppearance_QS_Status_Carriers)
++            }
+         }
+ 
+     private val nextAlarmCallback =
+diff --git a/packages/SystemUI/src/com/android/systemui/shade/carrier/ShadeCarrier.java b/packages/SystemUI/src/com/android/systemui/shade/carrier/ShadeCarrier.java
+index 6ca0ad47a0a7..9544d0f83bac 100644
+--- a/packages/SystemUI/src/com/android/systemui/shade/carrier/ShadeCarrier.java
++++ b/packages/SystemUI/src/com/android/systemui/shade/carrier/ShadeCarrier.java
+@@ -32,7 +32,6 @@ import androidx.annotation.VisibleForTesting;
+ 
+ import com.android.settingslib.Utils;
+ import com.android.settingslib.graph.SignalDrawable;
+-import com.android.systemui.FontSizeUtils;
+ import com.android.systemui.res.R;
+ import com.android.systemui.statusbar.pipeline.mobile.ui.view.ModernShadeCarrierGroupMobileView;
+ import com.android.systemui.util.LargeScreenUtils;
+@@ -162,7 +161,10 @@ public class ShadeCarrier extends LinearLayout {
+     }
+ 
+     public void updateTextAppearance(@StyleRes int resId) {
+-        FontSizeUtils.updateFontSizeFromStyle(mCarrierText, resId);
++        mCarrierText.setTextAppearance(resId);
++        if (mModernMobileView != null) {
++            mModernMobileView.updateTextAppearance(resId);
++        }
+     }
+ 
+     @Override
+diff --git a/packages/SystemUI/src/com/android/systemui/shade/carrier/ShadeCarrierGroup.java b/packages/SystemUI/src/com/android/systemui/shade/carrier/ShadeCarrierGroup.java
+index e84fb485829c..863858b4cee2 100644
+--- a/packages/SystemUI/src/com/android/systemui/shade/carrier/ShadeCarrierGroup.java
++++ b/packages/SystemUI/src/com/android/systemui/shade/carrier/ShadeCarrierGroup.java
+@@ -23,7 +23,6 @@ import android.view.View;
+ import android.widget.LinearLayout;
+ import android.widget.TextView;
+ 
+-import com.android.systemui.FontSizeUtils;
+ import com.android.systemui.res.R;
+ 
+ /**
+@@ -59,7 +58,7 @@ public class ShadeCarrierGroup extends LinearLayout {
+     }
+ 
+     public void updateTextAppearance(@StyleRes int resId) {
+-        FontSizeUtils.updateFontSizeFromStyle(getNoSimTextView(), resId);
++        getNoSimTextView().setTextAppearance(resId);
+         getCarrier1View().updateTextAppearance(resId);
+         getCarrier2View().updateTextAppearance(resId);
+         getCarrier3View().updateTextAppearance(resId);
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/mobile/ui/view/ModernShadeCarrierGroupMobileView.kt b/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/mobile/ui/view/ModernShadeCarrierGroupMobileView.kt
+index fbd074d5b003..98edf65b5b68 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/mobile/ui/view/ModernShadeCarrierGroupMobileView.kt
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/pipeline/mobile/ui/view/ModernShadeCarrierGroupMobileView.kt
+@@ -45,6 +45,10 @@ class ModernShadeCarrierGroupMobileView(
+             "viewString=${super.toString()}"
+     }
+ 
++    fun updateTextAppearance(resId: Int) {
++        requireViewById<AutoMarqueeTextView>(R.id.mobile_carrier_text).setTextAppearance(resId)
++    }
++
+     companion object {
+ 
+         /**
+-- 
+2.47.1
+

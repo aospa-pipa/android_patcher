@@ -1,0 +1,34 @@
+From fbbac0de0d057b2dd4af7710f78053230ef5688b Mon Sep 17 00:00:00 2001
+From: Tobias Merkel <stylogey@gmail.com>
+Date: Thu, 22 Jun 2023 18:52:41 +0200
+Subject: [PATCH 042/103] SystemUI: refresh system icons on theme change
+
+* Some usages of the system icons were not updated on a pack change.
+  Change that by recreating the icons on theme changes.
+
+[neobuddy89: Adapted for A15.]
+
+Signed-off-by: Pranav Vashi <neobuddy89@gmail.com>
+---
+ .../statusbar/phone/ui/StatusBarIconControllerImpl.java      | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ui/StatusBarIconControllerImpl.java b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ui/StatusBarIconControllerImpl.java
+index 85213cb0ebff..0aa55f8df2bf 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/phone/ui/StatusBarIconControllerImpl.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/phone/ui/StatusBarIconControllerImpl.java
+@@ -517,6 +517,11 @@ public class StatusBarIconControllerImpl implements Tunable,
+         refreshIconGroups();
+     }
+ 
++    @Override
++    public void onThemeChanged() {
++        refreshIconGroups();
++    }
++
+     private String createExternalSlotName(String slot) {
+         if (slot.endsWith(EXTERNAL_SLOT_SUFFIX)) {
+             return slot;
+-- 
+2.47.1
+

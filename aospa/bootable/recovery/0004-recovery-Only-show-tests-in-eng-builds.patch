@@ -1,0 +1,40 @@
+From 494dad5aacd30d8f2aa61b087a93c0e77406beb5 Mon Sep 17 00:00:00 2001
+From: Michael Bestas <mkbestas@lineageos.org>
+Date: Fri, 27 Sep 2019 20:29:42 +0300
+Subject: [PATCH 04/17] recovery: Only show tests in eng builds
+
+Change-Id: If783711ecd0d20728ec27ebc572b57e6d9bee760
+---
+ recovery_main.cpp | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/recovery_main.cpp b/recovery_main.cpp
+index 903a31732..e4ec4062e 100644
+--- a/recovery_main.cpp
++++ b/recovery_main.cpp
+@@ -84,6 +84,10 @@ static void UiLogger(android::base::LogId log_buffer_id, android::base::LogSever
+   }
+ }
+ 
++static std::string get_build_type() {
++  return android::base::GetProperty("ro.build.type", "");
++}
++
+ // Parses the command line argument from various sources; and reads the stage field from BCB.
+ // command line args come from, in decreasing precedence:
+ //   - the actual command line
+@@ -448,6 +452,11 @@ int main(int argc, char** argv) {
+     device->RemoveMenuItemForAction(Device::ENTER_FASTBOOT);
+   }
+ 
++  if (get_build_type() != "eng") {
++    device->RemoveMenuItemForAction(Device::RUN_GRAPHICS_TEST);
++    device->RemoveMenuItemForAction(Device::RUN_LOCALE_TEST);
++  }
++
+   if (!IsRoDebuggable()) {
+     device->RemoveMenuItemForAction(Device::ENTER_RESCUE);
+   }
+-- 
+2.47.1
+
