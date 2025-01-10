@@ -1,8 +1,8 @@
 From 565c777fc22fd5a939611ea30ae8cac4d085610c Mon Sep 17 00:00:00 2001
 From: Yiling Chuang <emilychuang@google.com>
 Date: Mon, 8 Jul 2024 03:09:50 +0000
-Subject: [PATCH] RESTRICT AUTOMERGE FRP bypass defense in App battery usage
- page
+Subject: [PATCH 1/4] RESTRICT AUTOMERGE FRP bypass defense in App battery
+ usage page
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit

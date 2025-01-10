@@ -4,8 +4,12 @@ ROOT="${PWD}"
 
 ASB=(
     'build/release'
+    'external/skia'
     'frameworks/base'
+    'frameworks/native'
     'packages/apps/Settings'
+    'packages/modules/Wifi'
+    'packages/providers/MediaProvider'
 )
 
 REPOSITORIES=(
