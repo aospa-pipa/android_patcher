@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <project path="packages/apps/Aperture" name="LineageOS/android_packages_apps_Aperture" remote="github" revision="lineage-22.1" />
+  <project path="packages/apps/AudioFX" name="LineageOS/android_packages_apps_AudioFX" remote="github" revision="lineage-22.1" />
+  <project path="packages/apps/Camelot" name="LineageOS/android_packages_apps_Camelot" remote="github" revision="lineage-22.1" />
+  <project path="packages/apps/Twelve" name="LineageOS/android_packages_apps_Twelve" remote="github" revision="lineage-22.1" />
+</manifest>

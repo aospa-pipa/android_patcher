@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <project path="patcher" name="aospa-pipa/android_patcher" remote="github" revision="vauxite" />
+  <remove-project name="AOSPA/android_vendor_aospa" />
+  <project path="vendor/aospa" name="aospa-pipa/android_vendor_aospa" remote="github" revision="vauxite" >
+    <linkfile src="build.sh" dest="rom-build.sh" />
+  </project>
+  <project path="packages/apps/GameSpace" name="aospa-pipa/android_packages_apps_GameSpace" remote="github" revision="vauxite" />
+</manifest>
+
