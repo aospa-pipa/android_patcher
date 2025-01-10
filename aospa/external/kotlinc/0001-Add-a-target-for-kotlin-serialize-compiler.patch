@@ -1,7 +1,7 @@
-From 8d89c2a49da8d53821bef444cd3fb9224134c46b Mon Sep 17 00:00:00 2001
+From ae60d6f581e38a52cefd6f338aacbaf4da6a212d Mon Sep 17 00:00:00 2001
 From: Luca Stefani <luca.stefani.ge1@gmail.com>
 Date: Thu, 17 Oct 2024 20:33:48 +0200
-Subject: [PATCH] Add a target for kotlin-serialize-compiler
+Subject: [PATCH 1/2] Add a target for kotlin-serialize-compiler
 
 It can be used a kotlin plugin to generate, for example,
 JSON serialize ifaces on the fly
